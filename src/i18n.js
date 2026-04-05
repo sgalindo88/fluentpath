@@ -1,47 +1,51 @@
 /* ═══════════════════════════════════════════════════════════════
-   FluentPath — Internationalisation & UX Helper
+   FluentPath — Level-Aware Translation System
    ─────────────────────────────────────────────────────────────
-   Self-contained: injects its own CSS, builds a language selector,
-   and translates UI chrome (buttons, headings, instructions).
+   Translation mode is determined by the student's CEFR level:
 
-   Supported languages:  en (default), es (Spanish)
-   Adding a language:    add a key to TRANSLATIONS and LANG_META.
+     A1/A2  → spanish-primary : UI in Spanish, English as help text
+     B1/B2  → tap-to-translate: UI in English, tap any text for Spanish tooltip
+     C1     → teacher-gated   : UI in English, Spanish toggle requires teacher approval
+     C2     → english-only    : No translation available
+     (test) → tap-to-translate: Default for placement test (level unknown)
 
-   Include AFTER the page's own scripts:
+   Usage:
      <script src="i18n.js"></script>
+     <script>I18n.setLevel('B1');</script>   // or 'A1','test','C2', etc.
    ═══════════════════════════════════════════════════════════════ */
 
 const I18n = (() => {
   'use strict';
 
-  /* ── Language metadata ──────────────────────────────────── */
-  const LANG_META = {
-    en: { label: 'English', flag: '🇬🇧' },
-    es: { label: 'Español', flag: '🇪🇸' },
-  };
+  /* ── Mode constants ─────────────────────────────────────── */
+  const MODE_SPANISH_PRIMARY = 'spanish-primary';  // A1, A2
+  const MODE_TAP_TRANSLATE   = 'tap-to-translate';  // B1, B2, test
+  const MODE_TEACHER_GATED   = 'teacher-gated';     // C1
+  const MODE_ENGLISH_ONLY    = 'english-only';       // C2
 
-  const LS_KEY = 'fp_lang';
-  let currentLang = 'en';
-  let spanishApproved = false; // gated by teacher setting in Google Sheets
+  let mode = null;         // set by setLevel()
+  let level = null;
+  let teacherApproved = false;  // for C1 gated mode
+  let initialized = false;
 
   /* ── Visual cues — section icons ────────────────────────── */
   const SECTION_ICONS = {
-    'Reading':    '📖',
-    'Writing':    '✍️',
-    'Listening':  '🎧',
-    'Speaking':   '🗣️',
-    'Warm-Up':    '☀️',
-    'Vocabulary':  '📝',
+    'Reading':    '📖', 'Lectura':    '📖',
+    'Writing':    '✍️', 'Escritura':  '✍️',
+    'Listening':  '🎧', 'Comprensión Auditiva': '🎧',
+    'Speaking':   '🗣️', 'Expresión Oral': '🗣️',
+    'Warm-Up':    '☀️', 'Calentamiento': '☀️',
+    'Vocabulary': '📝', 'Vocabulario': '📝',
     'Listening Comprehension': '🎧',
-    'Practice':   '💪',
-    'Review':     '📋',
-    'Pronunciation': '🎤',
+    'Practice':   '💪', 'Práctica': '💪',
+    'Review':     '📋', 'Repaso': '📋',
+    'Pronunciation': '🎤', 'Pronunciación': '🎤',
   };
 
   /* ═════════════════════════════════════════════════════════
-     SPANISH TRANSLATIONS
+     SPANISH TRANSLATIONS (English → Spanish)
      ═════════════════════════════════════════════════════════ */
-  const TRANSLATIONS = { es: {
+  const ES = {
 
     /* ── Buttons / CTAs ─────────────────────────────────── */
     'Continue':                     'Continuar',
@@ -97,14 +101,13 @@ const I18n = (() => {
       '¡Estás listo para comenzar tu curso!',
     'Congratulations — you\'ve completed the course!':
       '¡Felicidades — has completado el curso!',
-    'Looking up your progress…':
-      'Buscando tu progreso…',
+    'Looking up your progress…':    'Buscando tu progreso…',
     'Completed':                    'Completado',
     'Awaiting review':              'Esperando revisión',
     'Complete':                     'Completo',
 
     /* ── Test page ──────────────────────────────────────── */
-    'FluentPath Placement Test':     'Prueba de Nivel FluentPath',
+    'FluentPath Placement Test':    'Prueba de Nivel FluentPath',
     'A comprehensive assessment of speaking, writing, listening and reading skills':
       'Una evaluación completa de las habilidades de habla, escritura, comprensión auditiva y lectura',
     'Full name *':                  'Nombre completo *',
@@ -132,7 +135,7 @@ const I18n = (() => {
 
     /* ── Course page ────────────────────────────────────── */
     'Your Path to Better English':  'Tu Camino hacia un Mejor Inglés',
-    'FluentPath Course':          'Curso FluentPath',
+    'FluentPath Course':            'Curso FluentPath',
     'Your Journey to Fluency':      'Tu Camino hacia la Fluidez',
     'Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation, speaking — at your pace, on your schedule.':
       'Lecciones diarias paso a paso diseñadas para adultos ocupados. Vocabulario, pronunciación, conversación — a tu ritmo, en tu horario.',
@@ -206,8 +209,11 @@ const I18n = (() => {
     'OK':                           'OK',
     'Good':                         'Bien',
     'Great!':                       '¡Excelente!',
+  };
 
-  }};
+  /* Build reverse dictionary (Spanish → English) for spanish-primary mode */
+  const EN_FROM_ES = {};
+  Object.entries(ES).forEach(([en, es]) => { EN_FROM_ES[es] = en; });
 
   /* ═════════════════════════════════════════════════════════
      CSS — injected once
@@ -217,7 +223,7 @@ const I18n = (() => {
     const s = document.createElement('style');
     s.id = 'i18n-styles';
     s.textContent = `
-      /* ── Translation hint (shown below English text) ── */
+      /* ── Help text (secondary language shown below primary) ── */
       .i18n-hint {
         display: block;
         font-family: 'Source Serif 4', Georgia, serif;
@@ -229,409 +235,415 @@ const I18n = (() => {
         line-height: 1.4;
         pointer-events: none;
       }
-      /* Inside buttons: tighter, lighter */
-      button .i18n-hint,
-      a .i18n-hint,
-      .btn-cta .i18n-hint,
-      .btn-enter .i18n-hint {
-        font-size: 0.72em;
-        margin-top: 3px;
-        opacity: 0.8;
-        color: inherit;
+      button .i18n-hint, a .i18n-hint,
+      .btn-cta .i18n-hint, .btn-enter .i18n-hint {
+        font-size: 0.72em; margin-top: 3px; opacity: 0.8; color: inherit;
       }
-      /* Inside dark buttons, keep readable */
-      .btn-nav.primary .i18n-hint,
-      .btn-next .i18n-hint,
-      .btn-start .i18n-hint,
-      .btn-begin .i18n-hint,
-      .btn-enter .i18n-hint,
-      .btn-cta:not(.secondary) .i18n-hint {
+      .btn-nav.primary .i18n-hint, .btn-next .i18n-hint,
+      .btn-start .i18n-hint, .btn-begin .i18n-hint,
+      .btn-enter .i18n-hint, .btn-cta:not(.secondary) .i18n-hint {
         opacity: 0.7;
       }
-      /* Uppercase labels */
       .i18n-hint-upper {
-        text-transform: uppercase;
-        letter-spacing: 0.15em;
-        font-style: normal;
+        text-transform: uppercase; letter-spacing: 0.15em; font-style: normal;
       }
 
-      /* ── Section icon (prepended to headings) ── */
+      /* ── Section icon ── */
       .i18n-icon {
-        margin-right: 6px;
-        font-style: normal;
+        margin-right: 6px; font-style: normal;
       }
 
-      /* ── Language selector widget ── */
-      .i18n-selector {
-        position: fixed;
-        top: 58px;
-        right: 12px;
-        z-index: 300;
-        display: flex;
-        gap: 2px;
-        background: var(--cream, #ede8dc);
-        border: 1px solid var(--rule, #c8bfa8);
-        border-radius: 20px;
-        padding: 3px;
-        box-shadow: 0 2px 8px rgba(26,18,8,0.1);
-        font-family: 'Source Serif 4', Georgia, serif;
+      /* ── Tap-to-translate tooltip ── */
+      .i18n-tappable {
+        cursor: help;
+        border-bottom: 1px dotted var(--rule, #c8bfa8);
+        transition: border-color 0.2s;
       }
-      .i18n-lang-btn {
-        padding: 5px 12px;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        font-size: 12px;
-        font-family: inherit;
-        border-radius: 16px;
-        color: var(--muted, #6b5f4e);
-        transition: all 0.2s;
-        white-space: nowrap;
+      .i18n-tappable:hover {
+        border-bottom-color: var(--rust, #b8471e);
       }
-      .i18n-lang-btn:hover {
-        background: rgba(26,18,8,0.05);
-      }
-      .i18n-lang-btn.active {
+      .i18n-tooltip {
+        position: absolute;
+        z-index: 9999;
         background: var(--ink, #1a1208);
         color: var(--paper, #f5f0e8);
-        font-weight: 600;
-      }
-
-      /* ── Hub welcome: prominent selector ── */
-      .i18n-welcome-selector {
-        display: flex;
-        justify-content: center;
-        gap: 8px;
-        margin: 24px 0 8px;
-      }
-      .i18n-welcome-btn {
-        padding: 8px 18px;
-        border: 1.5px solid var(--rule, #c8bfa8);
-        background: transparent;
-        cursor: pointer;
+        padding: 8px 14px;
+        border-radius: 6px;
         font-family: 'Source Serif 4', Georgia, serif;
-        font-size: 14px;
-        border-radius: 24px;
-        color: var(--ink, #1a1208);
-        transition: all 0.2s;
-      }
-      .i18n-welcome-btn:hover {
-        border-color: var(--ink, #1a1208);
-      }
-      .i18n-welcome-btn.active {
-        background: var(--ink, #1a1208);
-        color: var(--paper, #f5f0e8);
-        border-color: var(--ink, #1a1208);
-      }
-
-      /* ── Disabled state (not approved by teacher) ── */
-      .i18n-lang-btn.disabled,
-      .i18n-welcome-btn.disabled {
-        opacity: 0.35;
-        cursor: not-allowed;
+        font-size: 13px;
+        font-style: italic;
+        max-width: 320px;
+        line-height: 1.5;
+        box-shadow: 0 4px 16px rgba(26,18,8,0.3);
+        animation: i18nFadeIn 0.15s ease both;
         pointer-events: none;
       }
-      .i18n-lang-btn.disabled:hover,
-      .i18n-welcome-btn.disabled:hover {
-        background: transparent;
+      .i18n-tooltip::after {
+        content: '';
+        position: absolute;
+        top: -6px;
+        left: 20px;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 6px solid var(--ink, #1a1208);
       }
-      .i18n-disabled-hint {
-        font-size: 11px;
-        color: var(--muted, #6b5f4e);
-        font-style: italic;
-        text-align: center;
-        margin-top: 4px;
+      @keyframes i18nFadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
 
-      /* ── Hide selector on very small heights ─�� */
+      /* ── C1 gated mode: small indicator ── */
+      .i18n-c1-toggle {
+        position: fixed; top: 58px; right: 12px; z-index: 300;
+        display: flex; align-items: center; gap: 6px;
+        background: var(--cream, #ede8dc); border: 1px solid var(--rule, #c8bfa8);
+        border-radius: 20px; padding: 4px 12px;
+        box-shadow: 0 2px 8px rgba(26,18,8,0.1);
+        font-family: 'Source Serif 4', Georgia, serif;
+        font-size: 12px; color: var(--muted, #6b5f4e);
+        cursor: pointer; transition: all 0.2s;
+      }
+      .i18n-c1-toggle:hover { border-color: var(--ink, #1a1208); }
+      .i18n-c1-toggle.active {
+        background: var(--ink, #1a1208); color: var(--paper, #f5f0e8);
+      }
+      .i18n-c1-toggle.disabled {
+        opacity: 0.35; cursor: not-allowed; pointer-events: none;
+      }
+
+      /* ── Mode indicator badge ── */
+      .i18n-mode-badge {
+        position: fixed; top: 58px; right: 12px; z-index: 300;
+        background: var(--cream, #ede8dc); border: 1px solid var(--rule, #c8bfa8);
+        border-radius: 20px; padding: 4px 12px;
+        font-family: 'Source Serif 4', Georgia, serif;
+        font-size: 11px; color: var(--muted, #6b5f4e);
+        box-shadow: 0 2px 8px rgba(26,18,8,0.1);
+      }
+
       @media (max-width: 600px) {
-        .i18n-selector { top: 50px; right: 8px; padding: 2px; }
-        .i18n-lang-btn { padding: 4px 10px; font-size: 11px; }
+        .i18n-c1-toggle, .i18n-mode-badge { top: 50px; right: 8px; font-size: 10px; padding: 3px 10px; }
+        .i18n-tooltip { max-width: calc(100vw - 32px); font-size: 12px; }
       }
     `;
     document.head.appendChild(s);
   }
 
   /* ═════════════════════════════════════════════════════════
-     Language selector widgets
+     Translation lookup
      ═════════════════════════════════════════════════════════ */
-  function buildFloatingSelector() {
-    if (document.querySelector('.i18n-selector')) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'i18n-selector';
-    Object.entries(LANG_META).forEach(([code, meta]) => {
-      const btn = document.createElement('button');
-      const isDisabled = code !== 'en' && !spanishApproved;
-      btn.className = 'i18n-lang-btn' + (code === currentLang ? ' active' : '') + (isDisabled ? ' disabled' : '');
-      btn.textContent = meta.flag + ' ' + meta.label;
-      if (!isDisabled) btn.onclick = () => setLang(code);
-      wrap.appendChild(btn);
-    });
-    document.body.appendChild(wrap);
+  function t(text) {
+    const trimmed = (text || '').trim();
+    return ES[trimmed] || ES[trimmed.replace(/\s+/g, ' ')] || null;
   }
 
-  function buildWelcomeSelector() {
-    const target = document.querySelector('.welcome-divider');
-    if (!target || document.querySelector('.i18n-welcome-selector')) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'i18n-welcome-selector';
-    Object.entries(LANG_META).forEach(([code, meta]) => {
-      const btn = document.createElement('button');
-      const isDisabled = code !== 'en' && !spanishApproved;
-      btn.className = 'i18n-welcome-btn' + (code === currentLang ? ' active' : '') + (isDisabled ? ' disabled' : '');
-      btn.textContent = meta.flag + ' ' + meta.label;
-      if (!isDisabled) btn.onclick = () => setLang(code);
-      wrap.appendChild(btn);
-    });
-    target.insertAdjacentElement('afterend', wrap);
-    if (!spanishApproved) {
-      const hint = document.createElement('div');
-      hint.className = 'i18n-disabled-hint';
-      hint.textContent = 'Spanish hints require teacher approval.';
-      wrap.insertAdjacentElement('afterend', hint);
-    }
+  function tReverse(text) {
+    const trimmed = (text || '').trim();
+    return EN_FROM_ES[trimmed] || EN_FROM_ES[trimmed.replace(/\s+/g, ' ')] || null;
   }
 
-  function updateSelectorUI() {
-    document.querySelectorAll('.i18n-lang-btn, .i18n-welcome-btn').forEach(btn => {
-      const isActive = btn.textContent.includes(LANG_META[currentLang].label);
-      btn.classList.toggle('active', isActive);
+  function getDirectText(el) {
+    let text = '';
+    el.childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE) text += node.textContent;
     });
+    return text.trim();
   }
 
   /* ═════════════════════════════════════════════════════════
-     Translation engine
+     MODE: spanish-primary (A1/A2)
+     Show Spanish as the main text, English as small help below
      ═════════════════════════════════════════════════════════ */
-
-  function getDict() {
-    return TRANSLATIONS[currentLang] || null;
-  }
-
-  /** Remove all translation hints from the page */
-  function clearHints() {
-    document.querySelectorAll('.i18n-hint, .i18n-icon').forEach(el => el.remove());
-    // Restore original placeholders
-    document.querySelectorAll('[data-i18n-original-ph]').forEach(el => {
-      el.placeholder = el.dataset.i18nOriginalPh;
-      delete el.dataset.i18nOriginalPh;
-    });
-  }
-
-  /** Look up a translation, trying exact match then trimmed */
-  function t(text) {
-    const dict = getDict();
-    if (!dict) return null;
-    const trimmed = text.trim();
-    return dict[trimmed] || dict[trimmed.replace(/\s+/g, ' ')] || null;
-  }
-
-  /** Add a .i18n-hint child to an element */
-  function addHint(el, translation, uppercase) {
-    if (!translation) return;
-    if (el.querySelector('.i18n-hint')) return; // already has one
-    const span = document.createElement('span');
-    span.className = 'i18n-hint' + (uppercase ? ' i18n-hint-upper' : '');
-    span.textContent = translation;
-    el.appendChild(span);
-  }
-
-  /** Add a section icon before an element's text */
-  function addIcon(el, icon) {
-    if (!icon) return;
-    if (el.querySelector('.i18n-icon')) return;
-    const span = document.createElement('span');
-    span.className = 'i18n-icon';
-    span.textContent = icon;
-    span.setAttribute('aria-hidden', 'true');
-    el.insertBefore(span, el.firstChild);
-  }
-
-  /* ── Translate buttons ──────────────────────────────────── */
-  function translateButtons() {
+  function applySpanishPrimary() {
+    // Swap text content to Spanish, add English as hint
     const selectors = [
       'button', '.btn-cta', '.btn-enter', '.btn-nav',
       '.btn-next', '.btn-back', '.btn-start', '.btn-begin',
-    ];
-    document.querySelectorAll(selectors.join(',')).forEach(btn => {
-      // Get only direct text (not child element text)
-      const directText = getDirectText(btn);
-      const translation = t(directText);
-      if (translation) addHint(btn, translation);
-    });
-  }
-
-  /* ── Translate headings ─────────────────────────────────── */
-  function translateHeadings() {
-    document.querySelectorAll('h1, h2, h3, .milestone-title, .dash-greeting').forEach(el => {
-      const text = getDirectText(el);
-      const translation = t(text);
-      if (translation) addHint(el, translation);
-    });
-  }
-
-  /* ── Translate paragraphs & descriptions ────────────────── */
-  function translateParagraphs() {
-    const selectors = [
-      '.welcome-header p',
-      '.login-hint',
-      '.milestone-desc',
-      '.milestone-label',
-      '.cta-section p',
-      '.dash-subtitle',
-      '.loading-center p',
-      '.section-desc',
-      '.section-intro p',
-      '.intro-desc',
-      '.screen p',
-      '.activity-card > p',
-      '.step-header + p',
+      'h1', 'h2', 'h3', '.milestone-title', '.dash-greeting',
+      'label', '.label', '.field-label',
     ];
     document.querySelectorAll(selectors.join(',')).forEach(el => {
-      const text = el.textContent.trim();
-      const translation = t(text);
-      if (translation) addHint(el, translation);
-    });
-  }
-
-  /* ── Translate labels ───────────────────────────────────── */
-  function translateLabels() {
-    document.querySelectorAll('label, .label, .field-label').forEach(el => {
-      const text = getDirectText(el).replace(/\s*\*\s*$/, '');
-      const translation = t(text);
-      if (translation) addHint(el, translation);
-    });
-  }
-
-  /* ── Translate uppercase activity labels ─────────────────── */
-  function translateActivityLabels() {
-    // These are typically in spans/divs with uppercase styling
-    const allEls = document.querySelectorAll(
-      '.step-label, .activity-label, .section-label, .step-type'
-    );
-    allEls.forEach(el => {
-      const text = el.textContent.trim();
-      const translation = t(text);
-      if (translation) addHint(el, translation, true);
-    });
-    // Also scan for uppercase text patterns in any element
-    document.querySelectorAll('div, span, p').forEach(el => {
-      if (el.children.length > 2) return; // skip containers
-      const text = el.textContent.trim();
-      if (text === text.toUpperCase() && text.length > 3 && text.length < 40) {
-        const translation = t(text);
-        if (translation && !el.querySelector('.i18n-hint')) {
-          addHint(el, translation, true);
-        }
+      if (el.dataset.i18nSwapped) return;
+      const directText = getDirectText(el);
+      const spanish = t(directText);
+      if (spanish) {
+        // Save original English
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = directText;
+        // Replace text node with Spanish
+        el.childNodes.forEach(node => {
+          if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+            node.textContent = node.textContent.replace(directText, spanish);
+          }
+        });
+        // Add English as help text below
+        const hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = directText;
+        el.appendChild(hint);
       }
     });
-  }
 
-  /* ── Translate placeholders ─────────────────────────────── */
-  function translatePlaceholders() {
+    // Paragraphs and descriptions
+    const pSelectors = [
+      '.welcome-header p', '.login-hint', '.milestone-desc',
+      '.milestone-label', '.cta-section p', '.dash-subtitle',
+      '.loading-center p', '.section-desc', '.section-intro p',
+      '.intro-desc', '.screen p', '.activity-card > p', '.step-header + p',
+    ];
+    document.querySelectorAll(pSelectors.join(',')).forEach(el => {
+      if (el.dataset.i18nSwapped) return;
+      const text = el.textContent.trim();
+      const spanish = t(text);
+      if (spanish) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = text;
+        const hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = text;
+        el.textContent = spanish;
+        el.appendChild(hint);
+      }
+    });
+
+    // Placeholders
     document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-      const original = el.placeholder;
-      const translation = t(original);
-      if (translation) {
-        if (!el.dataset.i18nOriginalPh) {
-          el.dataset.i18nOriginalPh = original;
-        }
-        el.placeholder = translation;
+      const ph = el.placeholder;
+      const spanish = t(ph);
+      if (spanish && !el.dataset.i18nOriginalPh) {
+        el.dataset.i18nOriginalPh = ph;
+        el.placeholder = spanish;
       }
     });
-  }
 
-  /* ── Translate status badges ────────────────────────────── */
-  function translateBadges() {
-    document.querySelectorAll('.badge, .save-status, .status-text').forEach(el => {
+    // Uppercase labels
+    document.querySelectorAll('.step-label, .activity-label, .section-label, .step-type').forEach(el => {
+      if (el.dataset.i18nSwapped) return;
       const text = el.textContent.trim();
-      const translation = t(text);
-      if (translation) addHint(el, translation);
+      const spanish = t(text);
+      if (spanish) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = text;
+        const hint = document.createElement('span');
+        hint.className = 'i18n-hint i18n-hint-upper';
+        hint.textContent = text;
+        el.textContent = spanish;
+        el.appendChild(hint);
+      }
     });
+
+    addSectionIcons();
   }
 
-  /* ── Add visual cue icons to section headings ───────────── */
+  /* ═════════════════════════════════════════════════════════
+     MODE: tap-to-translate (B1/B2/test)
+     English UI, tap any translatable text for a tooltip
+     ═════════════════════════════════════════════════════════ */
+  let activeTooltip = null;
+
+  function applyTapToTranslate() {
+    const selectors = [
+      'button', '.btn-cta', '.btn-enter', '.btn-nav',
+      '.btn-next', '.btn-back', '.btn-start', '.btn-begin',
+      'h1', 'h2', 'h3', '.milestone-title',
+      'label', '.label', '.field-label',
+      '.welcome-header p', '.login-hint', '.milestone-desc',
+      '.milestone-label', '.cta-section p', '.dash-subtitle',
+      '.section-desc', '.section-intro p', '.intro-desc',
+      '.screen p', '.activity-card > p',
+      '.step-label', '.activity-label', '.section-label', '.step-type',
+    ];
+
+    document.querySelectorAll(selectors.join(',')).forEach(el => {
+      if (el.dataset.i18nTap) return;
+      const text = getDirectText(el) || el.textContent.trim();
+      const spanish = t(text);
+      if (spanish) {
+        el.dataset.i18nTap = 'true';
+        el.classList.add('i18n-tappable');
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          showTooltip(el, spanish);
+        });
+      }
+    });
+
+    addSectionIcons();
+  }
+
+  function showTooltip(el, text) {
+    dismissTooltip();
+    const rect = el.getBoundingClientRect();
+    const tip = document.createElement('div');
+    tip.className = 'i18n-tooltip';
+    tip.textContent = text;
+    document.body.appendChild(tip);
+    // Position below the element
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.left + window.scrollX;
+    let top = rect.bottom + window.scrollY + 8;
+    // Keep within viewport
+    if (left + tipRect.width > window.innerWidth - 16) {
+      left = window.innerWidth - tipRect.width - 16;
+    }
+    if (left < 8) left = 8;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    activeTooltip = tip;
+    // Auto-dismiss after 4 seconds
+    setTimeout(dismissTooltip, 4000);
+  }
+
+  function dismissTooltip() {
+    if (activeTooltip) {
+      activeTooltip.remove();
+      activeTooltip = null;
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════
+     MODE: teacher-gated (C1)
+     English UI with a toggle that requires teacher approval
+     ═════════════════════════════════════════════════════════ */
+  function applyTeacherGated() {
+    // Build a small toggle button
+    if (document.querySelector('.i18n-c1-toggle')) return;
+    const toggle = document.createElement('div');
+    toggle.className = 'i18n-c1-toggle' + (teacherApproved ? '' : ' disabled');
+    toggle.textContent = teacherApproved ? '🇪🇸 Tap text for Spanish' : '🇪🇸 Spanish (needs approval)';
+    if (teacherApproved) {
+      toggle.onclick = function() {
+        toggle.classList.toggle('active');
+        if (toggle.classList.contains('active')) {
+          applyTapToTranslate();
+          toggle.textContent = '🇪🇸 Tap text for Spanish ✓';
+        } else {
+          clearAll();
+          toggle.textContent = '🇪🇸 Tap text for Spanish';
+          addSectionIcons();
+        }
+      };
+    }
+    document.body.appendChild(toggle);
+    addSectionIcons();
+  }
+
+  /** Check teacher approval from Google Sheets */
+  async function checkTeacherApproval() {
+    const name = localStorage.getItem('fp_student_name') || '';
+    if (!name) return;
+    const webhook = (typeof WEBHOOK_URL !== 'undefined' && WEBHOOK_URL)
+      || (typeof GOOGLE_SHEET_WEBHOOK !== 'undefined' && GOOGLE_SHEET_WEBHOOK)
+      || '';
+    if (!webhook || webhook.includes('YOUR_')) return;
+    try {
+      const url = webhook + '?action=get_settings&student=' + encodeURIComponent(name);
+      const resp = await fetch(url, { method: 'GET' });
+      const data = await resp.json();
+      if (data && data.found && data.allow_spanish) {
+        teacherApproved = true;
+        // Rebuild the toggle
+        const existing = document.querySelector('.i18n-c1-toggle');
+        if (existing) existing.remove();
+        applyTeacherGated();
+      }
+    } catch (e) {}
+  }
+
+  /* ═════════════════════════════════════════════════════════
+     Shared helpers
+     ═════════════════════════════════════════════════════════ */
   function addSectionIcons() {
     document.querySelectorAll('h1, h2, h3, .step-title, .section-title').forEach(el => {
+      if (el.querySelector('.i18n-icon')) return;
       const text = getDirectText(el).trim();
       for (const [keyword, icon] of Object.entries(SECTION_ICONS)) {
         if (text.includes(keyword)) {
-          addIcon(el, icon);
+          const span = document.createElement('span');
+          span.className = 'i18n-icon';
+          span.textContent = icon;
+          span.setAttribute('aria-hidden', 'true');
+          el.insertBefore(span, el.firstChild);
           break;
         }
       }
     });
   }
 
-  /* ── Translate level cards ──────────────────────────────── */
-  function translateLevelCards() {
-    document.querySelectorAll('.level-card, .level-item').forEach(card => {
-      card.querySelectorAll('div, span, p').forEach(el => {
-        const text = el.textContent.trim();
-        const translation = t(text);
-        if (translation && !el.querySelector('.i18n-hint') && el.children.length === 0) {
-          addHint(el, translation);
-        }
-      });
-    });
-  }
-
-  /* ── Translate confidence buttons ───────────────────────── */
-  function translateConfidenceButtons() {
-    document.querySelectorAll('.conf-btn').forEach(btn => {
-      const text = getDirectText(btn).replace(/[😕😐🙂😄]/g, '').trim();
-      const translation = t(text);
-      if (translation) addHint(btn, translation);
-    });
-  }
-
-  /* ═════════════════════════════════════════════════════════
-     Utilities
-     ═════════════════════════════════════════════════════════ */
-
-  /** Get only the direct text of an element (not child elements) */
-  function getDirectText(el) {
-    let text = '';
-    el.childNodes.forEach(node => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        text += node.textContent;
+  function clearAll() {
+    // Remove hints, icons, tooltips
+    document.querySelectorAll('.i18n-hint, .i18n-icon, .i18n-tooltip').forEach(el => el.remove());
+    // Restore swapped text (spanish-primary mode)
+    document.querySelectorAll('[data-i18n-swapped]').forEach(el => {
+      const original = el.dataset.i18nOriginal;
+      if (original) {
+        // Remove the hint first
+        const hint = el.querySelector('.i18n-hint');
+        if (hint) hint.remove();
+        // Restore text
+        el.childNodes.forEach(node => {
+          if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+            node.textContent = original;
+          }
+        });
       }
+      delete el.dataset.i18nSwapped;
+      delete el.dataset.i18nOriginal;
     });
-    return text.trim();
+    // Restore placeholders
+    document.querySelectorAll('[data-i18n-original-ph]').forEach(el => {
+      el.placeholder = el.dataset.i18nOriginalPh;
+      delete el.dataset.i18nOriginalPh;
+    });
+    // Remove tappable markers
+    document.querySelectorAll('[data-i18n-tap]').forEach(el => {
+      el.classList.remove('i18n-tappable');
+      delete el.dataset.i18nTap;
+    });
+  }
+
+  function showModeBadge(text) {
+    if (document.querySelector('.i18n-mode-badge')) return;
+    const badge = document.createElement('div');
+    badge.className = 'i18n-mode-badge';
+    badge.textContent = text;
+    document.body.appendChild(badge);
   }
 
   /* ═════════════════════════════════════════════════════════
-     Apply / remove translations
+     Apply the current mode
      ═════════════════════════════════════════════════════════ */
-
   function apply() {
-    clearHints();
-    if (currentLang === 'en') return;
-    translateButtons();
-    translateHeadings();
-    translateParagraphs();
-    translateLabels();
-    translateActivityLabels();
-    translatePlaceholders();
-    translateBadges();
-    translateLevelCards();
-    translateConfidenceButtons();
-    addSectionIcons();
+    if (!mode) return;
+    switch (mode) {
+      case MODE_SPANISH_PRIMARY:
+        applySpanishPrimary();
+        break;
+      case MODE_TAP_TRANSLATE:
+        applyTapToTranslate();
+        break;
+      case MODE_TEACHER_GATED:
+        applyTeacherGated();
+        break;
+      case MODE_ENGLISH_ONLY:
+        addSectionIcons();
+        break;
+    }
   }
 
   /* ═════════════════════════════════════════════════════════
-     MutationObserver — re-translate on dynamic DOM changes
+     MutationObserver — re-apply on dynamic DOM changes
      ═════════════════════════════════════════════════════════ */
   let debounceTimer = null;
   function observeDOM() {
     const observer = new MutationObserver(() => {
-      if (currentLang === 'en') return;
+      if (!mode || mode === MODE_ENGLISH_ONLY) return;
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(apply, 200);
+      debounceTimer = setTimeout(apply, 250);
     });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
-      characterData: true,
     });
   }
 
@@ -639,92 +651,54 @@ const I18n = (() => {
      Public API
      ═════════════════════════════════════════════════════════ */
 
-  function setLang(lang) {
-    if (!LANG_META[lang]) return;
-    if (lang !== 'en' && !spanishApproved) return; // blocked by teacher
-    currentLang = lang;
-    localStorage.setItem(LS_KEY, lang);
-    updateSelectorUI();
+  function modeForLevel(lvl) {
+    if (!lvl) return MODE_TAP_TRANSLATE;
+    const l = lvl.toUpperCase();
+    if (l === 'A1' || l === 'A2') return MODE_SPANISH_PRIMARY;
+    if (l === 'B1' || l === 'B2') return MODE_TAP_TRANSLATE;
+    if (l === 'C1') return MODE_TEACHER_GATED;
+    if (l === 'C2') return MODE_ENGLISH_ONLY;
+    if (l === 'TEST') return MODE_TAP_TRANSLATE;
+    return MODE_TAP_TRANSLATE;
+  }
+
+  function setLevel(lvl) {
+    level = lvl;
+    mode = modeForLevel(lvl);
+    clearAll();
+    // Remove any existing UI from previous mode
+    document.querySelectorAll('.i18n-c1-toggle, .i18n-mode-badge').forEach(el => el.remove());
     apply();
+    if (mode === MODE_TEACHER_GATED) checkTeacherApproval();
   }
 
-  function getLang() {
-    return currentLang;
-  }
-
-  /** Check Google Sheets Settings tab for Spanish approval */
-  async function checkSpanishApproval() {
-    // Look up student name from localStorage or page input
-    const name = localStorage.getItem('fp_student_name')
-      || (document.getElementById('studentName') && document.getElementById('studentName').value.trim())
-      || (document.getElementById('candidateName') && document.getElementById('candidateName').value.trim())
-      || '';
-    if (!name) return;
-
-    // Use the same webhook URL defined in the page (if available)
-    const webhookEl = document.querySelector('script[data-webhook]');
-    const webhook = (typeof WEBHOOK_URL !== 'undefined' && WEBHOOK_URL)
-      || (typeof GOOGLE_SHEET_WEBHOOK !== 'undefined' && GOOGLE_SHEET_WEBHOOK)
-      || '';
-    if (!webhook || webhook.includes('YOUR_')) return;
-
-    try {
-      const url = webhook + '?action=get_settings&student=' + encodeURIComponent(name);
-      const resp = await fetch(url, { method: 'GET' });
-      const data = await resp.json();
-      if (data && data.found && data.allow_spanish) {
-        spanishApproved = true;
-        rebuildSelectors();
-        // If student had previously selected Spanish, re-apply
-        const saved = localStorage.getItem(LS_KEY);
-        if (saved === 'es') {
-          currentLang = 'es';
-          apply();
-        }
-      }
-    } catch (e) {
-      // Sheet unavailable — Spanish stays disabled
-    }
-  }
-
-  /** Rebuild selector widgets after approval status changes */
-  function rebuildSelectors() {
-    const floating = document.querySelector('.i18n-selector');
-    if (floating) floating.remove();
-    const welcome = document.querySelector('.i18n-welcome-selector');
-    const disabledHint = document.querySelector('.i18n-disabled-hint');
-    if (welcome) welcome.remove();
-    if (disabledHint) disabledHint.remove();
-    buildFloatingSelector();
-    buildWelcomeSelector();
-    updateSelectorUI();
-  }
-
-  function init() {
-    // Load saved preference
-    const saved = localStorage.getItem(LS_KEY);
-    if (saved && LANG_META[saved]) currentLang = saved;
-
-    // If Spanish was saved but not yet approved, force English until verified
-    if (currentLang !== 'en' && !spanishApproved) currentLang = 'en';
-
+  function init(opts) {
+    if (initialized) return;
+    initialized = true;
     injectCSS();
-    buildFloatingSelector();
-    buildWelcomeSelector();
+
+    // Determine level from opts, localStorage, or default
+    const lvl = (opts && opts.level)
+      || localStorage.getItem('fp_cefr_level')
+      || null;
+
+    level = lvl;
+    mode = modeForLevel(lvl);
+
+    // Dismiss tooltip on click anywhere
+    document.addEventListener('click', dismissTooltip);
+
     apply();
     observeDOM();
-
-    // Check teacher approval asynchronously
-    checkSpanishApproval();
+    if (mode === MODE_TEACHER_GATED) checkTeacherApproval();
   }
 
   // Auto-init when DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => init());
   } else {
-    // Small delay to let page scripts run first
-    setTimeout(init, 50);
+    setTimeout(() => init(), 50);
   }
 
-  return { setLang, getLang, apply, init };
+  return { init, setLevel, apply, modeForLevel };
 })();

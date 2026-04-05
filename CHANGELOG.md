@@ -4,6 +4,20 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.7.0] - 2026-04-05
+
+### Changed — Level-Aware Translation System
+- Rewrote `src/i18n.js` from a single-mode language toggle to a CEFR level-aware system with 4 distinct modes:
+  - **A1/A2 (spanish-primary):** UI displayed in Spanish with English as smaller help text below
+  - **B1/B2 and placement test (tap-to-translate):** UI in English; tap/click any translatable text to see a Spanish tooltip that auto-dismisses after 4 seconds
+  - **C1 (teacher-gated):** UI in English with a toggle that activates tap-to-translate only after teacher approval via Google Sheets
+  - **C2 (english-only):** No translation available; section icons only
+- Removed the old floating language selector widget
+- Course page calls `I18n.setLevel()` when the student selects their level
+- Hub and test pages auto-detect level from localStorage (default: tap-to-translate)
+
+---
+
 ## [0.6.0] - 2026-04-05
 
 ### Changed — Rebranding & Structural Overhaul

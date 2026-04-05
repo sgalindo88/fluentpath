@@ -649,6 +649,9 @@ function selectLevel(card) {
   card.classList.add('selected');
   state.level = card.dataset.level;
 
+  // Update translation mode for the selected level
+  if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
+
   // Init video call in required mode when level is selected
   var name = document.getElementById('studentName').value.trim();
   if (name && !vcInitDone && typeof VideoCall !== 'undefined') {
