@@ -1339,6 +1339,14 @@ async function finishLesson() {
   showScreen('screen-complete');
   progressBar.style.width = '100%';
 
+  // Save progress to localStorage so the hub page can track status
+  try {
+    localStorage.setItem('ep_student_name', state.studentName);
+    localStorage.setItem('ep_cefr_level', state.level);
+    localStorage.setItem('ep_last_lesson_day', String(state.dayNumber));
+    localStorage.setItem('ep_last_lesson_date', state.lessonDate);
+  } catch(e) { /* localStorage unavailable */ }
+
   // Save to Google Sheet
   const saved = await saveProgress(endTime);
   const statusEl = document.getElementById('saveStatus');

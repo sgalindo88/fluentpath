@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Path · Your Journey to Fluency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ─────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --ink:#1a1208;--paper:#f5f0e8;--cream:#ede8dc;
+  --rust:#b8471e;--gold:#c9933a;--rule:#c8bfa8;--muted:#6b5f4e;
+  --green:#2e6e45;--green-bg:#eaf3ec;
+  --blue:#1e4d8c;--blue-bg:#eaf0fb;
+  --purple:#5b3e8a;--purple-bg:#f0eaf8;
+}
+html{background:var(--paper);color:var(--ink);}
+body{font-family:'Source Serif 4',Georgia,serif;font-weight:300;line-height:1.7;min-height:100vh;}
+
+/* ── Shared Typography ─────────────────────────────────────── */
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.2;}
+.label{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;font-weight:600;color:var(--muted);}
+
+/* ── Layout ────────────────────────────────────────────────── */
+.screen{display:none;min-height:100vh;padding:40px 24px 80px;}
+.screen.active{display:block;animation:fadeIn 0.35s ease both;}
+.container{max-width:600px;margin:0 auto;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+/* ── Welcome Screen ────────────────────────────────────────── */
+.welcome-header{text-align:center;margin-bottom:48px;padding-top:60px;}
+.welcome-header h1{font-size:clamp(36px,7vw,56px);margin-bottom:8px;}
+.welcome-header h1 .accent{color:var(--rust);font-style:italic;}
+.welcome-header p{color:var(--muted);font-size:16px;font-style:italic;max-width:380px;margin:0 auto;}
+.welcome-divider{width:60px;height:2px;background:var(--gold);margin:20px auto 0;}
+
+.login-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:36px 32px;margin-bottom:24px;}
+.login-card label{display:block;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:6px;}
+.login-card input{width:100%;border:none;border-bottom:2px solid var(--rule);background:transparent;font-family:'Source Serif 4',Georgia,serif;font-size:18px;padding:8px 0;color:var(--ink);outline:none;transition:border-color 0.2s;}
+.login-card input:focus{border-bottom-color:var(--rust);}
+.login-hint{font-size:13px;color:var(--muted);margin-top:12px;font-style:italic;}
+
+.btn-enter{display:block;width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Playfair Display',Georgia,serif;font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;}
+.btn-enter:hover{background:var(--rust);}
+.btn-enter:disabled{opacity:0.35;cursor:not-allowed;}
+
+.welcome-footer{text-align:center;margin-top:40px;font-size:12px;color:var(--muted);}
+.welcome-footer a{color:var(--rust);text-decoration:none;}
+
+/* ── Loading Screen ────────────────────────────────────────── */
+.loading-center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;}
+.spinner{width:36px;height:36px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Dashboard Screen ──────────────────────────────────────── */
+.dash-header{padding-top:40px;margin-bottom:36px;}
+.dash-greeting{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:4px;}
+.dash-name{font-size:clamp(28px,5vw,40px);margin-bottom:4px;}
+.dash-subtitle{font-size:14px;color:var(--muted);}
+
+/* ── Journey Timeline ──────────────────────────────────────── */
+.journey{position:relative;padding-left:40px;margin-bottom:40px;}
+.journey::before{content:'';position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--rule);}
+
+.milestone{position:relative;margin-bottom:32px;}
+.milestone:last-child{margin-bottom:0;}
+
+.milestone-dot{position:absolute;left:-40px;top:4px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',Georgia,serif;font-size:14px;font-weight:700;border:2px solid var(--rule);background:var(--paper);color:var(--muted);transition:all 0.3s;}
+.milestone.active .milestone-dot{border-color:var(--rust);background:var(--rust);color:white;}
+.milestone.done .milestone-dot{border-color:var(--green);background:var(--green);color:white;}
+
+.milestone-label{font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:2px;}
+.milestone-title{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;margin-bottom:4px;}
+.milestone-desc{font-size:14px;color:var(--muted);line-height:1.5;}
+
+.milestone-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:20px;margin-top:12px;}
+
+/* ── Status Badges ─────────────────────────────────────────── */
+.badge{display:inline-block;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:600;padding:4px 10px;border-radius:3px;vertical-align:middle;}
+.badge-pending{background:#fdf4e7;color:var(--gold);border:1px solid #e8d5a8;}
+.badge-done{background:var(--green-bg);color:var(--green);border:1px solid #c0dcc8;}
+.badge-not-started{background:var(--cream);color:var(--muted);border:1px solid var(--rule);}
+.badge-level{background:var(--blue-bg);color:var(--blue);border:1px solid #b8cce8;font-size:13px;font-weight:700;padding:5px 14px;font-family:'Playfair Display',Georgia,serif;letter-spacing:0.05em;}
+
+/* ── Progress Bar ──────────────────────────────────────────── */
+.progress-track{width:100%;height:8px;background:var(--rule);border-radius:4px;overflow:hidden;margin-top:10px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:4px;transition:width 0.6s ease;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ── CTA Section ───────────────────────────────────────────── */
+.cta-section{text-align:center;margin-top:40px;padding-top:32px;border-top:1px solid var(--rule);}
+.cta-section p{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:16px;}
+.btn-cta{display:inline-block;padding:16px 40px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Playfair Display',Georgia,serif;font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;text-decoration:none;}
+.btn-cta:hover{background:var(--rust);}
+.btn-cta.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
+.btn-cta.secondary:hover{border-color:var(--rust);color:var(--rust);}
+
+/* ── Logout link ───────────────────────────────────────────── */
+.dash-logout{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color 0.2s;}
+.dash-logout:hover{color:var(--rust);}
+
+/* ── Info Card ─────────────────────────────────────────────── */
+.info-card{background:var(--blue-bg);border:1px solid #b8cce8;border-radius:6px;padding:16px 20px;margin-top:24px;font-size:13px;color:var(--blue);line-height:1.6;}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media(max-width:600px){
+  .screen{padding:24px 16px 60px;}
+  .welcome-header{padding-top:32px;margin-bottom:32px;}
+  .login-card{padding:24px 20px;}
+  .dash-header{padding-top:24px;}
+  .milestone-card{padding:16px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 1 — Welcome / Login
+     ═══════════════════════════════════════════════════════════ -->
+<div id="screen-welcome" class="screen active">
+  <div class="container">
+    <div class="welcome-header">
+      <h1>English <span class="accent">Path</span></h1>
+      <p>Your journey to fluency starts here.</p>
+      <div class="welcome-divider"></div>
+    </div>
+
+    <div class="login-card">
+      <label for="studentName">Your Name</label>
+      <input type="text" id="studentName" placeholder="Enter your full name" autocomplete="name">
+      <p class="login-hint">Use the same name your teacher has on file.</p>
+    </div>
+
+    <button class="btn-enter" id="btnEnter" onclick="enterHub()">Continue</button>
+
+    <div class="welcome-footer">
+      <p>A programme by <a href="#">English Path</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 2 — Loading
+     ═══════════════════════════════════════════════════════════ -->
+<div id="screen-loading" class="screen">
+  <div class="container loading-center">
+    <div class="spinner"></div>
+    <p style="color:var(--muted);font-style:italic;">Looking up your progress&hellip;</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN 3 — Dashboard
+     ═══════════════════════════════════════════════════════════ -->
+<div id="screen-dashboard" class="screen">
+  <div class="container">
+
+    <div class="dash-header">
+      <p class="dash-greeting">Welcome back,</p>
+      <h1 class="dash-name" id="dashName"></h1>
+      <p class="dash-subtitle" id="dashSubtitle">Here is your learning journey.</p>
+      <span class="dash-logout" onclick="logout()">Not you? Switch student</span>
+    </div>
+
+    <!-- ── Journey Timeline ── -->
+    <div class="journey">
+
+      <!-- Milestone 1: Placement Test -->
+      <div class="milestone" id="ms-test">
+        <div class="milestone-dot">1</div>
+        <div class="milestone-label">Phase One</div>
+        <div class="milestone-title">Placement Test</div>
+        <div class="milestone-desc" id="ms-test-desc">Take the English proficiency test so your teacher can find the right level for you.</div>
+        <div class="milestone-card" id="ms-test-card" style="display:none;"></div>
+      </div>
+
+      <!-- Milestone 2: Level Assignment -->
+      <div class="milestone" id="ms-level">
+        <div class="milestone-dot">2</div>
+        <div class="milestone-label">Phase One</div>
+        <div class="milestone-title">Your Level</div>
+        <div class="milestone-desc" id="ms-level-desc">After your teacher reviews the test, you will be assigned a CEFR level.</div>
+        <div class="milestone-card" id="ms-level-card" style="display:none;"></div>
+      </div>
+
+      <!-- Milestone 3: Course -->
+      <div class="milestone" id="ms-course">
+        <div class="milestone-dot">3</div>
+        <div class="milestone-label">Phase Two</div>
+        <div class="milestone-title">Your Course</div>
+        <div class="milestone-desc" id="ms-course-desc">A 20-day personalised course with daily lessons tailored to your level.</div>
+        <div class="milestone-card" id="ms-course-card" style="display:none;"></div>
+      </div>
+
+    </div>
+
+    <!-- ── CTA Section ── -->
+    <div class="cta-section" id="ctaSection"></div>
+
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────
+   Configuration
+   ───────────────────────────────────────────────────────────── */
+
+// Google Apps Script webhook — same URL used across the platform.
+// The script needs a handler for:  ?action=get_progress&student=Name
+// Expected JSON response:
+// {
+//   found: true,
+//   test_completed: true,          // has the student submitted a placement test?
+//   test_date: "2026-04-01",       // when the test was taken
+//   cefr_level: "B1",              // assigned after examiner marks the test (null if pending)
+//   total_score: 42,               // placement test score out of 80 (null if pending)
+//   lessons_completed: 5,          // how many course lessons finished (0 if none)
+//   last_lesson_date: "2026-04-05" // date of most recent lesson (null if none)
+// }
+const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbynIBuiHk6qGmlfCRghXkUYZqXdJuIN0OXgZbg42fvK_uAGgcO_Xsxu8G9vwd8wz78S/exec';
+
+const LEVEL_INFO = {
+  A1: { name: 'Beginner',            theme: 'Everyday Survival',      colour: '#b8471e' },
+  A2: { name: 'Elementary',           theme: 'Community & Life',       colour: '#c9933a' },
+  B1: { name: 'Intermediate',         theme: 'The Workplace',          colour: '#2e6e45' },
+  B2: { name: 'Upper-Intermediate',   theme: 'Career & Society',       colour: '#1e4d8c' },
+  C1: { name: 'Advanced',             theme: 'Professional Mastery',   colour: '#5b3e8a' },
+  C2: { name: 'Proficiency',          theme: 'Full Fluency',           colour: '#1a1208' },
+};
+
+/* ─────────────────────────────────────────────────────────────
+   State
+   ───────────────────────────────────────────────────────────── */
+let studentName = '';
+let progress = null; // fetched or built from localStorage
+
+/* ─────────────────────────────────────────────────────────────
+   Screen Navigation
+   ───────────────────────────────────────────────────────────── */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Enter Hub
+   ───────────────────────────────────────────────────────────── */
+function enterHub() {
+  const input = document.getElementById('studentName');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+
+  studentName = name;
+  localStorage.setItem('ep_student_name', name);
+  showScreen('screen-loading');
+  fetchProgress(name);
+}
+
+/* Allow pressing Enter on the name field */
+document.getElementById('studentName').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') enterHub();
+});
+
+/* ─────────────────────────────────────────────────────────────
+   Fetch Progress from Google Sheet (with localStorage fallback)
+   ───────────────────────────────────────────────────────────── */
+async function fetchProgress(name) {
+  // Try Google Sheet first
+  try {
+    const url = WEBHOOK_URL + '?action=get_progress&student=' + encodeURIComponent(name);
+    const resp = await fetch(url, { method: 'GET' });
+    const data = await resp.json();
+    if (data && data.found) {
+      progress = data;
+      // Cache to localStorage
+      if (data.test_completed)   localStorage.setItem('ep_test_completed', 'true');
+      if (data.test_date)        localStorage.setItem('ep_test_date', data.test_date);
+      if (data.cefr_level)       localStorage.setItem('ep_cefr_level', data.cefr_level);
+      if (data.total_score)      localStorage.setItem('ep_test_score', String(data.total_score));
+      if (data.lessons_completed) localStorage.setItem('ep_last_lesson_day', String(data.lessons_completed));
+      if (data.last_lesson_date) localStorage.setItem('ep_last_lesson_date', data.last_lesson_date);
+      renderDashboard();
+      return;
+    }
+  } catch (e) {
+    // Webhook not available — fall through to localStorage
+  }
+
+  // Fallback: build progress from localStorage
+  progress = {
+    found: false,
+    test_completed:    localStorage.getItem('ep_test_completed') === 'true',
+    test_date:         localStorage.getItem('ep_test_date') || null,
+    cefr_level:        localStorage.getItem('ep_cefr_level') || null,
+    total_score:       localStorage.getItem('ep_test_score') ? Number(localStorage.getItem('ep_test_score')) : null,
+    lessons_completed: localStorage.getItem('ep_last_lesson_day') ? Number(localStorage.getItem('ep_last_lesson_day')) : 0,
+    last_lesson_date:  localStorage.getItem('ep_last_lesson_date') || null,
+  };
+
+  renderDashboard();
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Render Dashboard
+   ───────────────────────────────────────────────────────────── */
+function renderDashboard() {
+  const d = progress;
+
+  // Greeting
+  document.getElementById('dashName').textContent = studentName;
+
+  // Determine phase
+  const testDone  = d.test_completed;
+  const hasLevel  = !!d.cefr_level;
+  const courseDays = d.lessons_completed || 0;
+  const courseStarted = courseDays > 0;
+  const courseComplete = courseDays >= 20;
+
+  // Subtitle
+  const subtitle = document.getElementById('dashSubtitle');
+  if (!testDone)          subtitle.textContent = 'Let\'s begin with your placement test.';
+  else if (!hasLevel)     subtitle.textContent = 'Your test is being reviewed by your teacher.';
+  else if (!courseStarted) subtitle.textContent = 'You\'re ready to start your course!';
+  else if (courseComplete) subtitle.textContent = 'Congratulations — you\'ve completed the course!';
+  else                     subtitle.textContent = 'Day ' + courseDays + ' of 20 completed. Keep going!';
+
+  // ── Milestone 1: Placement Test ──
+  const msTest = document.getElementById('ms-test');
+  const msTestDesc = document.getElementById('ms-test-desc');
+  const msTestCard = document.getElementById('ms-test-card');
+
+  if (testDone) {
+    msTest.classList.add('done');
+    msTest.classList.remove('active');
+    msTestDesc.textContent = 'Test completed' + (d.test_date ? ' on ' + formatDate(d.test_date) : '') + '.';
+    msTestCard.style.display = 'block';
+    msTestCard.innerHTML = '<span class="badge badge-done">Completed</span>';
+    if (d.total_score) {
+      msTestCard.innerHTML += ' <span style="margin-left:8px;font-size:14px;color:var(--muted);">' + d.total_score + ' / 80</span>';
+    }
+  } else {
+    msTest.classList.add('active');
+    msTestDesc.textContent = 'Take the English proficiency test so your teacher can find the right level for you.';
+  }
+
+  // ── Milestone 2: Level Assignment ──
+  const msLevel = document.getElementById('ms-level');
+  const msLevelDesc = document.getElementById('ms-level-desc');
+  const msLevelCard = document.getElementById('ms-level-card');
+
+  if (hasLevel) {
+    msLevel.classList.add('done');
+    msLevel.classList.remove('active');
+    const info = LEVEL_INFO[d.cefr_level] || { name: d.cefr_level, theme: '', colour: 'var(--ink)' };
+    msLevelDesc.textContent = 'Your teacher has placed you at level ' + d.cefr_level + '.';
+    msLevelCard.style.display = 'block';
+    msLevelCard.innerHTML =
+      '<span class="badge badge-level">' + d.cefr_level + '</span> ' +
+      '<span style="font-size:15px;font-weight:600;margin-left:6px;">' + escHtml(info.name) + '</span>' +
+      '<br><span style="font-size:13px;color:var(--muted);font-style:italic;">' + escHtml(info.theme) + '</span>';
+  } else if (testDone) {
+    msLevel.classList.add('active');
+    msLevelDesc.textContent = 'Your teacher is reviewing your test. You will see your level here once it is ready.';
+    msLevelCard.style.display = 'block';
+    msLevelCard.innerHTML = '<span class="badge badge-pending">Awaiting review</span>';
+  } else {
+    msLevelDesc.textContent = 'After your teacher reviews the test, you will be assigned a level.';
+  }
+
+  // ── Milestone 3: Course ──
+  const msCourse = document.getElementById('ms-course');
+  const msCourseDesc = document.getElementById('ms-course-desc');
+  const msCourseCard = document.getElementById('ms-course-card');
+
+  if (courseComplete) {
+    msCourse.classList.add('done');
+    msCourse.classList.remove('active');
+    msCourseDesc.textContent = 'You completed all 20 lessons. Well done!';
+    msCourseCard.style.display = 'block';
+    msCourseCard.innerHTML =
+      '<span class="badge badge-done">Complete</span>' +
+      '<div class="progress-track" style="margin-top:12px;"><div class="progress-fill" style="width:100%;"></div></div>' +
+      '<div class="progress-text">20 / 20 lessons</div>';
+  } else if (courseStarted) {
+    msCourse.classList.add('active');
+    const pct = Math.round((courseDays / 20) * 100);
+    const nextDay = courseDays + 1;
+    msCourseDesc.textContent = 'You have completed ' + courseDays + ' of 20 lessons. Next up: Day ' + nextDay + '.';
+    msCourseCard.style.display = 'block';
+    msCourseCard.innerHTML =
+      '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%;"></div></div>' +
+      '<div class="progress-text">' + courseDays + ' / 20 lessons completed</div>';
+  } else if (hasLevel) {
+    msCourse.classList.add('active');
+    msCourseDesc.textContent = 'Your course is ready to begin — 20 daily lessons tailored to your level.';
+  } else {
+    msCourseDesc.textContent = 'A 20-day personalised course with daily lessons tailored to your level.';
+  }
+
+  // ── CTA Section ──
+  const cta = document.getElementById('ctaSection');
+
+  if (!testDone) {
+    cta.innerHTML =
+      '<p>Your first step is the placement test. It takes about 40 minutes.</p>' +
+      '<a class="btn-cta" href="student-initial-test.html">Take the Placement Test</a>';
+  } else if (!hasLevel) {
+    cta.innerHTML =
+      '<p>Your teacher will review your test soon. Check back later.</p>' +
+      '<button class="btn-cta secondary" onclick="refreshProgress()">Refresh</button>';
+  } else if (courseComplete) {
+    cta.innerHTML =
+      '<p>You have completed the English Path course. Talk to your teacher about next steps.</p>';
+  } else {
+    const nextDay = courseDays + 1;
+    cta.innerHTML =
+      '<p>Ready for Day ' + nextDay + '? Your teacher will be with you on the video call.</p>' +
+      '<a class="btn-cta" href="student-course.html">Start Day ' + nextDay + ' Lesson</a>';
+  }
+
+  showScreen('screen-dashboard');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Refresh progress (re-fetch from sheet)
+   ───────────────────────────────────────────────────────────── */
+function refreshProgress() {
+  showScreen('screen-loading');
+  fetchProgress(studentName);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Logout — switch student
+   ───────────────────────────────────────────────────────────── */
+function logout() {
+  studentName = '';
+  progress = null;
+  document.getElementById('studentName').value = '';
+  showScreen('screen-welcome');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Utilities
+   ───────────────────────────────────────────────────────────── */
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function formatDate(dateStr) {
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  } catch (e) { return dateStr; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Auto-login if returning student
+   ───────────────────────────────────────────────────────────── */
+(function init() {
+  const saved = localStorage.getItem('ep_student_name');
+  if (saved) {
+    document.getElementById('studentName').value = saved;
+    // Auto-enter for returning students
+    studentName = saved;
+    showScreen('screen-loading');
+    fetchProgress(saved);
+  }
+})();
+</script>
+</body>
+</html>

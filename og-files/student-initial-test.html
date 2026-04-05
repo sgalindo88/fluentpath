@@ -1631,6 +1631,14 @@ function showResultsScreen(submissionOk, submissionMsg) {
     banner.textContent = submissionMsg;
   }
 
+  // Save progress to localStorage so the hub page can track status
+  try {
+    localStorage.setItem('ep_student_name', document.getElementById('candidateName').value.trim());
+    localStorage.setItem('ep_test_completed', 'true');
+    localStorage.setItem('ep_test_date', document.getElementById('candidateDate').value);
+    localStorage.setItem('ep_test_submitted_at', new Date().toISOString());
+  } catch(e) { /* localStorage unavailable */ }
+
   showScreen('screen-results');
 }
 
