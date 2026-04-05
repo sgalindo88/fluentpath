@@ -1305,27 +1305,27 @@ function updateDashboardStats() {
   const absent  = Object.values(ex.attendance).filter(v => v === 'absent').length;
   const done    = present + absent;
   const total   = 20;
-
-  document.getElementById('stat-days-done').textContent = present;
-  document.getElementById('stat-attendance').textContent = done > 0 ? Math.round(present/done*100) + '%' : '—%';
-  const dayNum = getCurrentDay();
-  document.getElementById('dash-day-num').textContent    = dayNum;
+  const dayNum  = getCurrentDay();
   const pctOverall = Math.round(done / total * 100);
   const pctAttend  = done > 0 ? Math.round(present/done*100) : 0;
-
-  document.getElementById('prog-overall').style.width  = pctOverall + '%';
-  document.getElementById('prog-overall-val').textContent = pctOverall + '%';
-  document.getElementById('prog-attend').style.width   = pctAttend + '%';
-  document.getElementById('prog-attend-val').textContent = pctAttend + '%';
-
   const markedCount = ex.lessonRecords.filter(r => r.writingScore != null).length;
   const markPct = done > 0 ? Math.round(markedCount/done*100) : 0;
-  document.getElementById('prog-writing').style.width  = markPct + '%';
-  document.getElementById('prog-writing-val').textContent = markPct + '%';
 
-  // progress panel
-  document.getElementById('prog-days').textContent = present;
-  document.getElementById('prog-attend-pct').textContent = done > 0 ? Math.round(present/done*100)+'%' : '—';
+  // Helper: safe element setter (prevents null errors if HTML element is missing)
+  function s(id, prop, val) { var el = document.getElementById(id); if (el) { if (prop === 'width') el.style.width = val; else el[prop] = val; } }
+
+  s('stat-days-done',   'textContent', present);
+  s('stat-attendance',  'textContent', done > 0 ? Math.round(present/done*100) + '%' : '—%');
+  s('stat-marked',      'textContent', markedCount);
+  s('dash-day-num',     'textContent', dayNum);
+  s('prog-overall',     'width',       pctOverall + '%');
+  s('prog-overall-val', 'textContent', pctOverall + '%');
+  s('prog-attend',      'width',       pctAttend + '%');
+  s('prog-attend-val',  'textContent', pctAttend + '%');
+  s('prog-writing',     'width',       markPct + '%');
+  s('prog-writing-val', 'textContent', markPct + '%');
+  s('prog-days',        'textContent', present);
+  s('prog-attend-pct',  'textContent', done > 0 ? Math.round(present/done*100)+'%' : '—');
 }
 
 // ══════════════════════════════════════════════════════
