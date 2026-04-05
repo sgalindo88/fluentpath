@@ -221,7 +221,11 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 //   cefr_level: "B1",              // assigned after examiner marks the test (null if pending)
 //   total_score: 42,               // placement test score out of 80 (null if pending)
 //   lessons_completed: 5,          // how many course lessons finished (0 if none)
-//   last_lesson_date: "2026-04-05" // date of most recent lesson (null if none)
+//   last_lesson_date: "2026-04-05",// date of most recent lesson (null if none)
+//   lessons: [                     // optional: completed lesson details for progress display
+//     { day: 1, topic: "Greetings", date: "2026-04-01", time_spent: 85, confidence: "Good" },
+//     { day: 2, topic: "At the Shop", date: "2026-04-02", time_spent: 78, confidence: "Great!" }
+//   ]
 // }
 const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbynIBuiHk6qGmlfCRghXkUYZqXdJuIN0OXgZbg42fvK_uAGgcO_Xsxu8G9vwd8wz78S/exec';
 
@@ -405,9 +409,30 @@ function renderDashboard() {
     const nextDay = courseDays + 1;
     msCourseDesc.textContent = 'You have completed ' + courseDays + ' of 20 lessons. Next up: Day ' + nextDay + '.';
     msCourseCard.style.display = 'block';
+
+    // Build lesson history table from progress data
+    var historyHtml = '';
+    if (d.lessons && d.lessons.length > 0) {
+      historyHtml = '<div style="margin-top:16px;border-top:1px solid var(--rule);padding-top:12px;">' +
+        '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">Completed Lessons</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;">';
+      d.lessons.forEach(function(lesson) {
+        historyHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--cream);border-radius:4px;font-size:13px;">' +
+          '<div><strong>Day ' + escHtml(String(lesson.day)) + '</strong>' +
+          (lesson.topic ? ' <span style="color:var(--muted);">· ' + escHtml(lesson.topic) + '</span>' : '') + '</div>' +
+          '<div style="display:flex;gap:12px;align-items:center;">' +
+          (lesson.time_spent ? '<span style="font-size:11px;color:var(--muted);">' + lesson.time_spent + 'm</span>' : '') +
+          (lesson.confidence ? '<span style="font-size:11px;">' + escHtml(lesson.confidence) + '</span>' : '') +
+          (lesson.date ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(lesson.date) + '</span>' : '') +
+          '</div></div>';
+      });
+      historyHtml += '</div></div>';
+    }
+
     msCourseCard.innerHTML =
       '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%;"></div></div>' +
-      '<div class="progress-text">' + courseDays + ' / 20 lessons completed</div>';
+      '<div class="progress-text">' + courseDays + ' / 20 lessons completed</div>' +
+      historyHtml;
   } else if (hasLevel) {
     msCourse.classList.add('active');
     msCourseDesc.textContent = 'Your course is ready to begin — 20 daily lessons tailored to your level.';

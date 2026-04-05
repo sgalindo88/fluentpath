@@ -363,7 +363,7 @@ body {
       </div>
       <div class="fg fg-full">
         <label>Today's Date</label>
-        <input type="date" id="lessonDate">
+        <input type="date" id="lessonDate" readonly style="background:var(--cream);cursor:default;">
       </div>
     </div>
 
@@ -478,11 +478,11 @@ body {
       </div>
       <div class="lc-stat">
         <div class="lc-stat-val" id="stat-day">—</div>
-        <div class="lc-stat-lbl">Day of Month</div>
+        <div class="lc-stat-lbl">Course Day</div>
       </div>
     </div>
     <div class="save-status" id="saveStatus">Saving your progress…</div>
-    <button class="btn-begin" onclick="showScreen('screen-landing')">Start Next Lesson →</button>
+    <a href="../index.html" class="btn-begin" style="display:inline-block;text-decoration:none;text-align:center;margin-top:16px;">View Progress & Next Lesson →</a>
   </div>
 </div>
 
@@ -675,7 +675,7 @@ function selectLevel(card) {
 }
 
 // ══════════════════════════════════════════════════════
-// START COURSE — submit for approval
+// START COURSE — go straight to lesson (no approval)
 // ══════════════════════════════════════════════════════
 async function startCourse() {
   const name = document.getElementById('studentName').value.trim();
@@ -685,21 +685,22 @@ async function startCourse() {
   state.studentName = name;
   state.lessonDate  = document.getElementById('lessonDate').value || new Date().toISOString().split('T')[0];
 
-  // Calculate day number from date (simplified)
-  state.dayNumber = getDayNumber(state.lessonDate);
+  // Calculate course day (next day after last completed)
+  state.dayNumber = getCourseDay();
 
-  // Send to Google Sheet for teacher approval
-  await requestApproval();
+  // Go straight to lesson generation
+  beginLesson();
+}
 
-  showScreen('screen-waiting');
-  startPolling();
+function getCourseDay() {
+  // Use last completed day from localStorage + 1, capped at 20
+  var last = parseInt(localStorage.getItem('fp_last_lesson_day') || '0', 10);
+  return Math.min(last + 1, 20);
 }
 
 function getDayNumber(dateStr) {
-  // Day 1-20 based on which day of the month it is (Mon-Fri only)
-  const d = new Date(dateStr);
-  const day = d.getDate();
-  return Math.min(Math.max(1, day), 20);
+  // Legacy fallback
+  return getCourseDay();
 }
 
 async function requestApproval() {
@@ -1114,11 +1115,13 @@ function renderListening(wrap, data) {
       <div class="ac-label">LISTENING COMPREHENSION</div>
       <div class="ac-heading">${escHtml(data.title)}</div>
       <div class="ac-body">${escHtml(data.instruction)}</div>
-      <div class="audio-box" id="listenBox" onclick="playListening()">
-        <div class="audio-btn" id="listenBtn">▶</div>
+      <div class="audio-box" id="listenBox" style="cursor:default;">
+        <div class="audio-btn" id="listenBtn" onclick="playListening()" style="cursor:pointer;">▶</div>
+        <div class="audio-btn" id="listenStopBtn" onclick="stopListening()" style="cursor:pointer;display:none;background:var(--rust,#b8471e);color:white;">■</div>
         <div class="audio-info">
           <div class="ai-label">AUDIO</div>
           <div class="ai-status" id="listenStatus">Press play — up to 3 times</div>
+          <span id="listenPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
         </div>
         <div class="audio-plays" id="listenPlays">3 plays left</div>
       </div>
@@ -1131,19 +1134,41 @@ function renderListening(wrap, data) {
   `;
 }
 
+var courseListenStart = null;
+var courseListenTotal = 0;
+
 function playListening() {
   if (listeningPlays >= 3) return;
   listeningPlays++;
-  const left = 3 - listeningPlays;
+  var left = 3 - listeningPlays;
   document.getElementById('listenPlays').textContent = left === 0 ? 'No plays left' : left + ' play' + (left===1?'':'s') + ' left';
   document.getElementById('listenStatus').textContent = 'Playing…';
-  document.getElementById('listenBtn').textContent = '■';
-  if (left === 0) document.getElementById('listenBox').style.opacity = '0.5';
-  const text = state.steps[state.currentStep]?.data?.audioText || 'No audio available.';
-  speakText(text, () => {
-    document.getElementById('listenBtn').textContent = '▶';
-    document.getElementById('listenStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays';
-  });
+  document.getElementById('listenBtn').style.display = 'none';
+  document.getElementById('listenStopBtn').style.display = 'flex';
+  courseListenStart = Date.now();
+  if (left === 0) document.getElementById('listenBox').style.opacity = '0.7';
+  var text = state.steps[state.currentStep]?.data?.audioText || 'No audio available.';
+  speakText(text, function() { finishCourseListening(left); });
+}
+
+function stopListening() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  finishCourseListening(3 - listeningPlays);
+}
+
+function finishCourseListening(left) {
+  if (courseListenStart) {
+    courseListenTotal += Date.now() - courseListenStart;
+    courseListenStart = null;
+  }
+  document.getElementById('listenStopBtn').style.display = 'none';
+  document.getElementById('listenBtn').style.display = 'flex';
+  document.getElementById('listenStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays';
+  var ptEl = document.getElementById('listenPlayTime');
+  ptEl.style.display = 'inline';
+  var s = Math.round(courseListenTotal / 1000);
+  ptEl.textContent = ' · ' + (s < 60 ? s + 's listened' : Math.floor(s/60) + 'm ' + (s%60) + 's listened');
+  if (left === 0) { document.getElementById('listenBtn').style.opacity = '0.4'; document.getElementById('listenBtn').style.cursor = 'default'; }
 }
 
 function selectListeningOpt(qid, chosen, correct) {
@@ -1182,7 +1207,7 @@ function renderSpeaking(wrap, data) {
       <div style="background:#fff8e6;border-left:3px solid var(--gold);padding:10px 14px;font-size:13px;color:var(--muted);font-style:italic;margin-bottom:16px;">💡 ${escHtml(d.tip)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button onclick="speakText('${escHtml(d.phrase)}')" style="background:var(--blue);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">🔊 Hear model</button>
-        <button onclick="startDrill('${d.id}', '${escHtml(d.phrase)}')" id="drill-btn-${d.id}" style="background:var(--ink);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">🎤 Record yourself</button>
+        <button onclick="startDrill('${d.id}', '${d.phrase.replace(/'/g, "\\'").replace(/"/g, "&quot;")}')" id="drill-btn-${d.id}" style="background:var(--ink);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">🎤 Record yourself</button>
       </div>
       <div id="drill-transcript-${d.id}" class="record-transcript"></div>
       <div id="drill-feedback-${d.id}" class="record-feedback"></div>
@@ -1344,8 +1369,11 @@ function renderWriting(wrap, data) {
         <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px;">YOUR TASK</div>
         <div style="font-size:15px;color:var(--ink);line-height:1.7;">${escHtml(data.prompt)}</div>
       </div>
-      <textarea class="writing-area" id="writing-resp" placeholder="Write your response here…" oninput="updateWritingWC(this, ${data.minWords || 50})"></textarea>
+      <textarea class="writing-area" id="writing-resp" placeholder="Write your response here…" oninput="updateWritingWC(this, ${data.minWords || 50})" required></textarea>
       <div class="wc" id="writing-wc">0 words · aim for ${data.minWords || 50}+</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" id="writing-skip" onchange="toggleWritingSkip(this)"> Skip this writing task
+      </label>
     </div>
   `;
 }
@@ -1356,6 +1384,21 @@ function updateWritingWC(el, min) {
   wc.textContent = `${words} word${words===1?'':'s'}${words >= min ? ' ✓' : ' · aim for ' + min + '+'}`;
   wc.style.color = words >= min ? 'var(--green)' : 'var(--muted)';
   saveAnswer('writing', el.value);
+}
+
+function toggleWritingSkip(checkbox) {
+  var textarea = document.getElementById('writing-resp');
+  if (checkbox.checked) {
+    textarea.required = false;
+    textarea.style.opacity = '0.4';
+    textarea.disabled = true;
+    saveAnswer('writing', '[SKIPPED]');
+  } else {
+    textarea.required = true;
+    textarea.style.opacity = '';
+    textarea.disabled = false;
+    saveAnswer('writing', textarea.value);
+  }
 }
 
 // ── REVIEW ──
@@ -1466,7 +1509,7 @@ async function finishLesson() {
 
   document.getElementById('stat-time').textContent = elapsed + 'm';
   document.getElementById('stat-steps').textContent = state.steps.length;
-  document.getElementById('stat-day').textContent = 'Day ' + state.dayNumber;
+  document.getElementById('stat-day').textContent = state.dayNumber + ' / 20';
 
   showScreen('screen-complete');
   progressBar.style.width = '100%';
@@ -1546,6 +1589,18 @@ function escHtml(str) {
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('lessonDate').value = new Date().toISOString().split('T')[0];
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+
+  // Auto-fill name from hub
+  var savedName = localStorage.getItem('fp_student_name');
+  if (savedName) document.getElementById('studentName').value = savedName;
+
+  // Auto-select level from placement test results
+  var savedLevel = localStorage.getItem('fp_cefr_level');
+  if (savedLevel) {
+    var card = document.querySelector('.level-card[data-level="' + savedLevel + '"]');
+    if (card) selectLevel(card);
+  }
+
   tryResumeLesson();
 });
 </script>
