@@ -4,6 +4,20 @@ All notable changes to the English Path platform are documented here.
 
 ---
 
+## [0.4.0] - 2026-04-05
+
+### Added — Onboarding & UX Simplification (Option D)
+- Created `src/i18n.js`, a self-contained internationalisation system with Spanish (es) translations for all student-facing UI
+- **Language selector:** Floating widget on all pages + prominent selector on the hub welcome screen; choice persists in localStorage
+- **Spanish translations** covering 120+ strings: buttons, headings, instructions, form labels, placeholders, status messages, activity labels, level names, and confidence ratings
+- **Visual section icons:** Automatic emoji icons (📖 Reading, ✍️ Writing, 🎧 Listening, 🗣️ Speaking, etc.) prepended to section headings
+- **Bilingual display:** Translations appear as subtle italic hints below the English text, so students learn English while understanding instructions in Spanish
+- **Dynamic content support:** MutationObserver re-applies translations when the DOM changes (lesson steps, hub dashboard, etc.)
+- **Extensible:** Adding a new language requires only a new key in `TRANSLATIONS` and `LANG_META`
+- Included in `index.html`, `student-initial-test.html`, and `student-course.html`
+
+---
+
 ## [0.3.0] - 2026-04-05
 
 ### Added — Mobile-First Enhancements (Option C)
