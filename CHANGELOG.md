@@ -4,6 +4,15 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.7.1] - 2026-04-05
+
+### Added — Skip Placement Test Option
+- Student hub now fetches teacher settings on login to check `allow_skip_test`
+- When the test hasn't been taken and the teacher allows it, a "Skip to Course" button appears below the main placement test CTA
+- Added `allow_skip_test` field to the Settings tab in `GOOGLE_SHEETS_SCHEMA.md`
+
+---
+
 ## [0.7.0] - 2026-04-05
 
 ### Changed — Level-Aware Translation System

@@ -239,6 +239,7 @@ const LEVEL_INFO = {
    ───────────────────────────────────────────────────────────── */
 let studentName = '';
 let progress = null; // fetched or built from localStorage
+let settings = { allow_skip_test: false }; // teacher preferences from Google Sheets
 
 /* ─────────────────────────────────────────────────────────────
    Screen Navigation
@@ -303,6 +304,16 @@ async function fetchProgress(name) {
     lessons_completed: localStorage.getItem('fp_last_lesson_day') ? Number(localStorage.getItem('fp_last_lesson_day')) : 0,
     last_lesson_date:  localStorage.getItem('fp_last_lesson_date') || null,
   };
+
+  // Also try to fetch teacher settings (allow_skip_test, etc.)
+  try {
+    const settingsUrl = WEBHOOK_URL + '?action=get_settings&student=' + encodeURIComponent(name);
+    const settingsResp = await fetch(settingsUrl, { method: 'GET' });
+    const settingsData = await settingsResp.json();
+    if (settingsData && settingsData.found) {
+      settings.allow_skip_test = !!settingsData.allow_skip_test;
+    }
+  } catch (e) { /* settings unavailable */ }
 
   renderDashboard();
 }
@@ -408,9 +419,18 @@ function renderDashboard() {
   const cta = document.getElementById('ctaSection');
 
   if (!testDone) {
+    var skipHtml = '';
+    if (settings.allow_skip_test) {
+      skipHtml =
+        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);">' +
+        '<p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Your teacher has allowed you to start the course without the placement test.</p>' +
+        '<a class="btn-cta secondary" href="src/student-course.html">Skip to Course</a>' +
+        '</div>';
+    }
     cta.innerHTML =
       '<p>Your first step is the placement test. It takes about 40 minutes.</p>' +
-      '<a class="btn-cta" href="src/student-initial-test.html">Take the Placement Test</a>';
+      '<a class="btn-cta" href="src/student-initial-test.html">Take the Placement Test</a>' +
+      skipHtml;
   } else if (!hasLevel) {
     cta.innerHTML =
       '<p>Your teacher will review your test soon. Check back later.</p>' +
