@@ -243,7 +243,7 @@ const LEVEL_INFO = {
    ───────────────────────────────────────────────────────────── */
 let studentName = '';
 let progress = null; // fetched or built from localStorage
-let settings = { allow_skip_test: false }; // teacher preferences from Google Sheets
+let settings = { allow_skip_test: false, allow_retake_test: false }; // teacher preferences from Google Sheets
 
 /* ─────────────────────────────────────────────────────────────
    Screen Navigation
@@ -316,6 +316,7 @@ async function fetchProgress(name) {
     const settingsData = await settingsResp.json();
     if (settingsData && settingsData.found) {
       settings.allow_skip_test = !!settingsData.allow_skip_test;
+      settings.allow_retake_test = !!settingsData.allow_retake_test;
     }
   } catch (e) { /* settings unavailable */ }
 
@@ -359,6 +360,11 @@ function renderDashboard() {
     msTestCard.innerHTML = '<span class="badge badge-done">Completed</span>';
     if (d.total_score) {
       msTestCard.innerHTML += ' <span style="margin-left:8px;font-size:14px;color:var(--muted);">' + d.total_score + ' / 80</span>';
+    }
+    if (settings.allow_retake_test) {
+      msTestCard.innerHTML += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule);">' +
+        '<a href="src/student-initial-test.html" style="font-size:13px;color:var(--rust);text-decoration:none;">↩ Re-take Placement Test</a>' +
+        '<span style="font-size:11px;color:var(--muted);margin-left:8px;">(approved by your teacher)</span></div>';
     }
   } else {
     msTest.classList.add('active');

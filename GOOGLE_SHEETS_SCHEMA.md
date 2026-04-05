@@ -98,6 +98,7 @@ Teacher preferences that student pages check at runtime. One row per student.
 | cefr_level | String | Assigned CEFR level | B1 |
 | allow_spanish | Boolean | Allow Spanish UI hints (C1 only) | TRUE |
 | allow_skip_test | Boolean | Allow student to skip placement test | FALSE |
+| allow_retake_test | Boolean | Allow student to re-take placement test | FALSE |
 | course_month | Number | Current month in course (1-6) | 1 |
 | updated_at | DateTime | Last update timestamp | 2026-04-05T10:00:00Z |
 | webhook_url | String | Google Apps Script URL | https://script.google.com/... |
