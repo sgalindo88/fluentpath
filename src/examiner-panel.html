@@ -374,6 +374,9 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       </div>
 
       <div class="sb-section">MARKING</div>
+      <div class="sb-link" id="nav-placementtest" onclick="showPanel('placementtest')">
+        <div class="sb-icon">📋</div> Mark Placement Test
+      </div>
       <div class="sb-link" id="nav-marking" onclick="showPanel('marking')">
         <div class="sb-icon">✏️</div> Mark Writing & Speaking
       </div>
@@ -845,6 +848,140 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       </div>
 
     </div><!-- /main-content -->
+
+      <!-- ═══ PLACEMENT TEST MARKING PANEL ═══ -->
+      <div class="panel" id="panel-placementtest">
+        <div class="panel-header">
+          <div class="panel-eyebrow">PLACEMENT TEST</div>
+          <div class="panel-title">Mark Placement <em>Test</em></div>
+          <div class="panel-sub">Load a student's placement test from the records, review auto-scored sections, and manually mark writing and speaking.</div>
+        </div>
+
+        <!-- Load test data -->
+        <div class="card card-top rust" style="margin-bottom:24px;">
+          <div class="card-label">LOAD TEST DATA</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Fetches the student's test submission from Google Sheets. Uses the student name from your profile settings.</p>
+          <button class="btn-primary" onclick="loadPlacementTest()">Load Test for <span id="pt-student-name-btn">Student</span></button>
+          <div id="pt-load-status" style="margin-top:8px;font-size:13px;font-style:italic;color:var(--muted);"></div>
+        </div>
+
+        <!-- Reading (auto-scored) -->
+        <div class="card card-top green" id="pt-reading-card" style="display:none;">
+          <div class="card-label">READING · AUTO-SCORED</div>
+          <div class="section-score-display"><div class="ssd-label">Reading Score</div><div class="ssd-val" id="pt-reading-score">0 <span>/ 20</span></div></div>
+          <div id="pt-reading-chips" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+        </div>
+
+        <!-- Listening (auto-scored + Q20 manual) -->
+        <div class="card card-top blue" id="pt-listening-card" style="display:none;">
+          <div class="card-label">LISTENING · AUTO-SCORED + Q20 MANUAL</div>
+          <div class="section-score-display"><div class="ssd-label">Listening Score</div><div class="ssd-val" id="pt-listening-score">0 <span>/ 15</span></div></div>
+          <div id="pt-listening-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+          <div class="card-label" style="margin-top:12px;">Q20 · DICTATION (manual)</div>
+          <div style="background:var(--cream);padding:12px 16px;margin-bottom:12px;font-style:italic;font-size:14px;color:var(--ink);" id="pt-rv-q20">—</div>
+          <div class="mark-slider-row">
+            <label>Q20 Score</label>
+            <input type="range" class="mark-slider" id="pt-slider-q20" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q20',5)">
+            <div class="mark-val" id="pt-disp-q20">0 <span>/ 5</span></div>
+          </div>
+        </div>
+
+        <!-- Writing (manual) -->
+        <div class="card card-top rust" id="pt-writing-card" style="display:none;">
+          <div class="card-label">WRITING · MANUAL MARKING</div>
+          <div class="section-score-display"><div class="ssd-label">Writing Score</div><div class="ssd-val" id="pt-writing-score">0 <span>/ 25</span></div></div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q11 · Passive Voice <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q11">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q11" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q11',5)"><div class="mark-val" id="pt-disp-q11">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q11" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q12 · Combining Sentences <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q12">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q12" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q12',5)"><div class="mark-val" id="pt-disp-q12">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q12" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q13 · Error Correction <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q13">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q13" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q13',5)"><div class="mark-val" id="pt-disp-q13">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q13" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <div style="font-weight:600;margin-bottom:4px;">Q14 · Short Writing Task <span style="color:var(--muted);font-weight:300;">(10 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;max-height:200px;overflow-y:auto;" id="pt-rv-q14">—</div>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Score each sub-criterion (0–2.5 each, total 10):</p>
+            <div class="mark-slider-row"><label>Task Achievement</label><input type="range" class="mark-slider" id="pt-sc-task" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-task">0</div></div>
+            <div class="mark-slider-row"><label>Grammar & Accuracy</label><input type="range" class="mark-slider" id="pt-sc-grammar" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-grammar">0</div></div>
+            <div class="mark-slider-row"><label>Vocabulary Range</label><input type="range" class="mark-slider" id="pt-sc-vocab" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-vocab">0</div></div>
+            <div class="mark-slider-row"><label>Coherence & Structure</label><input type="range" class="mark-slider" id="pt-sc-coherence" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-coherence">0</div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--rule);"><div style="font-weight:600;font-size:13px;">Q14 Total</div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;" id="pt-sct-q14">0 / 10</div></div>
+            <textarea class="mark-notes" id="pt-notes-q14" placeholder="Notes on writing task..." oninput="updatePTResults()"></textarea>
+          </div>
+        </div>
+
+        <!-- Speaking (manual) -->
+        <div class="card card-top gold" id="pt-speaking-card" style="display:none;">
+          <div class="card-label">SPEAKING · MANUAL MARKING</div>
+          <div class="section-score-display"><div class="ssd-label">Speaking Score</div><div class="ssd-val" id="pt-speaking-score">0 <span>/ 20</span></div></div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q21 · Introduction (Part A) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q21">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q21" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q21',5)"><div class="mark-val" id="pt-disp-q21">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q21" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q22 · Everyday Topics (Part A) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q22">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q22" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q22',5)"><div class="mark-val" id="pt-disp-q22">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q22" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
+            <div style="font-weight:600;margin-bottom:4px;">Q23 · Extended Speaking (Part B) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q23">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q23" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q23',5)"><div class="mark-val" id="pt-disp-q23">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q23" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <div style="font-weight:600;margin-bottom:4px;">Q24 · Discussion & Opinion (Part C) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
+            <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q24">—</div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q24" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q24',5)"><div class="mark-val" id="pt-disp-q24">0 <span>/ 5</span></div></div>
+            <textarea class="mark-notes" id="pt-notes-q24" placeholder="Notes..." oninput="updatePTResults()"></textarea>
+          </div>
+        </div>
+
+        <!-- Results & CEFR -->
+        <div class="card card-top purple" id="pt-results-card" style="display:none;">
+          <div class="card-label">RESULTS</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div><div style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);font-weight:600;">Total Score</div><div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:700;" id="pt-res-total">0 <span style="font-size:18px;color:var(--muted);">/ 80</span></div></div>
+            <div style="text-align:center;background:var(--blue-bg);border:2px solid var(--blue);padding:12px 24px;border-radius:6px;"><div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--blue);" id="pt-res-cefr">—</div><div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--blue);font-weight:600;">CEFR Level</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+            <div style="padding:12px;border:1px solid var(--rule);border-top:3px solid var(--green);"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;">Reading</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;" id="pt-res-reading">0 <span style="font-size:13px;color:var(--muted);">/ 20</span></div></div>
+            <div style="padding:12px;border:1px solid var(--rule);border-top:3px solid var(--rust);"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;">Writing</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;" id="pt-res-writing">0 <span style="font-size:13px;color:var(--muted);">/ 25</span></div></div>
+            <div style="padding:12px;border:1px solid var(--rule);border-top:3px solid var(--blue);"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;">Listening</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;" id="pt-res-listening">0 <span style="font-size:13px;color:var(--muted);">/ 15</span></div></div>
+            <div style="padding:12px;border:1px solid var(--rule);border-top:3px solid var(--gold);"><div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;">Speaking</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;" id="pt-res-speaking">0 <span style="font-size:13px;color:var(--muted);">/ 20</span></div></div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px;">Overall Feedback</div>
+            <textarea class="mark-notes" id="pt-overall-feedback" placeholder="Write overall feedback for the student..." style="min-height:100px;"></textarea>
+          </div>
+          <button class="btn-success" onclick="savePlacementToSheets()" style="width:100%;">Save Graded Results to Google Sheets</button>
+          <div id="pt-save-status" style="margin-top:8px;font-size:13px;font-style:italic;color:var(--muted);text-align:center;"></div>
+        </div>
+
+      </div><!-- /panel-placementtest -->
+
   </div><!-- /layout -->
 </div><!-- /app -->
 
@@ -911,6 +1048,216 @@ function setupExaminer() {
   initApp();
 }
 
+// ══════════════════════════════════════════════════════
+// PLACEMENT TEST MARKING
+// ══════════════════════════════════════════════════════
+const PT_READING_CORRECT   = { q1:'B', q2:'C', q3:'C', q4:'C', q5:'B', q6:'A', q7:'C', q8:'B', q9:'B', q10:'B' };
+const PT_LISTENING_CORRECT = { q15:'B', q16:'C', q17:'C', q18:'C' };
+const PT_Q19_CORRECT = new Set(['B','C']);
+const PT_CEFR_BANDS = [
+  { level:'A1', min:0, max:10, desc:'Beginner' },
+  { level:'A2', min:11, max:20, desc:'Elementary' },
+  { level:'B1', min:21, max:35, desc:'Intermediate' },
+  { level:'B2', min:36, max:50, desc:'Upper-Intermediate' },
+  { level:'C1', min:51, max:65, desc:'Advanced' },
+  { level:'C2', min:66, max:80, desc:'Proficiency' },
+];
+const ptScores = { reading:{}, listening:{}, q20:0, q11:0, q12:0, q13:0, q14:0, q21:0, q22:0, q23:0, q24:0 };
+
+function ptGetCEFR(n) {
+  for (const b of PT_CEFR_BANDS) if (n >= b.min && n <= b.max) return b.level;
+  return n >= 66 ? 'C2' : '—';
+}
+function ptComputeReading()   { return Object.values(ptScores.reading).reduce((a,b) => a+b, 0); }
+function ptComputeListening() { return Math.min(['q15','q16','q17','q18','q19'].reduce((a,q) => a+(ptScores.listening[q]||0), 0) + (ptScores.q20||0), 15); }
+function ptComputeWriting()   { return (ptScores.q11||0)+(ptScores.q12||0)+(ptScores.q13||0)+(ptScores.q14||0); }
+function ptComputeSpeaking()  { return (ptScores.q21||0)+(ptScores.q22||0)+(ptScores.q23||0)+(ptScores.q24||0); }
+
+function updatePTResults() {
+  const r = ptComputeReading(), l = ptComputeListening(), w = ptComputeWriting(), s = ptComputeSpeaking();
+  const total = r + l + w + s;
+  const cefr = ptGetCEFR(total);
+  document.getElementById('pt-reading-score').innerHTML = r + ' <span>/ 20</span>';
+  document.getElementById('pt-listening-score').innerHTML = l + ' <span>/ 15</span>';
+  document.getElementById('pt-writing-score').innerHTML = w + ' <span>/ 25</span>';
+  document.getElementById('pt-speaking-score').innerHTML = s + ' <span>/ 20</span>';
+  document.getElementById('pt-res-total').innerHTML = total + ' <span style="font-size:18px;color:var(--muted);">/ 80</span>';
+  document.getElementById('pt-res-cefr').textContent = cefr;
+  document.getElementById('pt-res-reading').innerHTML = r + ' <span style="font-size:13px;color:var(--muted);">/ 20</span>';
+  document.getElementById('pt-res-writing').innerHTML = w + ' <span style="font-size:13px;color:var(--muted);">/ 25</span>';
+  document.getElementById('pt-res-listening').innerHTML = l + ' <span style="font-size:13px;color:var(--muted);">/ 15</span>';
+  document.getElementById('pt-res-speaking').innerHTML = s + ' <span style="font-size:13px;color:var(--muted);">/ 20</span>';
+}
+
+function updatePTSlider(q, max) {
+  const v = parseFloat(document.getElementById('pt-slider-' + q).value);
+  document.getElementById('pt-disp-' + q).innerHTML = v + ' <span>/ ' + max + '</span>';
+  ptScores[q] = v;
+  updatePTResults();
+}
+
+function updatePTSubCriteria() {
+  let total = 0;
+  ['task','grammar','vocab','coherence'].forEach(f => {
+    const v = parseFloat(document.getElementById('pt-sc-' + f).value);
+    document.getElementById('pt-scv-' + f).textContent = v;
+    total += v;
+  });
+  total = Math.min(total, 10);
+  document.getElementById('pt-sct-q14').textContent = total + ' / 10';
+  ptScores.q14 = total;
+  updatePTResults();
+}
+
+function buildPTChip(qId, submitted, correct, marks) {
+  const isCorrect = submitted && submitted.toUpperCase() === correct.toUpperCase();
+  const bg = !submitted ? 'var(--cream)' : isCorrect ? 'var(--green-bg)' : '#fdecea';
+  const border = !submitted ? 'var(--rule)' : isCorrect ? 'var(--green)' : 'var(--rust)';
+  const icon = !submitted ? '○' : isCorrect ? '✓' : '✗';
+  const color = !submitted ? 'var(--muted)' : isCorrect ? 'var(--green)' : 'var(--rust)';
+  return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:' + bg + ';border:1px solid ' + border + ';font-size:12px;border-radius:3px;">' +
+    '<span style="color:' + color + ';font-weight:600;">' + icon + '</span> ' +
+    '<span style="font-weight:600;">' + qId.toUpperCase() + '</span> ' +
+    (submitted ? submitted.toUpperCase() : '—') +
+    (isCorrect ? ' <span style="color:var(--green);font-size:11px;">' + marks + '/' + marks + '</span>' : '') +
+    (!submitted ? '' : !isCorrect ? ' <span style="color:var(--rust);font-size:11px;">0/' + marks + '</span>' : '') +
+    '</div>';
+}
+
+async function loadPlacementTest() {
+  const name = ex.studentName;
+  if (!name) { document.getElementById('pt-load-status').textContent = 'Set up a student profile first.'; return; }
+
+  document.getElementById('pt-load-status').textContent = 'Loading test data for ' + escHtml(name) + '...';
+
+  // Try fetching from Google Sheets
+  let data = null;
+  if (ex.webhook && ex.webhook.includes('script.google.com')) {
+    try {
+      const url = ex.webhook + '?action=get_test_results&student=' + encodeURIComponent(name);
+      const resp = await fetch(url, { method: 'GET' });
+      data = await resp.json();
+    } catch (e) {}
+  }
+
+  // If no data from sheet, use demo data
+  if (!data || !data.found) {
+    data = {
+      found: true,
+      candidate_name: name,
+      test_date: new Date().toISOString().split('T')[0],
+      mcq_answers: 'Q1: B ✓ Q2: C ✓ Q3: A ✗ (correct: C) Q4: C ✓ Q5: B ✓ Q6: A ✓ Q7: C ✓ Q8: B ✓ Q9: B ✓ Q10: B ✓ Q15: B ✓ Q16: C ✓ Q17: A ✗ (correct: C) Q18: C ✓ Q19: B,C — 2/2 marks',
+      q11_passive_voice: 'The meal was prepared by the chef in less than ten minutes.',
+      q12_combined_sentence: 'Although it was raining, we decided to go for a walk.',
+      q13_error_correction: 'She does not have any money to buy a new phone.',
+      q14_writing_task: 'Dear Maria, I am writing to invite you to my birthday party next Saturday...',
+      q20_dictation: 'The university library will be closed for renovations during the summer months.',
+      q21_speaking_notes: 'My name is... I come from... I have been studying English for...',
+      q22_speaking_notes: 'I like to cook in my free time. My favourite dish is...',
+      q23_speaking_notes: 'I believe technology has changed education significantly...',
+      q24_speaking_notes: 'In my opinion, learning a second language is essential because...',
+    };
+    document.getElementById('pt-load-status').textContent = 'Demo data loaded (no webhook configured or no test found).';
+  } else {
+    document.getElementById('pt-load-status').textContent = '✓ Test data loaded for ' + escHtml(name) + '.';
+  }
+
+  // Parse MCQ answers
+  const mcqStr = data.mcq_answers || '';
+  const re = /Q(\d+):\s*([A-D])/gi;
+  const mcqAnswers = {};
+  let m;
+  while ((m = re.exec(mcqStr)) !== null) mcqAnswers['q' + m[1]] = m[2].toUpperCase();
+  // Q19 multi-select
+  const q19m = mcqStr.match(/Q19:\s*([A-D,\s]+)/i);
+  const q19answers = q19m ? (q19m[1].match(/[A-D]/gi) || []).map(l => l.toUpperCase()) : [];
+
+  // Auto-score reading
+  let readingHtml = '';
+  Object.entries(PT_READING_CORRECT).forEach(([q, correct]) => {
+    const submitted = mcqAnswers[q] || null;
+    const isCorrect = submitted && submitted === correct;
+    ptScores.reading[q] = isCorrect ? 2 : 0;
+    readingHtml += buildPTChip(q, submitted, correct, 2);
+  });
+  document.getElementById('pt-reading-chips').innerHTML = readingHtml;
+
+  // Auto-score listening Q15-Q18
+  let listeningHtml = '';
+  Object.entries(PT_LISTENING_CORRECT).forEach(([q, correct]) => {
+    const submitted = mcqAnswers[q] || null;
+    const isCorrect = submitted && submitted === correct;
+    ptScores.listening[q] = isCorrect ? 2 : 0;
+    listeningHtml += buildPTChip(q, submitted, correct, 2);
+  });
+  // Q19 multi-select
+  const q19set = new Set(q19answers);
+  const q19correct = q19set.size === 2 && [...PT_Q19_CORRECT].every(x => q19set.has(x));
+  ptScores.listening['q19'] = q19correct ? 2 : (q19answers.some(x => PT_Q19_CORRECT.has(x)) ? 1 : 0);
+  listeningHtml += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:' + (q19correct ? 'var(--green-bg)' : '#fdecea') + ';border:1px solid ' + (q19correct ? 'var(--green)' : 'var(--rust)') + ';font-size:12px;border-radius:3px;">' +
+    '<span style="color:' + (q19correct ? 'var(--green)' : 'var(--rust)') + ';font-weight:600;">' + (q19correct ? '✓' : '✗') + '</span> Q19 ' + q19answers.join(',') + ' <span style="font-size:11px;">' + ptScores.listening['q19'] + '/2</span></div>';
+  document.getElementById('pt-listening-chips').innerHTML = listeningHtml;
+
+  // Populate response viewers
+  document.getElementById('pt-rv-q11').textContent = data.q11_passive_voice || '—';
+  document.getElementById('pt-rv-q12').textContent = data.q12_combined_sentence || '—';
+  document.getElementById('pt-rv-q13').textContent = data.q13_error_correction || '—';
+  document.getElementById('pt-rv-q14').textContent = data.q14_writing_task || '—';
+  document.getElementById('pt-rv-q20').textContent = data.q20_dictation || '—';
+  document.getElementById('pt-rv-q21').textContent = data.q21_speaking_notes || '—';
+  document.getElementById('pt-rv-q22').textContent = data.q22_speaking_notes || '—';
+  document.getElementById('pt-rv-q23').textContent = data.q23_speaking_notes || '—';
+  document.getElementById('pt-rv-q24').textContent = data.q24_speaking_notes || '—';
+
+  // Show all cards
+  ['pt-reading-card','pt-listening-card','pt-writing-card','pt-speaking-card','pt-results-card'].forEach(id => {
+    document.getElementById(id).style.display = 'block';
+  });
+
+  updatePTResults();
+}
+
+async function savePlacementToSheets() {
+  if (!ex.webhook || !ex.webhook.includes('script.google.com')) {
+    document.getElementById('pt-save-status').textContent = 'No webhook configured. Set one in Student Profile.';
+    return;
+  }
+  const r = ptComputeReading(), l = ptComputeListening(), w = ptComputeWriting(), s = ptComputeSpeaking();
+  const total = r + l + w + s;
+  const payload = {
+    sheet_name: 'Examiner Results',
+    graded_at: new Date().toLocaleString(),
+    candidate_name: ex.studentName,
+    test_date: new Date().toISOString().split('T')[0],
+    examiner: ex.teacherName,
+    reading_score: r + ' / 20',
+    writing_score: w + ' / 25',
+    listening_score: l + ' / 15',
+    speaking_score: s + ' / 20',
+    total_score: total + ' / 80',
+    cefr_level: ptGetCEFR(total),
+    examiner_feedback: document.getElementById('pt-overall-feedback').value || '',
+    notes_q11: document.getElementById('pt-notes-q11').value || '',
+    notes_q12: document.getElementById('pt-notes-q12').value || '',
+    notes_q13: document.getElementById('pt-notes-q13').value || '',
+    notes_q14: document.getElementById('pt-notes-q14').value || '',
+    notes_q21: document.getElementById('pt-notes-q21').value || '',
+    notes_q22: document.getElementById('pt-notes-q22').value || '',
+    notes_q23: document.getElementById('pt-notes-q23').value || '',
+    notes_q24: document.getElementById('pt-notes-q24').value || '',
+  };
+  document.getElementById('pt-save-status').textContent = 'Saving...';
+  try {
+    const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0,2000))).join('&');
+    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    document.getElementById('pt-save-status').textContent = '✓ Results saved to "Examiner Results" sheet.';
+    document.getElementById('pt-save-status').style.color = 'var(--green)';
+  } catch(e) {
+    document.getElementById('pt-save-status').textContent = '⚠ Could not reach webhook. Check the URL.';
+    document.getElementById('pt-save-status').style.color = 'var(--rust)';
+  }
+}
+
 function initApp() {
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
@@ -949,6 +1296,8 @@ function initApp() {
       role: 'teacher'
     });
   }
+
+  document.getElementById('pt-student-name-btn').textContent = ex.studentName || 'Student';
 }
 
 function getLevelTheme(level) {

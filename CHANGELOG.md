@@ -15,6 +15,7 @@ All notable changes to the FluentPath platform are documented here.
 - **Split landing pages:** `index.html` is now student-only; created `teacher.html` as a separate teacher portal with links to the dashboard and marking tools
 - **Required video call:** Jitsi Meet now embeds inline on the cover/landing screen of both `student-initial-test.html` and `student-course.html`; the "Begin" button is disabled until the video call connects
 - **Spanish gated by teacher approval:** Language selector is greyed out by default; `i18n.js` checks the Google Sheets Settings tab for `allow_spanish` permission before enabling the Spanish toggle
+- **Combined teacher interfaces:** Merged placement test marking into `examiner-panel.html` as a new "Mark Placement Test" sidebar panel with auto-scoring, manual sliders, CEFR calculation, and Google Sheets save — pulls test data from the sheet instead of pasting emails; `teacher.html` updated to single dashboard link
 - **Google Sheets schema:** Created `GOOGLE_SHEETS_SCHEMA.md` documenting all 6 tabs (Initial Test Results, Examiner Results, Course Progress, Settings, Lesson Approvals, Lesson Marks) with column definitions and API actions
 
 ---
