@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examiner Panel · English Path</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1208;
+  --paper: #f5f0e8;
+  --cream: #ede8dc;
+  --rust: #b8471e;
+  --gold: #c9933a;
+  --rule: #c8bfa8;
+  --muted: #6b5f4e;
+  --green: #2e6e45;
+  --green-bg: #eaf3ec;
+  --blue: #1e4d8c;
+  --blue-bg: #eaf0fb;
+  --purple: #7b3fa0;
+  --purple-bg: #f3edf8;
+  --sidebar-w: 270px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',Georgia,serif; font-weight:300; min-height:100vh; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);} }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+/* ── TOPBAR ── */
+.topbar {
+  position:fixed; top:0; left:0; right:0; height:56px;
+  background:var(--ink); display:flex; align-items:center;
+  justify-content:space-between; padding:0 28px; z-index:200;
+  border-bottom:3px solid var(--gold);
+}
+.topbar-left { display:flex; align-items:center; gap:20px; }
+.topbar-title { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; color:var(--paper); }
+.topbar-title em { color:var(--gold); font-style:italic; }
+.topbar-sub { font-size:10px; letter-spacing:0.3em; text-transform:uppercase; color:rgba(245,240,232,0.4); }
+.topbar-right { display:flex; align-items:center; gap:12px; }
+.topbar-badge {
+  font-size:10px; letter-spacing:0.25em; text-transform:uppercase;
+  padding:5px 12px; border:1px solid rgba(201,147,58,0.4); color:var(--gold); cursor:pointer;
+}
+.topbar-badge:hover { background:rgba(201,147,58,0.1); }
+.topbar-badge.alert { border-color:rgba(184,71,30,0.5); color:var(--rust); background:rgba(184,71,30,0.1); }
+.pending-count {
+  display:inline-block; background:var(--rust); color:white;
+  border-radius:10px; padding:1px 6px; font-size:10px; margin-left:4px;
+}
+
+/* ── LAYOUT ── */
+.layout { display:flex; margin-top:56px; min-height:calc(100vh - 56px); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width:var(--sidebar-w); background:var(--cream); border-right:1px solid var(--rule);
+  position:fixed; top:56px; bottom:0; left:0; overflow-y:auto; z-index:100; padding:20px 0 40px;
+}
+.sb-section { font-size:9px; letter-spacing:0.35em; text-transform:uppercase; font-weight:600; color:var(--muted); padding:12px 20px 6px; margin-top:8px; }
+.sb-link {
+  display:flex; align-items:center; gap:10px; padding:10px 20px;
+  cursor:pointer; font-size:13px; color:var(--muted);
+  transition:all 0.15s; border-left:3px solid transparent;
+}
+.sb-link:hover { background:white; color:var(--ink); }
+.sb-link.active { background:white; color:var(--ink); font-weight:600; border-left-color:var(--rust); }
+.sb-icon { width:20px; text-align:center; font-size:14px; flex-shrink:0; }
+.sb-badge { margin-left:auto; background:var(--rust); color:white; border-radius:10px; padding:1px 6px; font-size:10px; display:none; }
+.sb-badge.show { display:inline-block; }
+
+.sb-student-info {
+  margin:16px; background:var(--ink); padding:16px 18px; border-top:3px solid var(--gold);
+}
+.ssi-label { font-size:9px; letter-spacing:0.25em; text-transform:uppercase; color:rgba(245,240,232,0.4); font-weight:600; margin-bottom:4px; }
+.ssi-name { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; color:var(--paper); line-height:1.2; }
+.ssi-level { font-size:12px; color:var(--gold); margin-top:4px; letter-spacing:0.1em; font-weight:600; }
+.ssi-day { font-size:11px; color:rgba(245,240,232,0.5); margin-top:2px; }
+
+/* ── MAIN ── */
+.main-content { margin-left:var(--sidebar-w); flex:1; padding:32px 40px 80px; max-width:980px; }
+.panel { display:none; }
+.panel.active { display:block; animation:fadeIn 0.25s ease; }
+
+/* ── PANEL HEADERS ── */
+.panel-header { margin-bottom:28px; }
+.panel-eyebrow { font-size:9px; letter-spacing:0.4em; text-transform:uppercase; color:var(--rust); font-weight:600; margin-bottom:6px; }
+.panel-title { font-family:'Playfair Display',serif; font-size:34px; font-weight:700; color:var(--ink); line-height:1.1; }
+.panel-title em { color:var(--rust); font-style:italic; }
+.panel-sub { font-size:14px; color:var(--muted); font-style:italic; margin-top:6px; line-height:1.7; }
+
+/* ── CARDS ── */
+.card { background:white; border:1px solid var(--rule); padding:24px; margin-bottom:20px; }
+.card-top { border-top:3px solid var(--rule); }
+.card-top.gold { border-top-color:var(--gold); }
+.card-top.rust { border-top-color:var(--rust); }
+.card-top.green { border-top-color:var(--green); }
+.card-top.blue { border-top-color:var(--blue); }
+.card-top.purple { border-top-color:var(--purple); }
+.card-label { font-size:9px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:8px; }
+.card-title { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; margin-bottom:4px; }
+
+/* ── STAT GRID ── */
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+@media(max-width:700px) { .stat-grid { grid-template-columns:repeat(2,1fr); } }
+.stat-box { background:white; border:1px solid var(--rule); padding:18px; border-top:3px solid var(--rule); }
+.stat-box.gold { border-top-color:var(--gold); }
+.stat-box.rust { border-top-color:var(--rust); }
+.stat-box.green { border-top-color:var(--green); }
+.stat-box.blue { border-top-color:var(--blue); }
+.stat-val { font-family:'Playfair Display',serif; font-size:30px; font-weight:700; line-height:1; }
+.stat-lbl { font-size:9px; letter-spacing:0.25em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-top:6px; }
+
+/* ── PROGRESS BAR ── */
+.prog-row { margin-bottom:14px; }
+.prog-labels { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:4px; }
+.prog-track { height:8px; background:var(--cream); border-radius:0; position:relative; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--rust),var(--gold)); transition:width 0.5s ease; }
+
+/* ── ATTENDANCE GRID ── */
+.attend-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+.attend-cell {
+  aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+  background:var(--cream); border:1px solid var(--rule); font-size:11px;
+  font-weight:600; cursor:pointer; transition:all 0.2s; flex-direction:column; gap:2px;
+}
+.attend-cell .ac-num { font-size:10px; color:var(--muted); }
+.attend-cell:hover { border-color:var(--ink); }
+.attend-cell.present { background:var(--green-bg); border-color:var(--green); color:var(--green); }
+.attend-cell.absent { background:#fdecea; border-color:var(--rust); color:var(--rust); }
+.attend-cell.today { border-color:var(--gold); border-width:2px; }
+
+/* ── APPROVAL QUEUE ── */
+.approval-item {
+  background:white; border:1px solid var(--rule); border-left:4px solid var(--gold);
+  padding:18px 20px; margin-bottom:12px; display:flex;
+  align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+}
+.approval-item.approved { border-left-color:var(--green); opacity:0.7; }
+.approval-item.rejected { border-left-color:var(--rust); opacity:0.6; }
+.ai-info { flex:1; }
+.ai-name { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; }
+.ai-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+.ai-actions { display:flex; gap:8px; }
+.btn-approve {
+  background:var(--green); color:white; border:none;
+  padding:8px 18px; font-size:13px; cursor:pointer; transition:all 0.2s;
+}
+.btn-approve:hover { background:#245536; }
+.btn-reject {
+  background:transparent; border:1.5px solid var(--rust); color:var(--rust);
+  padding:8px 18px; font-size:13px; cursor:pointer; transition:all 0.2s;
+}
+.btn-reject:hover { background:var(--rust); color:white; }
+.btn-preview {
+  background:transparent; border:1.5px solid var(--rule); color:var(--muted);
+  padding:8px 14px; font-size:13px; cursor:pointer; transition:all 0.2s;
+}
+.btn-preview:hover { border-color:var(--ink); color:var(--ink); }
+
+/* ── LESSON CONTENT PREVIEW ── */
+.lesson-preview { display:none; margin-top:14px; }
+.lesson-preview.show { display:block; animation:fadeIn 0.25s ease; }
+.lp-section {
+  background:var(--cream); border:1px solid var(--rule); padding:14px 16px; margin-bottom:8px;
+}
+.lp-label { font-size:9px; letter-spacing:0.25em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:6px; }
+.lp-body { font-size:13px; line-height:1.7; color:var(--ink); }
+.diff-controls { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+.diff-btn {
+  padding:6px 14px; border:1.5px solid var(--rule); background:white;
+  font-size:12px; cursor:pointer; transition:all 0.2s; color:var(--muted);
+}
+.diff-btn:hover { border-color:var(--ink); color:var(--ink); }
+.diff-btn.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+/* ── MARKING PANEL ── */
+.marking-tabs { display:flex; gap:0; border-bottom:2px solid var(--rule); margin-bottom:24px; }
+.m-tab {
+  padding:10px 20px; font-size:13px; cursor:pointer; color:var(--muted);
+  border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s;
+}
+.m-tab:hover { color:var(--ink); }
+.m-tab.active { color:var(--rust); border-bottom-color:var(--rust); font-weight:600; }
+
+.mark-section { display:none; }
+.mark-section.active { display:block; }
+
+.student-response {
+  background:var(--cream); border:1px solid var(--rule); border-left:3px solid var(--gold);
+  padding:14px 16px; font-size:14px; line-height:1.8; color:var(--ink);
+  font-style:italic; margin-bottom:16px; min-height:60px;
+}
+.mark-slider-row { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+.mark-slider-row label { font-size:12px; color:var(--muted); width:120px; flex-shrink:0; }
+.mark-slider { flex:1; accent-color:var(--rust); cursor:pointer; height:4px; }
+.mark-val { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; width:60px; text-align:right; }
+.mark-val span { font-size:13px; color:var(--muted); }
+.mark-notes {
+  width:100%; min-height:80px; border:1px solid var(--rule); border-bottom:2px solid var(--ink);
+  background:white; padding:12px; font-family:'Source Serif 4',serif; font-size:13px;
+  color:var(--ink); outline:none; resize:vertical; line-height:1.7;
+}
+.mark-notes:focus { border-bottom-color:var(--rust); }
+
+.section-score-display {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--ink); color:var(--paper); padding:12px 18px; margin-bottom:20px;
+}
+.ssd-label { font-size:10px; letter-spacing:0.25em; text-transform:uppercase; opacity:0.5; }
+.ssd-val { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; }
+.ssd-val span { font-size:13px; color:var(--gold); }
+
+/* ── WEEK SUMMARY ── */
+.week-tabs { display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
+.wk-tab {
+  padding:6px 14px; border:1.5px solid var(--rule); background:white;
+  font-size:12px; cursor:pointer; color:var(--muted); transition:all 0.2s;
+}
+.wk-tab:hover { border-color:var(--ink); }
+.wk-tab.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.week-summary-area {
+  width:100%; min-height:200px; border:1px solid var(--rule); border-bottom:2px solid var(--ink);
+  background:white; padding:16px; font-family:'Source Serif 4',serif; font-size:14px;
+  color:var(--ink); outline:none; resize:vertical; line-height:1.8;
+}
+.week-summary-area:focus { border-bottom-color:var(--rust); }
+
+/* ── DIFFICULTY ADJUSTER ── */
+.diff-adj-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:600px) { .diff-adj-grid { grid-template-columns:1fr; } }
+.diff-adj-card { background:white; border:1px solid var(--rule); padding:18px; }
+.dac-label { font-size:9px; letter-spacing:0.25em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:8px; }
+.dac-val { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; margin-bottom:10px; }
+.diff-range { width:100%; accent-color:var(--rust); cursor:pointer; }
+.diff-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--rule); margin-top:4px; }
+
+/* ── STUDENT PROFILE ── */
+.profile-form { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:600px) { .profile-form { grid-template-columns:1fr; } }
+.profile-form .pf-full { grid-column:1/-1; }
+.pf label { font-size:9px; letter-spacing:0.25em; text-transform:uppercase; color:var(--muted); font-weight:600; display:block; margin-bottom:6px; }
+.pf input, .pf select, .pf textarea {
+  width:100%; background:white; border:1px solid var(--rule); border-bottom:2px solid var(--ink);
+  padding:10px 12px; font-family:'Source Serif 4',serif; font-size:14px; color:var(--ink); outline:none;
+}
+.pf input:focus, .pf select:focus, .pf textarea:focus { border-bottom-color:var(--rust); }
+.pf textarea { min-height:80px; resize:vertical; }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  background:var(--ink); color:var(--paper); border:none;
+  padding:12px 32px; font-family:'Playfair Display',serif; font-size:15px;
+  font-style:italic; cursor:pointer; transition:all 0.2s;
+}
+.btn-primary:hover { background:var(--rust); }
+.btn-secondary {
+  background:transparent; border:1.5px solid var(--rule); color:var(--muted);
+  padding:10px 20px; font-size:13px; cursor:pointer; transition:all 0.2s;
+}
+.btn-secondary:hover { border-color:var(--ink); color:var(--ink); }
+.btn-success {
+  background:var(--green); color:white; border:none;
+  padding:12px 28px; font-size:14px; cursor:pointer; transition:all 0.2s;
+}
+.btn-success:hover { background:#245536; }
+
+/* ── STATUS PILLS ── */
+.pill { display:inline-block; padding:3px 10px; font-size:10px; letter-spacing:0.15em; text-transform:uppercase; font-weight:600; }
+.pill.pending { background:#fff8e6; color:#7a5a00; border:1px solid #e6c84a; }
+.pill.approved { background:var(--green-bg); color:var(--green); border:1px solid var(--green); }
+.pill.complete { background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue); }
+.pill.absent { background:#fdecea; color:var(--rust); border:1px solid var(--rust); }
+
+/* ── SETUP SCREEN ── */
+.setup-screen {
+  min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; padding:60px 24px; text-align:center;
+}
+.setup-screen h1 { font-family:'Playfair Display',serif; font-size:clamp(32px,5vw,52px); font-weight:700; margin-bottom:8px; }
+.setup-screen h1 em { color:var(--rust); font-style:italic; }
+.setup-sub { font-size:15px; color:var(--muted); font-style:italic; max-width:480px; line-height:1.8; margin-bottom:36px; }
+.setup-box { width:100%; max-width:520px; background:white; border:1px solid var(--rule); border-top:4px solid var(--gold); padding:28px; margin-bottom:20px; text-align:left; }
+.setup-box .pf { margin-bottom:16px; }
+.setup-rule { width:56px; height:2px; background:var(--gold); margin:0 auto 32px; }
+
+/* ── DIVIDER ── */
+.divider { border:none; border-top:1px solid var(--rule); margin:20px 0; }
+
+/* ── SEND ── */
+.send-status { font-size:13px; font-style:italic; margin-top:10px; display:none; }
+.send-status.ok { color:var(--green); }
+.send-status.err { color:var(--rust); }
+
+/* ── SPINNER ── */
+.spinner { width:24px; height:24px; border:2px solid var(--rule); border-top-color:var(--rust); border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block; margin-left:8px; vertical-align:middle; }
+
+@media(max-width:700px) {
+  .sidebar { display:none; }
+  .main-content { margin-left:0; padding:20px 16px 60px; }
+  .topbar { padding:0 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ SETUP SCREEN ══════════════════ -->
+<div id="setup-screen" class="setup-screen">
+  <div style="font-size:10px;letter-spacing:0.45em;text-transform:uppercase;color:var(--rust);font-weight:600;margin-bottom:20px;">ENGLISH PATH</div>
+  <h1>Examiner <em>Panel</em></h1>
+  <p class="setup-sub">One-on-one teaching dashboard. Set up your student profile and Google Sheet webhook to get started.</p>
+  <div class="setup-rule"></div>
+
+  <div class="setup-box">
+    <div class="pf"><label>Your Name (Teacher/Examiner) <span style="color:var(--rust)">*</span></label><input type="text" id="setup-teacher" placeholder="e.g. Sarah Mitchell"></div>
+    <div class="pf"><label>Student Name <span style="color:var(--rust)">*</span></label><input type="text" id="setup-student" placeholder="e.g. Maria Gonzalez"></div>
+    <div class="pf"><label>Student CEFR Level <span style="color:var(--rust)">*</span></label>
+      <select id="setup-level">
+        <option value="A1">A1 — Beginner · Everyday Survival</option>
+        <option value="A2">A2 — Elementary · Community & Life</option>
+        <option value="B1" selected>B1 — Intermediate · The Workplace</option>
+        <option value="B2">B2 — Upper-Intermediate · Career & Society</option>
+        <option value="C1">C1 — Advanced · Professional Mastery</option>
+        <option value="C2">C2 — Proficiency · Full Fluency</option>
+      </select>
+    </div>
+    <hr class="divider">
+    <div class="pf"><label>Google Sheet Webhook URL<br><span style="font-size:11px;font-weight:300;letter-spacing:0;text-transform:none;color:var(--muted);">From your Google Apps Script deployment</span></label><input type="url" id="setup-webhook" placeholder="https://script.google.com/macros/s/…/exec"></div>
+  </div>
+
+  <button class="btn-primary" onclick="setupExaminer()">Open Examiner Panel →</button>
+  <p style="font-size:11px;color:var(--rule);margin-top:16px;font-style:italic;">You can update these settings later in the Student Profile tab.</p>
+</div>
+
+<!-- ══════════════════ APP ══════════════════ -->
+<div id="app" style="display:none;">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title"><em>English</em> Path</div>
+      <div class="topbar-sub">EXAMINER PANEL</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-badge alert" id="pendingBadge" onclick="showPanel('approvals')" style="display:none;">
+        Pending <span class="pending-count" id="pendingCount">0</span>
+      </div>
+      <div class="topbar-badge" onclick="showPanel('profile')">⚙ Settings</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sb-student-info">
+        <div class="ssi-label">CURRENT STUDENT</div>
+        <div class="ssi-name" id="sb-student-name">—</div>
+        <div class="ssi-level" id="sb-student-level">—</div>
+        <div class="ssi-day" id="sb-student-day">Month 1 · Day —</div>
+      </div>
+
+      <div class="sb-section">LESSONS</div>
+      <div class="sb-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
+        <div class="sb-icon">📊</div> Dashboard
+      </div>
+      <div class="sb-link" id="nav-approvals" onclick="showPanel('approvals')">
+        <div class="sb-icon">✅</div> Lesson Approvals
+        <span class="sb-badge" id="sb-pending-badge">0</span>
+      </div>
+      <div class="sb-link" id="nav-attendance" onclick="showPanel('attendance')">
+        <div class="sb-icon">📅</div> Attendance
+      </div>
+
+      <div class="sb-section">MARKING</div>
+      <div class="sb-link" id="nav-marking" onclick="showPanel('marking')">
+        <div class="sb-icon">✏️</div> Mark Writing & Speaking
+      </div>
+      <div class="sb-link" id="nav-weekly" onclick="showPanel('weekly')">
+        <div class="sb-icon">📝</div> Weekly Summaries
+      </div>
+
+      <div class="sb-section">COURSE</div>
+      <div class="sb-link" id="nav-difficulty" onclick="showPanel('difficulty')">
+        <div class="sb-icon">🎚</div> Adjust Difficulty
+      </div>
+      <div class="sb-link" id="nav-progress" onclick="showPanel('progress')">
+        <div class="sb-icon">📈</div> Progress Tracker
+      </div>
+
+      <div class="sb-section">STUDENT</div>
+      <div class="sb-link" id="nav-profile" onclick="showPanel('profile')">
+        <div class="sb-icon">👤</div> Student Profile
+      </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+      <!-- ══ DASHBOARD ══ -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="panel-header">
+          <div class="panel-eyebrow">OVERVIEW</div>
+          <div class="panel-title">Good morning, <em id="dash-teacher-name">Teacher</em></div>
+          <div class="panel-sub" id="dash-student-summary">Here's where your student stands today.</div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-box gold">
+            <div class="stat-val" id="stat-days-done">0</div>
+            <div class="stat-lbl">Days Completed</div>
+          </div>
+          <div class="stat-box green">
+            <div class="stat-val" id="stat-attendance">—%</div>
+            <div class="stat-lbl">Attendance</div>
+          </div>
+          <div class="stat-box blue">
+            <div class="stat-val" id="stat-avg-time">—m</div>
+            <div class="stat-lbl">Avg. Lesson Time</div>
+          </div>
+          <div class="stat-box rust">
+            <div class="stat-val" id="stat-pending">0</div>
+            <div class="stat-lbl">Awaiting Approval</div>
+          </div>
+        </div>
+
+        <div class="card card-top gold">
+          <div class="card-label">MONTHLY PROGRESS</div>
+          <div class="card-title">Day <span id="dash-day-num">1</span> of 20</div>
+          <div style="margin-top:16px;">
+            <div class="prog-row">
+              <div class="prog-labels"><span>Overall Course</span><span id="prog-overall-val">0%</span></div>
+              <div class="prog-track"><div class="prog-fill" id="prog-overall" style="width:0%"></div></div>
+            </div>
+            <div class="prog-row">
+              <div class="prog-labels"><span>Attendance</span><span id="prog-attend-val">0%</span></div>
+              <div class="prog-track"><div class="prog-fill" id="prog-attend" style="width:0%;background:linear-gradient(90deg,var(--green),var(--green))"></div></div>
+            </div>
+            <div class="prog-row">
+              <div class="prog-labels"><span>Writing Tasks Marked</span><span id="prog-writing-val">0%</span></div>
+              <div class="prog-track"><div class="prog-fill" id="prog-writing" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--blue))"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card-top rust">
+          <div class="card-label">RECENT LESSON ACTIVITY</div>
+          <div class="card-title">Latest Submissions</div>
+          <div id="recent-activity" style="margin-top:16px;">
+            <div style="font-size:14px;color:var(--muted);font-style:italic;">No submissions yet. They will appear here when your student completes a lesson.</div>
+          </div>
+        </div>
+
+        <div class="card card-top green">
+          <div class="card-label">TEACHER NOTES</div>
+          <div class="card-title">Today's Notes</div>
+          <div style="margin-top:12px;">
+            <textarea class="mark-notes" id="today-notes" placeholder="Write any observations or notes from today's session…" oninput="autoSave('today_notes', this.value)"></textarea>
+            <div style="margin-top:8px;display:flex;gap:8px;">
+              <button class="btn-primary" onclick="saveTeacherNotes()">Save Notes</button>
+              <div class="send-status" id="notes-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ APPROVALS ══ -->
+      <div class="panel" id="panel-approvals">
+        <div class="panel-header">
+          <div class="panel-eyebrow">LESSON MANAGEMENT</div>
+          <div class="panel-title">Lesson <em>Approvals</em></div>
+          <div class="panel-sub">Review AI-generated lesson content before your student begins. You can adjust difficulty or regenerate.</div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="loadApprovalQueue()">🔄 Refresh Queue</button>
+          <button class="btn-secondary" onclick="createManualLesson()">+ Create Manual Lesson</button>
+        </div>
+
+        <div id="approval-queue">
+          <div style="text-align:center;padding:40px;color:var(--muted);font-style:italic;">
+            <div style="font-size:32px;margin-bottom:12px;">📬</div>
+            Loading pending lessons…<div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ATTENDANCE ══ -->
+      <div class="panel" id="panel-attendance">
+        <div class="panel-header">
+          <div class="panel-eyebrow">TRACKING</div>
+          <div class="panel-title"><em>Attendance</em> Log</div>
+          <div class="panel-sub">Click each day to toggle present / absent. The month runs Monday–Friday, 20 lesson days.</div>
+        </div>
+
+        <div class="card card-top green">
+          <div class="card-label">THIS MONTH · 20 LESSON DAYS</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div class="card-title">Month 1</div>
+            <div style="font-size:13px;color:var(--muted);">
+              <span id="attend-present" style="color:var(--green);font-weight:600;">0</span> present ·
+              <span id="attend-absent" style="color:var(--rust);font-weight:600;">0</span> absent ·
+              <span id="attend-remaining">20</span> remaining
+            </div>
+          </div>
+          <div class="attend-grid" id="attend-grid"></div>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--muted);">
+            <span>⬜ Not yet</span>
+            <span style="color:var(--green);">🟩 Present</span>
+            <span style="color:var(--rust);">🟥 Absent</span>
+            <span style="color:var(--gold);">[ ] Today</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">ABSENCE NOTES</div>
+          <textarea class="mark-notes" id="absence-notes" placeholder="Note any absences, make-up lessons, or special circumstances…" oninput="autoSave('absence_notes', this.value)"></textarea>
+          <button class="btn-primary" style="margin-top:10px;" onclick="saveAttendance()">Save Attendance</button>
+          <div class="send-status" id="attend-save-status"></div>
+        </div>
+      </div>
+
+      <!-- ══ MARKING ══ -->
+      <div class="panel" id="panel-marking">
+        <div class="panel-header">
+          <div class="panel-eyebrow">EXAMINER MARKING</div>
+          <div class="panel-title">Mark Writing <em>&</em> Speaking</div>
+          <div class="panel-sub">Import the student's latest lesson submission to mark their written and spoken responses.</div>
+        </div>
+
+        <div class="card card-top gold" style="margin-bottom:20px;">
+          <div class="card-label">LOAD STUDENT SUBMISSION</div>
+          <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+            <div style="flex:1;">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Paste the JSON data from the Google Sheet, or load from the most recent submission.</div>
+              <textarea id="submission-json" class="mark-notes" style="min-height:100px;" placeholder='{"student_name":"...","writing_response":"...","speaking_transcript":"..."}'></textarea>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn-primary" onclick="loadSubmission()">Load Submission</button>
+            <button class="btn-secondary" onclick="loadDemoSubmission()">Load Demo Data</button>
+          </div>
+          <div class="send-status" id="load-status"></div>
+        </div>
+
+        <div id="marking-area" style="display:none;">
+          <div class="marking-tabs">
+            <div class="m-tab active" onclick="showMarkTab('writing')">Writing</div>
+            <div class="m-tab" onclick="showMarkTab('speaking')">Speaking</div>
+            <div class="m-tab" onclick="showMarkTab('summary')">Final Score</div>
+          </div>
+
+          <!-- Writing tab -->
+          <div class="mark-section active" id="mark-writing">
+            <div class="section-score-display">
+              <div><div class="ssd-label">WRITING SCORE</div><div class="ssd-val" id="writing-total">0 <span>/ 25</span></div></div>
+              <div style="font-size:12px;color:rgba(245,240,232,0.5);">Auto-updates as you mark</div>
+            </div>
+
+            <div class="card">
+              <div class="card-label">STUDENT'S WRITING RESPONSE</div>
+              <div class="student-response" id="student-writing">No submission loaded.</div>
+
+              <div class="card-label" style="margin-top:16px;">VOCABULARY PRACTICE (day)</div>
+              <div class="student-response" id="student-vocab" style="font-size:13px;">—</div>
+
+              <hr class="divider">
+              <div class="card-label">MARK: TASK COMPLETION</div>
+              <div class="mark-slider-row">
+                <label>Task achievement</label>
+                <input type="range" class="mark-slider" min="0" max="8" step="1" value="0" oninput="updateWritingScore()" id="s-task">
+                <div class="mark-val" id="v-task">0 <span>/ 8</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Grammar & accuracy</label>
+                <input type="range" class="mark-slider" min="0" max="7" step="1" value="0" oninput="updateWritingScore()" id="s-gram">
+                <div class="mark-val" id="v-gram">0 <span>/ 7</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Vocabulary range</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateWritingScore()" id="s-vocab">
+                <div class="mark-val" id="v-vocab">0 <span>/ 5</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Coherence & flow</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateWritingScore()" id="s-cohe">
+                <div class="mark-val" id="v-cohe">0 <span>/ 5</span></div>
+              </div>
+
+              <div class="card-label" style="margin-top:16px;">WRITING FEEDBACK</div>
+              <textarea class="mark-notes" id="writing-feedback" placeholder="Specific feedback on this writing task…" oninput="autoSave('writing_feedback', this.value)"></textarea>
+            </div>
+          </div>
+
+          <!-- Speaking tab -->
+          <div class="mark-section" id="mark-speaking">
+            <div class="section-score-display">
+              <div><div class="ssd-label">SPEAKING SCORE</div><div class="ssd-val" id="speaking-total">0 <span>/ 20</span></div></div>
+            </div>
+
+            <div class="card">
+              <div class="card-label">STUDENT'S SPEAKING TRANSCRIPT</div>
+              <div class="student-response" id="student-speaking">No submission loaded.</div>
+
+              <div class="card-label" style="margin-top:16px;">PRONUNCIATION DRILL ATTEMPTS</div>
+              <div class="student-response" id="student-drills" style="font-size:13px;">—</div>
+
+              <hr class="divider">
+              <div class="card-label">MARK: SPEAKING CRITERIA</div>
+              <div class="mark-slider-row">
+                <label>Fluency & pace</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateSpeakingScore()" id="sp-fluency">
+                <div class="mark-val" id="vsp-fluency">0 <span>/ 5</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Pronunciation</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateSpeakingScore()" id="sp-pron">
+                <div class="mark-val" id="vsp-pron">0 <span>/ 5</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Vocabulary use</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateSpeakingScore()" id="sp-vocab">
+                <div class="mark-val" id="vsp-vocab">0 <span>/ 5</span></div>
+              </div>
+              <div class="mark-slider-row">
+                <label>Communication</label>
+                <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateSpeakingScore()" id="sp-comm">
+                <div class="mark-val" id="vsp-comm">0 <span>/ 5</span></div>
+              </div>
+
+              <div class="card-label" style="margin-top:16px;">SPEAKING FEEDBACK</div>
+              <textarea class="mark-notes" id="speaking-feedback" placeholder="Feedback on pronunciation, fluency, and speaking confidence…" oninput="autoSave('speaking_feedback', this.value)"></textarea>
+            </div>
+          </div>
+
+          <!-- Summary tab -->
+          <div class="mark-section" id="mark-summary">
+            <div class="card card-top gold">
+              <div class="card-label">LESSON SCORE SUMMARY</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+                <div class="stat-box green"><div class="stat-val" id="sum-writing">0 / 25</div><div class="stat-lbl">Writing</div></div>
+                <div class="stat-box blue"><div class="stat-val" id="sum-speaking">0 / 20</div><div class="stat-lbl">Speaking</div></div>
+              </div>
+              <div style="margin-top:16px;background:var(--ink);padding:18px;display:flex;justify-content:space-between;align-items:center;">
+                <div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(245,240,232,0.4);">LESSON TOTAL (marked)</div>
+                <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--paper);" id="sum-total">0 <span style="font-size:14px;color:var(--gold);">/ 45</span></div></div>
+                <div style="text-align:right;"><div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(245,240,232,0.4);">CONFIDENCE</div><div style="font-size:18px;color:var(--gold);font-style:italic;" id="sum-confidence">—</div></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-label">OVERALL LESSON FEEDBACK</div>
+              <textarea class="mark-notes" id="overall-feedback" placeholder="Overall feedback for the student about today's lesson…" style="min-height:140px;" oninput="autoSave('overall_feedback', this.value)"></textarea>
+            </div>
+
+            <div class="card">
+              <div class="card-label">SEND RESULTS TO STUDENT</div>
+              <div class="pf"><label>Student Email</label><input type="email" id="student-email" placeholder="student@email.com"></div>
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                <button class="btn-primary" onclick="sendResultsEmail()">📧 Send by Email</button>
+                <button class="btn-success" onclick="saveToSheet()">💾 Save to Sheet</button>
+              </div>
+              <div class="send-status" id="send-status"></div>
+              <div class="send-status" id="sheet-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ WEEKLY SUMMARIES ══ -->
+      <div class="panel" id="panel-weekly">
+        <div class="panel-header">
+          <div class="panel-eyebrow">COURSE MANAGEMENT</div>
+          <div class="panel-title">Weekly <em>Summaries</em></div>
+          <div class="panel-sub">Write an end-of-week summary for each week of the course. These are saved with the student's record.</div>
+        </div>
+
+        <div class="week-tabs" id="week-tabs">
+          <div class="wk-tab active" onclick="showWeek(1)">Week 1</div>
+          <div class="wk-tab" onclick="showWeek(2)">Week 2</div>
+          <div class="wk-tab" onclick="showWeek(3)">Week 3</div>
+          <div class="wk-tab" onclick="showWeek(4)">Week 4</div>
+        </div>
+
+        <div class="card card-top purple">
+          <div class="card-label">WEEK <span id="active-week-num">1</span> SUMMARY</div>
+          <div class="card-title">Days <span id="week-days-label">1–5</span></div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;">
+            <div class="pf"><label>Vocabulary Progress</label>
+              <select id="wk-vocab-prog"><option>Excellent</option><option selected>Good</option><option>Needs Work</option><option>Struggling</option></select>
+            </div>
+            <div class="pf"><label>Speaking Confidence</label>
+              <select id="wk-speak-prog"><option>Excellent</option><option selected>Good</option><option>Needs Work</option><option>Struggling</option></select>
+            </div>
+            <div class="pf"><label>Writing Quality</label>
+              <select id="wk-write-prog"><option>Excellent</option><option selected>Good</option><option>Needs Work</option><option>Struggling</option></select>
+            </div>
+            <div class="pf"><label>Listening Comprehension</label>
+              <select id="wk-listen-prog"><option>Excellent</option><option selected>Good</option><option>Needs Work</option><option>Struggling</option></select>
+            </div>
+          </div>
+
+          <div class="card-label">NARRATIVE SUMMARY</div>
+          <textarea class="week-summary-area" id="week-summary-text" placeholder="Write a detailed summary of this week: what topics were covered, how the student performed, key strengths, areas for improvement, and your plan for next week…"></textarea>
+
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" onclick="saveWeeklySummary()">Save Summary</button>
+            <button class="btn-secondary" onclick="generateAISummary()">✨ AI Draft Summary</button>
+          </div>
+          <div class="send-status" id="weekly-save-status"></div>
+        </div>
+      </div>
+
+      <!-- ══ DIFFICULTY ══ -->
+      <div class="panel" id="panel-difficulty">
+        <div class="panel-header">
+          <div class="panel-eyebrow">COURSE CUSTOMISATION</div>
+          <div class="panel-title">Adjust <em>Difficulty</em></div>
+          <div class="panel-sub">Fine-tune the AI lesson generation for your student's strengths and weaknesses. Changes apply to the next generated lesson.</div>
+        </div>
+
+        <div class="card card-top gold">
+          <div class="card-label">CURRENT DIFFICULTY PROFILE</div>
+          <div class="card-title" style="margin-bottom:20px;">All sliders default to level-appropriate. Drag to adjust.</div>
+          <div class="diff-adj-grid" id="diff-grid">
+            <!-- generated by JS -->
+          </div>
+          <div style="margin-top:20px;display:flex;gap:8px;">
+            <button class="btn-primary" onclick="saveDifficulty()">Save Profile</button>
+            <button class="btn-secondary" onclick="resetDifficulty()">Reset to Default</button>
+          </div>
+          <div class="send-status" id="diff-save-status"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">FOCUS AREAS FOR NEXT LESSON</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;" id="focus-tags">
+            <!-- tags generated by JS -->
+          </div>
+          <div class="pf pf-full"><label>Additional Instructions for AI</label>
+            <textarea class="mark-notes" id="ai-instructions" placeholder="e.g. 'Focus on medical vocabulary this week' or 'Student struggles with past tense — include extra practice' or 'Student works in construction — use job site vocabulary'…" oninput="autoSave('ai_instructions', this.value)"></textarea>
+          </div>
+          <button class="btn-primary" style="margin-top:10px;" onclick="saveFocusAreas()">Save Focus Areas</button>
+          <div class="send-status" id="focus-save-status"></div>
+        </div>
+      </div>
+
+      <!-- ══ PROGRESS TRACKER ══ -->
+      <div class="panel" id="panel-progress">
+        <div class="panel-header">
+          <div class="panel-eyebrow">STUDENT PROGRESS</div>
+          <div class="panel-title">Progress <em>Tracker</em></div>
+          <div class="panel-sub">Full record of your student's journey through the course.</div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-box gold"><div class="stat-val" id="prog-days">0</div><div class="stat-lbl">Lessons Done</div></div>
+          <div class="stat-box green"><div class="stat-val" id="prog-attend-pct">—</div><div class="stat-lbl">Attendance</div></div>
+          <div class="stat-box blue"><div class="stat-val" id="prog-avg-write">—</div><div class="stat-lbl">Avg Writing</div></div>
+          <div class="stat-box rust"><div class="stat-val" id="prog-avg-speak">—</div><div class="stat-lbl">Avg Speaking</div></div>
+        </div>
+
+        <div class="card card-top gold">
+          <div class="card-label">LESSON-BY-LESSON RECORD</div>
+          <div id="lesson-record-table">
+            <div style="font-size:14px;color:var(--muted);font-style:italic;">No lesson records yet. Records appear here after each completed and marked lesson.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">SKILLS SNAPSHOT</div>
+          <div class="prog-row">
+            <div class="prog-labels"><span>Vocabulary</span><span id="skill-vocab-val">—</span></div>
+            <div class="prog-track"><div class="prog-fill" id="skill-vocab" style="width:0%"></div></div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-labels"><span>Speaking / Pronunciation</span><span id="skill-speak-val">—</span></div>
+            <div class="prog-track"><div class="prog-fill" id="skill-speak" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--blue))"></div></div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-labels"><span>Writing</span><span id="skill-write-val">—</span></div>
+            <div class="prog-track"><div class="prog-fill" id="skill-write" style="width:0%;background:linear-gradient(90deg,var(--purple),var(--purple))"></div></div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-labels"><span>Listening</span><span id="skill-listen-val">—</span></div>
+            <div class="prog-track"><div class="prog-fill" id="skill-listen" style="width:0%;background:linear-gradient(90deg,var(--green),var(--green))"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ STUDENT PROFILE ══ -->
+      <div class="panel" id="panel-profile">
+        <div class="panel-header">
+          <div class="panel-eyebrow">SETTINGS</div>
+          <div class="panel-title">Student <em>Profile</em></div>
+          <div class="panel-sub">Update your student's information and course settings.</div>
+        </div>
+
+        <div class="card card-top blue">
+          <div class="card-label">TEACHER & CONNECTION</div>
+          <div class="profile-form">
+            <div class="pf pf-full"><label>Teacher Name <span style="color:var(--rust)">*</span></label><input type="text" id="prof-teacher" placeholder="Your name"></div>
+            <div class="pf pf-full"><label>Google Sheet Webhook URL</label><input type="url" id="prof-webhook" placeholder="https://script.google.com/macros/s/…/exec"></div>
+          </div>
+        </div>
+
+        <div class="card card-top gold">
+          <div class="card-label">STUDENT INFORMATION</div>
+          <div class="profile-form">
+            <div class="pf"><label>Full Name <span style="color:var(--rust)">*</span></label><input type="text" id="prof-student-name" placeholder="Student's full name"></div>
+            <div class="pf"><label>Email</label><input type="email" id="prof-email" placeholder="student@email.com"></div>
+            <div class="pf"><label>CEFR Level <span style="color:var(--rust)">*</span></label>
+              <select id="prof-level">
+                <option value="A1">A1 — Beginner</option>
+                <option value="A2">A2 — Elementary</option>
+                <option value="B1">B1 — Intermediate</option>
+                <option value="B2">B2 — Upper-Intermediate</option>
+                <option value="C1">C1 — Advanced</option>
+                <option value="C2">C2 — Proficiency</option>
+              </select>
+            </div>
+            <div class="pf"><label>Course Month</label>
+              <select id="prof-month">
+                <option value="1">Month 1</option>
+                <option value="2">Month 2</option>
+                <option value="3">Month 3</option>
+                <option value="4">Month 4</option>
+                <option value="5">Month 5</option>
+                <option value="6">Month 6</option>
+              </select>
+            </div>
+            <div class="pf pf-full"><label>Notes about the student</label>
+              <textarea id="prof-notes" placeholder="Background, job, learning goals, challenges, first language, schedule, etc.…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
+          <button class="btn-secondary" onclick="exportProfile()">Export Data</button>
+        </div>
+        <div class="send-status" id="profile-save-status"></div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /layout -->
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let ex = {
+  teacherName: '',
+  studentName: '',
+  studentLevel: 'B1',
+  studentMonth: 1,
+  studentEmail: '',
+  studentNotes: '',
+  webhook: '',
+  attendance: {},       // { 'day-1': 'present'|'absent', ... }
+  markingData: null,    // loaded submission
+  writingScores: {},
+  speakingScores: {},
+  weeklySummaries: {},  // { 1: {...}, 2: {...}, ... }
+  difficultyProfile: {},
+  focusTags: new Set(),
+  lessonRecords: [],
+  aiInstructions: '',
+  pendingLessons: [],
+  currentWeek: 1,
+};
+
+const FOCUS_OPTIONS = [
+  'Vocabulary', 'Pronunciation', 'Grammar', 'Speaking fluency',
+  'Writing', 'Listening', 'Workplace English', 'Medical vocabulary',
+  'Phrasal verbs', 'Idioms', 'Formal writing', 'Casual conversation',
+  'Numbers & money', 'Reading speed',
+];
+
+const DIFF_AREAS = [
+  { key: 'vocabulary_density', label: 'Vocabulary density', min: 1, max: 5, default: 3, desc: 'Number of new words per lesson' },
+  { key: 'sentence_complexity', label: 'Sentence complexity', min: 1, max: 5, default: 3, desc: 'Length and structure of example sentences' },
+  { key: 'speaking_duration', label: 'Speaking task length', min: 1, max: 5, default: 3, desc: 'How long the speaking prompts are' },
+  { key: 'writing_length', label: 'Writing requirement', min: 1, max: 5, default: 3, desc: 'Minimum word count for writing tasks' },
+  { key: 'listening_speed', label: 'Listening speed', min: 1, max: 5, default: 3, desc: 'Pace of the listening audio texts' },
+  { key: 'grammar_complexity', label: 'Grammar complexity', min: 1, max: 5, default: 3, desc: 'Grammatical structures introduced' },
+];
+
+// ══════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════
+function setupExaminer() {
+  const teacher = document.getElementById('setup-teacher').value.trim();
+  const student = document.getElementById('setup-student').value.trim();
+  const level   = document.getElementById('setup-level').value;
+  const webhook = document.getElementById('setup-webhook').value.trim();
+
+  if (!teacher) { alert('Please enter your name.'); return; }
+  if (!student) { alert('Please enter the student\'s name.'); return; }
+  if (!level)   { alert('Please select the student\'s level.'); return; }
+
+  ex.teacherName  = teacher;
+  ex.studentName  = student;
+  ex.studentLevel = level;
+  ex.webhook      = webhook;
+
+  saveToLocalStorage();
+  initApp();
+}
+
+function initApp() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  // Populate sidebar
+  document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
+  document.getElementById('sb-student-level').textContent = ex.studentLevel + ' · ' + getLevelTheme(ex.studentLevel);
+  document.getElementById('sb-student-day').textContent = `Month ${ex.studentMonth} · Day ${getCurrentDay()}`;
+
+  // Populate dashboard
+  document.getElementById('dash-teacher-name').textContent = ex.teacherName || 'Teacher';
+  document.getElementById('dash-student-summary').textContent = ex.studentName
+    ? `Tracking ${ex.studentName}'s progress through the ${ex.studentLevel} course.`
+    : 'Set up a student profile to start tracking.';
+
+  // Profile form
+  document.getElementById('prof-teacher').value       = ex.teacherName;
+  document.getElementById('prof-webhook').value       = ex.webhook;
+  document.getElementById('prof-student-name').value  = ex.studentName;
+  document.getElementById('prof-level').value         = ex.studentLevel;
+  document.getElementById('prof-month').value         = ex.studentMonth;
+  document.getElementById('prof-notes').value         = ex.studentNotes;
+
+  buildAttendanceGrid();
+  buildDifficultyGrid();
+  buildFocusTags();
+  updateDashboardStats();
+  loadApprovalQueue();
+  updateLessonRecord();
+}
+
+function getLevelTheme(level) {
+  const map = { A1:'Everyday Survival', A2:'Community & Life', B1:'The Workplace', B2:'Career & Society', C1:'Professional Mastery', C2:'Full Fluency' };
+  return map[level] || '';
+}
+
+function getCurrentDay() {
+  return Math.min(new Date().getDate(), 20);
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.getElementById('nav-' + id)?.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════
+function updateDashboardStats() {
+  const present = Object.values(ex.attendance).filter(v => v === 'present').length;
+  const absent  = Object.values(ex.attendance).filter(v => v === 'absent').length;
+  const done    = present + absent;
+  const total   = 20;
+
+  document.getElementById('stat-days-done').textContent = present;
+  document.getElementById('stat-attendance').textContent = done > 0 ? Math.round(present/done*100) + '%' : '—%';
+  document.getElementById('stat-pending').textContent   = ex.pendingLessons.filter(l => l.status === 'pending').length;
+
+  const dayNum = getCurrentDay();
+  document.getElementById('dash-day-num').textContent    = dayNum;
+  const pctOverall = Math.round(done / total * 100);
+  const pctAttend  = done > 0 ? Math.round(present/done*100) : 0;
+
+  document.getElementById('prog-overall').style.width  = pctOverall + '%';
+  document.getElementById('prog-overall-val').textContent = pctOverall + '%';
+  document.getElementById('prog-attend').style.width   = pctAttend + '%';
+  document.getElementById('prog-attend-val').textContent = pctAttend + '%';
+
+  const markedCount = ex.lessonRecords.filter(r => r.writingScore != null).length;
+  const markPct = done > 0 ? Math.round(markedCount/done*100) : 0;
+  document.getElementById('prog-writing').style.width  = markPct + '%';
+  document.getElementById('prog-writing-val').textContent = markPct + '%';
+
+  // pending badge
+  const pendingCount = ex.pendingLessons.filter(l => l.status === 'pending').length;
+  document.getElementById('sb-pending-badge').textContent = pendingCount;
+  document.getElementById('sb-pending-badge').className = 'sb-badge' + (pendingCount > 0 ? ' show' : '');
+  document.getElementById('stat-pending').textContent = pendingCount;
+
+  if (pendingCount > 0) {
+    document.getElementById('pendingBadge').style.display = 'block';
+    document.getElementById('pendingCount').textContent = pendingCount;
+  } else {
+    document.getElementById('pendingBadge').style.display = 'none';
+  }
+
+  // progress panel
+  document.getElementById('prog-days').textContent = present;
+  document.getElementById('prog-attend-pct').textContent = done > 0 ? Math.round(present/done*100)+'%' : '—';
+}
+
+// ══════════════════════════════════════════════════════
+// ATTENDANCE
+// ══════════════════════════════════════════════════════
+function buildAttendanceGrid() {
+  const grid = document.getElementById('attend-grid');
+  const today = getCurrentDay();
+  grid.innerHTML = '';
+  for (let d = 1; d <= 20; d++) {
+    const status = ex.attendance[`day-${d}`] || 'none';
+    const isToday = d === today;
+    const cell = document.createElement('div');
+    cell.className = 'attend-cell' + (status === 'present' ? ' present' : status === 'absent' ? ' absent' : '') + (isToday ? ' today' : '');
+    cell.innerHTML = `<span>${status === 'present' ? '✓' : status === 'absent' ? '✗' : '·'}</span><span class="ac-num">D${d}</span>`;
+    cell.onclick = () => toggleAttendance(d);
+    grid.appendChild(cell);
+  }
+  updateAttendanceCounts();
+}
+
+function toggleAttendance(day) {
+  const key = `day-${day}`;
+  const cur = ex.attendance[key] || 'none';
+  if (cur === 'none') ex.attendance[key] = 'present';
+  else if (cur === 'present') ex.attendance[key] = 'absent';
+  else ex.attendance[key] = 'none';
+  buildAttendanceGrid();
+  updateDashboardStats();
+}
+
+function updateAttendanceCounts() {
+  const present = Object.values(ex.attendance).filter(v => v === 'present').length;
+  const absent  = Object.values(ex.attendance).filter(v => v === 'absent').length;
+  document.getElementById('attend-present').textContent = present;
+  document.getElementById('attend-absent').textContent  = absent;
+  document.getElementById('attend-remaining').textContent = 20 - present - absent;
+}
+
+function saveAttendance() {
+  saveToLocalStorage();
+  const el = document.getElementById('attend-save-status');
+  el.textContent = '✓ Attendance saved.'; el.className = 'send-status ok'; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+// ══════════════════════════════════════════════════════
+// APPROVAL QUEUE
+// ══════════════════════════════════════════════════════
+async function loadApprovalQueue() {
+  const container = document.getElementById('approval-queue');
+
+  // In demo: show demo pending lessons
+  if (!ex.webhook || ex.webhook.includes('script.google.com') === false) {
+    // Show a demo pending lesson
+    ex.pendingLessons = [
+      { id: 'demo-1', studentName: ex.studentName || 'Student', level: ex.studentLevel, date: new Date().toISOString().split('T')[0], day: getCurrentDay(), status: 'pending', topic: 'Daily Communication at Work', content: getDemoLessonPreview() }
+    ];
+    renderApprovalQueue();
+    updateDashboardStats();
+    return;
+  }
+
+  container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-style:italic;">Loading…<div class="spinner"></div></div>';
+
+  try {
+    const url = ex.webhook + '?action=get_pending&teacher_code=' + encodeURIComponent(ex.teacherCode);
+    const res = await fetch(url);
+    const data = await res.json();
+    ex.pendingLessons = data.lessons || [];
+    renderApprovalQueue();
+  } catch(e) {
+    container.innerHTML = '<div style="font-size:14px;color:var(--muted);font-style:italic;">Could not load from sheet. Using demo data.</div>';
+  }
+  updateDashboardStats();
+}
+
+function renderApprovalQueue() {
+  const container = document.getElementById('approval-queue');
+  if (ex.pendingLessons.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-style:italic;"><div style="font-size:32px;margin-bottom:12px;">✓</div>No pending lessons. All caught up!</div>';
+    return;
+  }
+
+  container.innerHTML = ex.pendingLessons.map(l => `
+    <div class="approval-item ${l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : ''}" id="ai-${l.id}">
+      <div class="ai-info">
+        <div class="ai-name">${escHtml(l.studentName || ex.studentName)} · <span style="color:var(--gold);">${l.level}</span></div>
+        <div class="ai-meta">Day ${l.day} · ${l.date} · Topic: <em>${escHtml(l.topic || 'Not yet generated')}</em></div>
+        <div style="margin-top:4px;"><span class="pill ${l.status || 'pending'}">${l.status || 'pending'}</span></div>
+      </div>
+      <div class="ai-actions">
+        <button class="btn-preview" onclick="toggleLessonPreview('${l.id}')">👁 Preview</button>
+        ${l.status !== 'approved' ? `<button class="btn-approve" onclick="approveLesson('${l.id}')">✓ Approve</button>` : ''}
+        ${l.status !== 'rejected' ? `<button class="btn-reject" onclick="rejectLesson('${l.id}')">✗ Reject</button>` : ''}
+      </div>
+    </div>
+    <div class="lesson-preview" id="preview-${l.id}">
+      ${renderLessonPreviewContent(l)}
+    </div>
+  `).join('');
+}
+
+function getDemoLessonPreview() {
+  return {
+    objective: 'Students will be able to communicate clearly about scheduling and appointments at work.',
+    vocabulary: ['appointment /əˈpɔɪntmənt/ — a meeting at a set time', 'schedule /ˈʃedjuːl/ — a plan or timetable', 'available /əˈveɪləbəl/ — free to use or meet'],
+    listeningText: 'Hi Sarah, this is Tom from HR. I\'m calling to confirm our meeting tomorrow at 2pm. Please let me know if you need to reschedule.',
+    speakingDrill: 'Could we reschedule for Thursday morning?',
+    writingPrompt: 'Write an email to your manager asking for a day off next week.',
+  };
+}
+
+function renderLessonPreviewContent(l) {
+  const c = l.content || {};
+  return `
+    <div style="background:white;border:1px solid var(--rule);border-top:none;padding:20px;margin-bottom:12px;">
+      <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:12px;">LESSON CONTENT PREVIEW</div>
+
+      <div class="lp-section"><div class="lp-label">OBJECTIVE</div><div class="lp-body">${escHtml(c.objective || 'Loading...')}</div></div>
+      <div class="lp-section"><div class="lp-label">VOCABULARY</div><div class="lp-body">${Array.isArray(c.vocabulary) ? c.vocabulary.map(v => '<div>• ' + escHtml(v) + '</div>').join('') : escHtml(c.vocabulary || '...')}</div></div>
+      <div class="lp-section"><div class="lp-label">LISTENING TEXT</div><div class="lp-body"><em>"${escHtml(c.listeningText || '...')}"</em></div></div>
+      <div class="lp-section"><div class="lp-label">SPEAKING DRILL</div><div class="lp-body">"${escHtml(c.speakingDrill || '...')}"</div></div>
+      <div class="lp-section"><div class="lp-label">WRITING PROMPT</div><div class="lp-body">${escHtml(c.writingPrompt || '...')}</div></div>
+
+      <div style="margin-top:14px;">
+        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:8px;">ADJUST DIFFICULTY</div>
+        <div class="diff-controls">
+          <button class="diff-btn active" onclick="setDiffMode('${l.id}', 'easier', this)">⬇ Easier</button>
+          <button class="diff-btn active" style="background:var(--ink);color:var(--paper);border-color:var(--ink);" onclick="setDiffMode('${l.id}', 'normal', this)">✓ As Generated</button>
+          <button class="diff-btn" onclick="setDiffMode('${l.id}', 'harder', this)">⬆ Harder</button>
+          <button class="diff-btn" onclick="regenerateLesson('${l.id}')">🔄 Regenerate</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleLessonPreview(id) {
+  const el = document.getElementById(`preview-${id}`);
+  el.classList.toggle('show');
+}
+
+async function approveLesson(id) {
+  const item = document.getElementById(`ai-${id}`);
+  const lesson = ex.pendingLessons.find(l => l.id === id);
+  if (lesson) lesson.status = 'approved';
+  renderApprovalQueue();
+  updateDashboardStats();
+  await sendApprovalToSheet(id, 'approved');
+}
+
+async function rejectLesson(id) {
+  const lesson = ex.pendingLessons.find(l => l.id === id);
+  if (lesson) lesson.status = 'rejected';
+  renderApprovalQueue();
+  updateDashboardStats();
+  await sendApprovalToSheet(id, 'rejected');
+}
+
+async function sendApprovalToSheet(id, status) {
+  if (!ex.webhook || !ex.webhook.startsWith('https://')) return;
+  const body = `action=update_approval&lesson_id=${encodeURIComponent(id)}&status=${status}&teacher_code=${encodeURIComponent(ex.teacherCode)}`;
+  try {
+    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+  } catch(e) {}
+}
+
+function setDiffMode(id, mode, btn) {
+  btn.closest('.diff-controls').querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.remove('active'); b.style.background='white'; b.style.color='var(--muted)'; b.style.borderColor='var(--rule)';
+  });
+  btn.style.background='var(--ink)'; btn.style.color='var(--paper)'; btn.style.borderColor='var(--ink)';
+  const lesson = ex.pendingLessons.find(l => l.id === id);
+  if (lesson) lesson.diffMode = mode;
+}
+
+async function regenerateLesson(id) {
+  alert('Lesson regeneration requires the AI API to be connected to your Google Sheet webhook. In a live deployment, this would request a new lesson from Claude.');
+}
+
+function createManualLesson() {
+  alert('In a live deployment, this would let you create a custom lesson plan for your student.');
+}
+
+// ══════════════════════════════════════════════════════
+// MARKING
+// ══════════════════════════════════════════════════════
+function showMarkTab(tab) {
+  document.querySelectorAll('.mark-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('mark-' + tab).classList.add('active');
+  document.querySelectorAll('.m-tab').forEach(t => { if (t.textContent.toLowerCase().includes(tab)) t.classList.add('active'); });
+}
+
+function loadSubmission() {
+  const raw = document.getElementById('submission-json').value.trim();
+  if (!raw) { showStatus('load-status', 'Please paste submission data.', true); return; }
+  try {
+    const data = JSON.parse(raw);
+    displaySubmission(data);
+    showStatus('load-status', '✓ Submission loaded.', false);
+  } catch(e) {
+    showStatus('load-status', 'Invalid JSON. Check the data and try again.', true);
+  }
+}
+
+function loadDemoSubmission() {
+  const demo = {
+    student_name: ex.studentName || 'Maria Gonzalez',
+    lesson_date: new Date().toISOString().split('T')[0],
+    day_number: getCurrentDay(),
+    level: ex.studentLevel,
+    topic: 'Communication at Work',
+    writing_response: 'Hi John, I hope you are well. I am writing to ask if I can take next Friday off. I have a doctor appointment in the morning and I need to take my daughter to school in the afternoon. I will finish all my work before I leave. I can also work from home on Thursday evening if needed. Thank you for your consideration. Maria.',
+    speaking_transcript: 'I would like to request a day off on Friday the fifteenth. The reason is I have a medical appointment in the morning at nine o clock. I always try to plan ahead and I have already finished my part of the project. I hope this is okay with the team.',
+    drill_s1: 'could we reschedule for Thursday morning',
+    drill_s2: 'i would like to make an appointment',
+    vocab_practice: 'I have an appointment tomorrow. The manager is available this afternoon.',
+    warmup_response: 'This morning I woke up at six and made breakfast for my kids. Then I drove to work and started my shift at eight.',
+    confidence: 2,
+    review_notes: 'The vocabulary was not too hard but the writing task was challenging for me.',
+  };
+  document.getElementById('submission-json').value = JSON.stringify(demo, null, 2);
+  displaySubmission(demo);
+  showStatus('load-status', '✓ Demo submission loaded.', false);
+}
+
+function displaySubmission(data) {
+  ex.markingData = data;
+  document.getElementById('marking-area').style.display = 'block';
+
+  document.getElementById('student-writing').textContent = data.writing_response || '(no writing submitted)';
+  document.getElementById('student-vocab').textContent = data.vocab_practice || '(none)';
+  document.getElementById('student-speaking').textContent = data.speaking_transcript || '(no speaking transcript)';
+
+  const drillText = [data.drill_s1, data.drill_s2, data.drill_s3].filter(Boolean).map((d,i) => `Drill ${i+1}: "${d}"`).join('\n');
+  document.getElementById('student-drills').textContent = drillText || '(none)';
+
+  const confMap = ['Hard 😕', 'OK 😐', 'Good 🙂', 'Great! 😄'];
+  document.getElementById('sum-confidence').textContent = data.confidence != null ? confMap[data.confidence] : '—';
+}
+
+function updateWritingScore() {
+  const t = parseInt(document.getElementById('s-task').value);
+  const g = parseInt(document.getElementById('s-gram').value);
+  const v = parseInt(document.getElementById('s-vocab').value);
+  const c = parseInt(document.getElementById('s-cohe').value);
+  document.getElementById('v-task').innerHTML = t + ' <span>/ 8</span>';
+  document.getElementById('v-gram').innerHTML = g + ' <span>/ 7</span>';
+  document.getElementById('v-vocab').innerHTML = v + ' <span>/ 5</span>';
+  document.getElementById('v-cohe').innerHTML = c + ' <span>/ 5</span>';
+  const total = t + g + v + c;
+  document.getElementById('writing-total').innerHTML = total + ' <span>/ 25</span>';
+  document.getElementById('sum-writing').textContent = total + ' / 25';
+  ex.writingScores = { task:t, grammar:g, vocab:v, coherence:c, total };
+  updateSummaryTotal();
+}
+
+function updateSpeakingScore() {
+  const f = parseInt(document.getElementById('sp-fluency').value);
+  const p = parseInt(document.getElementById('sp-pron').value);
+  const v = parseInt(document.getElementById('sp-vocab').value);
+  const c = parseInt(document.getElementById('sp-comm').value);
+  document.getElementById('vsp-fluency').innerHTML = f + ' <span>/ 5</span>';
+  document.getElementById('vsp-pron').innerHTML    = p + ' <span>/ 5</span>';
+  document.getElementById('vsp-vocab').innerHTML   = v + ' <span>/ 5</span>';
+  document.getElementById('vsp-comm').innerHTML    = c + ' <span>/ 5</span>';
+  const total = f + p + v + c;
+  document.getElementById('speaking-total').innerHTML = total + ' <span>/ 20</span>';
+  document.getElementById('sum-speaking').textContent = total + ' / 20';
+  ex.speakingScores = { fluency:f, pron:p, vocab:v, comm:c, total };
+  updateSummaryTotal();
+}
+
+function updateSummaryTotal() {
+  const w = ex.writingScores.total || 0;
+  const s = ex.speakingScores.total || 0;
+  document.getElementById('sum-total').innerHTML = (w + s) + ' <span style="font-size:14px;color:var(--gold);">/ 45</span>';
+}
+
+// ══════════════════════════════════════════════════════
+// WEEKLY SUMMARIES
+// ══════════════════════════════════════════════════════
+function showWeek(num) {
+  ex.currentWeek = num;
+  document.querySelectorAll('.wk-tab').forEach((t,i) => t.className = 'wk-tab' + (i+1===num?' active':''));
+  document.getElementById('active-week-num').textContent = num;
+  const days = [(num-1)*5+1, num*5];
+  document.getElementById('week-days-label').textContent = days[0] + '–' + days[1];
+
+  const saved = ex.weeklySummaries[num] || {};
+  document.getElementById('week-summary-text').value     = saved.text || '';
+  document.getElementById('wk-vocab-prog').value         = saved.vocab || 'Good';
+  document.getElementById('wk-speak-prog').value         = saved.speaking || 'Good';
+  document.getElementById('wk-write-prog').value         = saved.writing || 'Good';
+  document.getElementById('wk-listen-prog').value        = saved.listening || 'Good';
+}
+
+function saveWeeklySummary() {
+  const num = ex.currentWeek;
+  ex.weeklySummaries[num] = {
+    text: document.getElementById('week-summary-text').value,
+    vocab: document.getElementById('wk-vocab-prog').value,
+    speaking: document.getElementById('wk-speak-prog').value,
+    writing: document.getElementById('wk-write-prog').value,
+    listening: document.getElementById('wk-listen-prog').value,
+  };
+  saveToLocalStorage();
+  showStatus('weekly-save-status', '✓ Week ' + num + ' summary saved.', false);
+  updateSkillsSnapshot();
+}
+
+async function generateAISummary() {
+  const num = ex.currentWeek;
+  const btn = event.target;
+  btn.textContent = '✨ Generating…';
+  btn.disabled = true;
+
+  const attendance = Object.entries(ex.attendance).filter(([k]) => {
+    const d = parseInt(k.replace('day-',''));
+    return d >= (num-1)*5+1 && d <= num*5;
+  }).map(([k,v]) => v);
+  const present = attendance.filter(v => v === 'present').length;
+
+  const prompt = `You are a language teacher writing a brief end-of-week summary for a student.
+Student: ${ex.studentName || 'the student'}
+Level: ${ex.studentLevel}
+Week: ${num} of 4 (Days ${(num-1)*5+1}–${num*5})
+Days attended this week: ${present} of 5
+Vocabulary progress: ${document.getElementById('wk-vocab-prog').value}
+Speaking confidence: ${document.getElementById('wk-speak-prog').value}
+Writing quality: ${document.getElementById('wk-write-prog').value}
+Listening comprehension: ${document.getElementById('wk-listen-prog').value}
+Teacher notes: ${document.getElementById('today-notes')?.value || 'none'}
+
+Write a professional but warm 3-4 paragraph summary covering: what was achieved this week, key strengths observed, areas needing improvement, and a brief plan or encouragement for next week. Keep it practical and encouraging for an adult immigrant learner.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    const text = data.content.map(b => b.text||'').join('');
+    document.getElementById('week-summary-text').value = text;
+    showStatus('weekly-save-status', '✓ AI draft generated — review and save.', false);
+  } catch(e) {
+    showStatus('weekly-save-status', 'Could not generate — check API connection.', true);
+  }
+  btn.textContent = '✨ AI Draft Summary'; btn.disabled = false;
+}
+
+// ══════════════════════════════════════════════════════
+// DIFFICULTY
+// ══════════════════════════════════════════════════════
+function buildDifficultyGrid() {
+  const grid = document.getElementById('diff-grid');
+  grid.innerHTML = DIFF_AREAS.map(a => {
+    const val = ex.difficultyProfile[a.key] || a.default;
+    return `
+      <div class="diff-adj-card">
+        <div class="dac-label">${a.label}</div>
+        <div class="dac-val" id="dv-${a.key}">${val} / 5</div>
+        <input type="range" class="diff-range" min="${a.min}" max="${a.max}" step="1" value="${val}"
+          oninput="updateDiff('${a.key}', this.value)" id="dr-${a.key}">
+        <div class="diff-labels"><span>Easy</span><span>Hard</span></div>
+        <div style="font-size:11px;color:var(--muted);font-style:italic;margin-top:6px;">${a.desc}</div>
+      </div>`;
+  }).join('');
+}
+
+function updateDiff(key, val) {
+  document.getElementById(`dv-${key}`).textContent = val + ' / 5';
+  ex.difficultyProfile[key] = parseInt(val);
+}
+
+function saveDifficulty() {
+  saveToLocalStorage();
+  showStatus('diff-save-status', '✓ Difficulty profile saved. Applies to next lesson.', false);
+}
+
+function resetDifficulty() {
+  ex.difficultyProfile = {};
+  buildDifficultyGrid();
+  showStatus('diff-save-status', '✓ Reset to defaults.', false);
+}
+
+function buildFocusTags() {
+  const container = document.getElementById('focus-tags');
+  container.innerHTML = FOCUS_OPTIONS.map(opt => `
+    <button class="diff-btn ${ex.focusTags.has(opt) ? 'active' : ''}" onclick="toggleFocusTag('${opt}', this)">${opt}</button>
+  `).join('');
+}
+
+function toggleFocusTag(tag, btn) {
+  if (ex.focusTags.has(tag)) { ex.focusTags.delete(tag); btn.classList.remove('active'); btn.style.background='white'; btn.style.color='var(--muted)'; btn.style.borderColor='var(--rule)'; }
+  else { ex.focusTags.add(tag); btn.style.background='var(--ink)'; btn.style.color='var(--paper)'; btn.style.borderColor='var(--ink)'; }
+}
+
+function saveFocusAreas() {
+  ex.aiInstructions = document.getElementById('ai-instructions').value;
+  saveToLocalStorage();
+  showStatus('focus-save-status', '✓ Focus areas saved. Applied to next AI lesson.', false);
+}
+
+// ══════════════════════════════════════════════════════
+// PROGRESS
+// ══════════════════════════════════════════════════════
+function updateLessonRecord() {
+  const container = document.getElementById('lesson-record-table');
+  if (ex.lessonRecords.length === 0) {
+    container.innerHTML = '<div style="font-size:14px;color:var(--muted);font-style:italic;">No marked lessons yet.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--rule);">
+          <th style="text-align:left;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Day</th>
+          <th style="text-align:left;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Topic</th>
+          <th style="text-align:right;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Writing</th>
+          <th style="text-align:right;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Speaking</th>
+          <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Attend</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${ex.lessonRecords.map(r => `
+          <tr style="border-bottom:1px solid var(--cream);">
+            <td style="padding:8px;font-weight:600;">Day ${r.day}</td>
+            <td style="padding:8px;font-style:italic;color:var(--muted);">${escHtml(r.topic || '—')}</td>
+            <td style="padding:8px;text-align:right;">${r.writingScore != null ? r.writingScore + '/25' : '—'}</td>
+            <td style="padding:8px;text-align:right;">${r.speakingScore != null ? r.speakingScore + '/20' : '—'}</td>
+            <td style="padding:8px;text-align:center;"><span class="pill ${r.attended ? 'approved' : 'absent'}">${r.attended ? 'Present' : 'Absent'}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function updateSkillsSnapshot() {
+  const records = ex.lessonRecords.filter(r => r.writingScore != null);
+  if (records.length === 0) return;
+  const avgW = Math.round(records.reduce((a,r) => a+r.writingScore, 0) / records.length);
+  const avgS = Math.round(records.filter(r=>r.speakingScore!=null).reduce((a,r)=>a+r.speakingScore,0) / (records.filter(r=>r.speakingScore!=null).length||1));
+  const wPct = Math.round(avgW/25*100);
+  const sPct = Math.round(avgS/20*100);
+  document.getElementById('skill-vocab').style.width = wPct + '%';
+  document.getElementById('skill-vocab-val').textContent = avgW + '/25 avg';
+  document.getElementById('skill-speak').style.width = sPct + '%';
+  document.getElementById('skill-speak-val').textContent = avgS + '/20 avg';
+  document.getElementById('skill-write').style.width = wPct + '%';
+  document.getElementById('skill-write-val').textContent = avgW + '/25 avg';
+  document.getElementById('prog-avg-write').textContent = avgW;
+  document.getElementById('prog-avg-speak').textContent = avgS;
+}
+
+// ══════════════════════════════════════════════════════
+// EMAIL & SHEET
+// ══════════════════════════════════════════════════════
+function sendResultsEmail() {
+  const email = document.getElementById('student-email').value.trim() || ex.studentEmail;
+  if (!email) { showStatus('send-status', 'Enter student email.', true); return; }
+
+  const w = ex.writingScores.total || 0;
+  const s = ex.speakingScores.total || 0;
+  const feedback = document.getElementById('overall-feedback')?.value || '';
+  const name = ex.markingData?.student_name || ex.studentName;
+
+  const body = `Dear ${name},
+
+Here are your results for today's English lesson (Day ${ex.markingData?.day_number || '—'}):
+
+LESSON RESULTS
+──────────────────────────────
+Writing Score:    ${w} / 25
+Speaking Score:   ${s} / 20
+──────────────────────────────
+TOTAL:            ${w+s} / 45
+
+${feedback ? `TEACHER FEEDBACK\n──────────────────────────────\n${feedback}\n` : ''}
+
+Keep up the great work! See you next lesson.
+
+${ex.teacherName || 'Your Teacher'}`;
+
+  window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Your English Lesson Results · Day ' + (ex.markingData?.day_number||''))}&body=${encodeURIComponent(body)}`);
+  showStatus('send-status', '✓ Email client opened. Click Send to deliver results.', false);
+}
+
+async function saveToSheet() {
+  if (!ex.webhook || !ex.webhook.startsWith('https://')) {
+    showStatus('sheet-status', 'No webhook configured. Add it in Student Profile.', true);
+    return;
+  }
+  const w = ex.writingScores.total || 0;
+  const s = ex.speakingScores.total || 0;
+  const payload = {
+    action: 'save_marks',
+    teacher_name: ex.teacherName,
+    student_name: ex.studentName,
+    lesson_date: ex.markingData?.lesson_date || new Date().toISOString().split('T')[0],
+    day_number: ex.markingData?.day_number || getCurrentDay(),
+    level: ex.studentLevel,
+    writing_score: w + ' / 25',
+    speaking_score: s + ' / 20',
+    total_score: (w+s) + ' / 45',
+    writing_breakdown: JSON.stringify(ex.writingScores),
+    speaking_breakdown: JSON.stringify(ex.speakingScores),
+    overall_feedback: document.getElementById('overall-feedback')?.value || '',
+    graded_at: new Date().toLocaleString(),
+  };
+  try {
+    const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
+    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    showStatus('sheet-status', '✓ Marks saved to Google Sheet.', false);
+
+    // Update local record
+    const day = ex.markingData?.day_number || getCurrentDay();
+    const existing = ex.lessonRecords.find(r => r.day === day);
+    if (existing) { existing.writingScore = w; existing.speakingScore = s; }
+    else ex.lessonRecords.push({ day, topic: ex.markingData?.topic||'', writingScore:w, speakingScore:s, attended:true });
+    saveToLocalStorage();
+    updateLessonRecord();
+    updateSkillsSnapshot();
+    updateDashboardStats();
+  } catch(e) {
+    showStatus('sheet-status', '⚠ Could not reach sheet. Check webhook URL.', true);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// TEACHER NOTES
+// ══════════════════════════════════════════════════════
+function saveTeacherNotes() {
+  autoSave('today_notes', document.getElementById('today-notes').value);
+  saveToLocalStorage();
+  showStatus('notes-status', '✓ Notes saved.', false);
+}
+
+// ══════════════════════════════════════════════════════
+// PROFILE
+// ══════════════════════════════════════════════════════
+function saveProfile() {
+  const teacher = document.getElementById('prof-teacher').value.trim();
+  const student = document.getElementById('prof-student-name').value.trim();
+  const level   = document.getElementById('prof-level').value;
+  if (!teacher) { showStatus('profile-save-status', 'Teacher name is required.', true); return; }
+  if (!student) { showStatus('profile-save-status', 'Student name is required.', true); return; }
+  if (!level)   { showStatus('profile-save-status', 'Student level is required.', true); return; }
+
+  ex.teacherName  = teacher;
+  ex.webhook      = document.getElementById('prof-webhook').value;
+  ex.studentName  = student;
+  ex.studentEmail = document.getElementById('prof-email').value;
+  ex.studentLevel = level;
+  ex.studentMonth = parseInt(document.getElementById('prof-month').value);
+  ex.studentNotes = document.getElementById('prof-notes').value;
+
+  saveToLocalStorage();
+  document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
+  document.getElementById('sb-student-level').textContent = ex.studentLevel + ' · ' + getLevelTheme(ex.studentLevel);
+  document.getElementById('dash-teacher-name').textContent = ex.teacherName || 'Teacher';
+  showStatus('profile-save-status', '✓ Profile saved.', false);
+}
+
+function exportProfile() {
+  const data = { ...ex, pendingLessons: undefined };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `english-path-${(ex.studentName||'student').replace(/\s/g,'-')}-export.json`;
+  a.click();
+}
+
+// ══════════════════════════════════════════════════════
+// LOCAL STORAGE
+// ══════════════════════════════════════════════════════
+function autoSave(key, value) {
+  try { localStorage.setItem('ep_' + key, value); } catch(e) {}
+}
+
+function saveToLocalStorage() {
+  try {
+    const toSave = {
+      teacherName: ex.teacherName,
+      studentName: ex.studentName, studentLevel: ex.studentLevel,
+      studentMonth: ex.studentMonth, studentEmail: ex.studentEmail,
+      studentNotes: ex.studentNotes, webhook: ex.webhook,
+      attendance: ex.attendance, weeklySummaries: ex.weeklySummaries,
+      difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
+      aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
+    };
+    localStorage.setItem('englishpath_examiner', JSON.stringify(toSave));
+  } catch(e) {}
+}
+
+function loadFromLocalStorage() {
+  try {
+    const saved = localStorage.getItem('englishpath_examiner');
+    if (!saved) return false;
+    const data = JSON.parse(saved);
+    Object.assign(ex, data);
+    ex.focusTags = new Set(data.focusTags || []);
+    return true;
+  } catch(e) { return false; }
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function showStatus(id, msg, isError) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'send-status' + (isError ? ' err' : ' ok');
+  el.style.display = 'block';
+  if (!isError) setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const hasSaved = loadFromLocalStorage();
+  if (hasSaved && ex.teacherName && ex.studentName) {
+    initApp();
+  }
+  // Pre-fill setup screen if partial data
+  if (ex.teacherName) document.getElementById('setup-teacher').value = ex.teacherName;
+  if (ex.studentName) document.getElementById('setup-student').value = ex.studentName;
+  if (ex.studentLevel) document.getElementById('setup-level').value = ex.studentLevel;
+  if (ex.webhook) document.getElementById('setup-webhook').value = ex.webhook;
+});
+</script>
+</body>
+</html>

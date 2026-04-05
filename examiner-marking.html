@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Examiner Marking Panel · English Proficiency Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1208;
+  --paper: #f5f0e8;
+  --cream: #ede8dc;
+  --rust: #b8471e;
+  --gold: #c9933a;
+  --rule: #c8bfa8;
+  --muted: #6b5f4e;
+  --green: #2e6e45;
+  --green-bg: #eaf3ec;
+  --blue: #1e4d8c;
+  --blue-bg: #eaf0fb;
+  --sidebar-w: 260px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 300;
+  min-height: 100vh;
+}
+
+/* ── IMPORT SCREEN ── */
+.import-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  text-align: center;
+}
+.import-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--rust);
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.import-screen h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 8px;
+  line-height: 1.1;
+}
+.import-screen h1 em { color: var(--rust); font-style: italic; }
+.import-screen .sub {
+  font-size: 15px;
+  color: var(--muted);
+  font-style: italic;
+  max-width: 520px;
+  line-height: 1.7;
+  margin-bottom: 36px;
+}
+.import-rule { width: 56px; height: 2px; background: var(--gold); margin: 0 auto 36px; }
+
+.import-box {
+  width: 100%;
+  max-width: 680px;
+  background: white;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--gold);
+  padding: 28px;
+  text-align: left;
+  margin-bottom: 16px;
+}
+.import-box label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.import-box textarea {
+  width: 100%;
+  min-height: 220px;
+  border: 1.5px solid var(--rule);
+  border-bottom: 2px solid var(--ink);
+  background: var(--cream);
+  padding: 14px 16px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 13px;
+  color: var(--ink);
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+}
+.import-box textarea:focus { border-bottom-color: var(--rust); background: white; }
+.btn-import {
+  width: 100%;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 16px;
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-style: italic;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
+}
+.btn-import:hover { background: var(--rust); }
+.import-error {
+  color: var(--rust);
+  font-size: 13px;
+  font-style: italic;
+  margin-top: 10px;
+  display: none;
+  text-align: left;
+}
+.import-or { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 14px 0; }
+.btn-skip {
+  background: transparent;
+  border: 1.5px solid var(--rule);
+  color: var(--muted);
+  padding: 10px 24px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-skip:hover { border-color: var(--ink); color: var(--ink); }
+.import-hint { font-size: 12px; color: var(--muted); font-style: italic; max-width: 520px; line-height: 1.7; margin-top: 12px; }
+
+/* ── APP SHELL ── */
+.app { display: none; }
+
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  z-index: 200;
+  border-bottom: 3px solid var(--gold);
+}
+.topbar-title { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; color: var(--paper); }
+.topbar-title em { color: var(--gold); font-style: italic; }
+.topbar-badge {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--rust);
+  font-weight: 600;
+  background: rgba(184,71,30,0.12);
+  padding: 4px 12px;
+  border: 1px solid rgba(184,71,30,0.3);
+  cursor: pointer;
+}
+.topbar-badge:hover { background: rgba(184,71,30,0.22); }
+.topbar-live-score { font-size: 13px; color: var(--gold); font-family: 'Playfair Display', serif; font-weight: 700; }
+
+.layout { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--cream);
+  border-right: 1px solid var(--rule);
+  position: fixed;
+  top: 56px; bottom: 0; left: 0;
+  overflow-y: auto;
+  z-index: 100;
+  padding: 24px 0 32px;
+}
+.sidebar-section-header { font-size: 9px; letter-spacing: 0.35em; text-transform: uppercase; font-weight: 600; color: var(--muted); padding: 10px 20px 6px; }
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+  gap: 8px;
+}
+.sidebar-link:hover { background: white; color: var(--ink); }
+.sidebar-link.active { background: white; color: var(--ink); font-weight: 600; border-left-color: var(--rust); }
+.sl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); flex-shrink: 0; }
+.sl-pts { font-size: 11px; font-family: 'Playfair Display', serif; font-weight: 700; color: var(--gold); white-space: nowrap; }
+
+.sidebar-total {
+  margin: 20px 16px 0;
+  background: var(--ink);
+  padding: 16px 18px;
+  border-top: 3px solid var(--gold);
+}
+.st-label { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(245,240,232,0.5); font-weight: 600; margin-bottom: 4px; }
+.st-score { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--paper); line-height: 1; }
+.st-score span { font-size: 14px; color: var(--gold); }
+.st-cefr { margin-top: 8px; font-size: 11px; color: var(--gold); letter-spacing: 0.15em; font-weight: 600; }
+
+/* ── MAIN ── */
+.main-content { margin-left: var(--sidebar-w); flex: 1; padding: 36px 40px 80px; max-width: 900px; }
+.panel { display: none; }
+.panel.active { display: block; animation: fadeIn 0.25s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.panel-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.panel-title em { color: var(--rust); font-style: italic; }
+.panel-subtitle { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--rule); }
+
+/* ── IMPORT BANNER ── */
+.import-banner {
+  background: var(--green-bg);
+  border: 1px solid rgba(46,110,69,0.25);
+  border-left: 4px solid var(--green);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ib-text { font-size: 13px; color: var(--green); font-style: italic; }
+.ib-text strong { font-style: normal; }
+.btn-reimport { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--rule); padding: 5px 12px; cursor: pointer; font-family: 'Source Serif 4', serif; transition: all 0.15s; }
+.btn-reimport:hover { border-color: var(--ink); color: var(--ink); }
+
+/* ── CANDIDATE CARD ── */
+.candidate-card {
+  background: white;
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--gold);
+  padding: 24px 28px;
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+}
+.cc-field label { display: block; font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+.cc-field input { width: 100%; background: var(--cream); border: 1px solid var(--rule); border-bottom: 2px solid var(--ink); padding: 8px 10px; font-family: 'Source Serif 4', serif; font-size: 14px; color: var(--ink); outline: none; }
+.cc-field input:focus { border-bottom-color: var(--rust); }
+
+/* ── RESPONSE VIEWER ── */
+.rv-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.response-viewer { background: var(--cream); border-left: 3px solid var(--gold); padding: 14px 18px; font-size: 14px; line-height: 1.8; color: var(--ink); margin-bottom: 14px; white-space: pre-wrap; word-break: break-word; min-height: 44px; }
+.response-viewer.prompt-ref { background: white; border-left-color: var(--rule); font-size: 13px; color: var(--muted); font-style: italic; }
+.response-viewer.empty { color: var(--rule); font-style: italic; }
+
+/* ── MARKING BLOCK ── */
+.marking-block { background: white; border: 1px solid var(--rule); border-top: 3px solid var(--ink); padding: 24px 28px; margin-bottom: 20px; }
+.mb-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.mb-qnum { font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 700; color: var(--rust); letter-spacing: 0.05em; }
+.mb-maxmarks { font-size: 11px; color: var(--muted); font-style: italic; }
+
+.score-row { display: flex; align-items: center; gap: 16px; margin-top: 14px; }
+.score-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); font-weight: 600; white-space: nowrap; width: 80px; }
+.score-slider { flex: 1; -webkit-appearance: none; height: 4px; background: var(--cream); border-radius: 2px; outline: none; }
+.score-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--rust); border-radius: 50%; cursor: pointer; transition: transform 0.1s; }
+.score-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.score-display { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--ink); width: 60px; text-align: right; }
+.score-display .sd-max { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+.sub-criteria { margin-top: 16px; border-top: 1px solid var(--cream); padding-top: 14px; }
+.sc-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sc-name { font-size: 12px; color: var(--muted); width: 140px; flex-shrink: 0; }
+.sc-slider { flex: 1; -webkit-appearance: none; height: 3px; background: var(--cream); outline: none; border-radius: 2px; }
+.sc-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--gold); border-radius: 50%; cursor: pointer; }
+.sc-val { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 700; color: var(--ink); width: 36px; text-align: right; }
+.sc-total-line { display: flex; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px dashed var(--rule); margin-top: 4px; }
+.sc-total-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.sc-total-val { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--rust); }
+
+.notes-field { margin-top: 14px; }
+.notes-field label { display: block; font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.notes-field textarea { width: 100%; border: 1.5px solid var(--rule); border-bottom: 2px solid var(--ink); background: var(--cream); padding: 12px 14px; font-family: 'Source Serif 4', serif; font-size: 13px; color: var(--ink); outline: none; resize: vertical; min-height: 80px; line-height: 1.6; }
+.notes-field textarea:focus { border-bottom-color: var(--rust); background: white; }
+
+/* ── AUTO-SCORED ── */
+.auto-section { background: white; border: 1px solid var(--rule); border-top: 3px solid var(--green); padding: 24px 28px; margin-bottom: 20px; }
+.auto-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--green-bg); color: var(--green); border: 1px solid rgba(46,110,69,0.25); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; padding: 4px 10px; margin-bottom: 14px; }
+.auto-badge::before { content: '✓'; }
+.mcq-answer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.mcq-chip { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--rule); font-size: 13px; background: var(--cream); }
+.mcq-chip.correct { background: var(--green-bg); border-color: rgba(46,110,69,0.3); }
+.mcq-chip.wrong { background: #fdecea; border-color: rgba(184,71,30,0.3); }
+.chip-icon { font-size: 12px; width: 18px; flex-shrink: 0; }
+.chip-q { font-weight: 600; font-family: 'Playfair Display', serif; font-size: 13px; min-width: 32px; }
+.chip-detail { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.auto-score-line { display: flex; align-items: baseline; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--cream); }
+.asl-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); font-weight: 600; }
+.asl-score { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--ink); }
+.asl-score span { font-size: 14px; color: var(--muted); }
+
+/* ── RESULTS ── */
+.results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+.result-card { background: white; border: 1px solid var(--rule); padding: 22px; border-top: 4px solid var(--rule); }
+.result-card.reading { border-top-color: var(--green); }
+.result-card.writing { border-top-color: var(--rust); }
+.result-card.listening { border-top-color: var(--blue); }
+.result-card.speaking { border-top-color: var(--gold); }
+.rc-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+.rc-score { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 700; color: var(--ink); line-height: 1; }
+.rc-score span { font-size: 16px; color: var(--muted); }
+.rc-bar { height: 4px; background: var(--cream); margin-top: 10px; border-radius: 2px; overflow: hidden; }
+.rc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+.reading .rc-bar-fill { background: var(--green); }
+.writing .rc-bar-fill { background: var(--rust); }
+.listening .rc-bar-fill { background: var(--blue); }
+.speaking .rc-bar-fill { background: var(--gold); }
+
+.total-display { background: var(--ink); color: var(--paper); padding: 28px 32px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; border-top: 4px solid var(--gold); }
+.td-label { font-size: 9px; letter-spacing: 0.35em; text-transform: uppercase; color: rgba(245,240,232,0.5); font-weight: 600; margin-bottom: 6px; }
+.td-score { font-family: 'Playfair Display', serif; font-size: 52px; font-weight: 700; line-height: 1; color: var(--paper); }
+.td-score span { font-size: 24px; color: rgba(245,240,232,0.5); }
+.cefr-pill { background: rgba(201,147,58,0.15); border: 2px solid var(--gold); padding: 12px 24px; text-align: center; }
+.cp-level { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700; color: var(--gold); line-height: 1; }
+.cp-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(245,240,232,0.5); font-weight: 600; margin-top: 4px; }
+
+.feedback-block { background: white; border: 1px solid var(--rule); border-left: 4px solid var(--gold); padding: 22px 24px; margin-bottom: 24px; }
+.fb-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); font-weight: 600; margin-bottom: 10px; }
+.feedback-block textarea { width: 100%; border: none; background: transparent; font-family: 'Source Serif 4', serif; font-size: 14px; color: var(--ink); outline: none; resize: vertical; min-height: 120px; line-height: 1.8; }
+
+.send-block { background: var(--cream); border: 1px solid var(--rule); padding: 24px 28px; margin-top: 8px; }
+.sb-label { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 16px; }
+.email-row { display: flex; gap: 12px; align-items: stretch; flex-wrap: wrap; }
+.send-block input[type="email"] { flex: 1; min-width: 200px; background: white; border: 1px solid var(--rule); border-bottom: 2px solid var(--ink); padding: 10px 14px; font-family: 'Source Serif 4', serif; font-size: 14px; color: var(--ink); outline: none; }
+.send-block input[type="email"]:focus { border-bottom-color: var(--rust); }
+.btn-send { background: var(--rust); color: white; border: none; padding: 12px 28px; font-family: 'Playfair Display', serif; font-size: 16px; font-style: italic; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+.btn-send:hover { background: #9a3b18; }
+.btn-pdf { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); padding: 12px 24px; font-family: 'Playfair Display', serif; font-size: 15px; font-style: italic; cursor: pointer; transition: all 0.2s; }
+.btn-pdf:hover { background: var(--ink); color: var(--paper); }
+.send-status { margin-top: 12px; font-size: 13px; font-style: italic; color: var(--green); display: none; }
+.send-status.error { color: var(--rust); }
+
+.btn-nav-row { margin-top: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-back { background: transparent; color: var(--ink); border: 1.5px solid var(--rule); padding: 11px 22px; font-family: 'Source Serif 4', serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.btn-back:hover { border-color: var(--ink); }
+.btn-next { background: var(--ink); color: var(--paper); border: none; padding: 12px 28px; font-family: 'Playfair Display', serif; font-size: 16px; font-style: italic; cursor: pointer; transition: background 0.2s; }
+.btn-next:hover { background: var(--rust); }
+
+.divider { border: none; border-top: 1px solid var(--rule); margin: 24px 0; }
+.inline-note { font-size: 12px; color: var(--muted); font-style: italic; margin-bottom: 12px; }
+
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+  .sidebar { display: none; }
+  .main-content { margin-left: 0; padding: 20px 20px 80px; }
+  .results-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  .sidebar, .topbar, .btn-send, .btn-pdf, .send-block, .score-slider, .sc-slider, .btn-nav-row, .import-banner { display: none !important; }
+  .main-content { margin-left: 0; padding: 0; }
+  body { background: white; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ IMPORT SCREEN ══════════════════ -->
+<div id="importScreen" class="import-screen">
+  <div class="import-eyebrow">Examiner Marking Panel</div>
+  <h1>English <em>Proficiency</em> Test</h1>
+  <p class="sub">Paste the full Formspree email you received below. The tool will automatically read and populate all candidate responses, so you can go straight to marking.</p>
+  <div class="import-rule"></div>
+
+  <div class="import-box">
+    <label>Paste Formspree Email Content Here <span style="color:var(--rust)">*</span></label>
+    <textarea id="emailPaste" placeholder="Paste the full text of the email here — including candidate name, answers, written responses, and speaking notes…"></textarea>
+    <div class="import-error" id="importError"></div>
+  </div>
+  <button class="btn-import" onclick="importEmail()">Parse &amp; Start Marking →</button>
+  <div class="import-or">or</div>
+  <button class="btn-skip" onclick="skipImport()">Start blank without email</button>
+  <p class="import-hint">No data leaves this page — everything is processed locally in your browser.</p>
+</div>
+
+<!-- ══════════════════ APP SHELL ══════════════════ -->
+<div id="appShell" class="app">
+
+  <div class="topbar">
+    <div class="topbar-title">Examiner <em>Marking Panel</em></div>
+    <div class="topbar-badge" onclick="goReimport()">↩ Re-import Email</div>
+    <div class="topbar-live-score" id="topbarScore">— / 80</div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-section-header">Candidate</div>
+      <div class="sidebar-link active" id="nav-candidate" onclick="showPanel('candidate')">
+        <span>Candidate Info</span>
+        <span class="sl-dot" style="background:var(--green)"></span>
+      </div>
+      <div class="sidebar-section-header" style="margin-top:8px;">Auto-Scored</div>
+      <div class="sidebar-link" id="nav-reading" onclick="showPanel('reading')">
+        <span>Reading</span>
+        <span class="sl-pts" id="pts-reading">— / 20</span>
+      </div>
+      <div class="sidebar-link" id="nav-listening" onclick="showPanel('listening')">
+        <span>Listening</span>
+        <span class="sl-pts" id="pts-listening">— / 15</span>
+      </div>
+      <div class="sidebar-section-header" style="margin-top:8px;">Manual Marking</div>
+      <div class="sidebar-link" id="nav-writing" onclick="showPanel('writing')">
+        <span>Writing</span>
+        <span class="sl-pts" id="pts-writing">— / 25</span>
+        <span class="sl-dot" id="dot-writing"></span>
+      </div>
+      <div class="sidebar-link" id="nav-speaking" onclick="showPanel('speaking')">
+        <span>Speaking</span>
+        <span class="sl-pts" id="pts-speaking">— / 20</span>
+        <span class="sl-dot" id="dot-speaking"></span>
+      </div>
+      <div class="sidebar-section-header" style="margin-top:8px;">Send</div>
+      <div class="sidebar-link" id="nav-results" onclick="showPanel('results')">
+        <span>Final Results &amp; Send</span>
+        <span class="sl-dot" id="dot-results"></span>
+      </div>
+      <div class="sidebar-total">
+        <div class="st-label">Total Score</div>
+        <div class="st-score" id="sidebarTotal">—<span> / 80</span></div>
+        <div class="st-cefr" id="sidebarCEFR">CEFR: —</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+      <!-- ══ CANDIDATE INFO ══ -->
+      <section class="panel active" id="panel-candidate">
+        <div class="panel-title">Candidate <em>Information</em></div>
+        <div class="panel-subtitle">Confirm or edit details imported from the Formspree email.</div>
+        <div id="candidateBanner" class="import-banner" style="display:none">
+          <div class="ib-text">✓ Email imported successfully — <strong>all responses have been populated.</strong></div>
+          <button class="btn-reimport" onclick="goReimport()">Re-import</button>
+        </div>
+        <div class="candidate-card">
+          <div class="cc-field"><label>Candidate Name</label><input type="text" id="cand-name" placeholder="Full name" oninput="updateResults()"></div>
+          <div class="cc-field"><label>Test Date</label><input type="date" id="cand-date" oninput="updateResults()"></div>
+          <div class="cc-field"><label>Examiner Name</label><input type="text" id="cand-examiner" placeholder="Your name" oninput="updateResults()"></div>
+        </div>
+        <div class="btn-nav-row">
+          <button class="btn-next" onclick="showPanel('reading')">Continue to Reading →</button>
+        </div>
+      </section>
+
+      <!-- ══ READING ══ -->
+      <section class="panel" id="panel-reading">
+        <div class="panel-title"><em>Reading</em> Section</div>
+        <div class="panel-subtitle">Questions 1–10 · Auto-scored from imported email · 2 marks each · 20 marks total</div>
+        <div class="auto-section">
+          <div class="auto-badge">Auto-Scored from email</div>
+          <p class="inline-note">Each answer has been matched against the answer key and marked automatically.</p>
+          <div class="mcq-answer-grid" id="reading-chips"></div>
+          <div class="auto-score-line">
+            <div class="asl-label">Reading Score</div>
+            <div class="asl-score" id="reading-score-display">0 <span>/ 20</span></div>
+          </div>
+        </div>
+        <div class="btn-nav-row">
+          <button class="btn-back" onclick="showPanel('candidate')">← Back</button>
+          <button class="btn-next" onclick="showPanel('writing')">Continue to Writing →</button>
+        </div>
+      </section>
+
+      <!-- ══ WRITING ══ -->
+      <section class="panel" id="panel-writing">
+        <div class="panel-title"><em>Writing</em> Section</div>
+        <div class="panel-subtitle">Questions 11–14 · Manual marking · 25 marks total</div>
+
+        <div class="marking-block">
+          <div class="mb-header"><div class="mb-qnum">Q11 · Passive Voice</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Original sentence:</div>
+          <div class="response-viewer prompt-ref">"The chef prepared the meal in less than ten minutes."</div>
+          <div class="rv-label">Candidate's response:</div>
+          <div class="response-viewer empty" id="rv-q11">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q11" min="0" max="5" step="1" value="0" oninput="updateSlider('q11',5)">
+            <div class="score-display" id="disp-q11">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q11" placeholder="Note errors, strengths, or feedback…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block">
+          <div class="mb-header"><div class="mb-qnum">Q12 · Combining Sentences</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Original sentences:</div>
+          <div class="response-viewer prompt-ref">"She was tired." &nbsp;&nbsp; "She stayed up to finish her essay."</div>
+          <div class="rv-label">Candidate's response:</div>
+          <div class="response-viewer empty" id="rv-q12">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q12" min="0" max="5" step="1" value="0" oninput="updateSlider('q12',5)">
+            <div class="score-display" id="disp-q12">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q12" placeholder="Note errors, strengths, or feedback…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block">
+          <div class="mb-header"><div class="mb-qnum">Q13 · Error Correction</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Original sentence:</div>
+          <div class="response-viewer prompt-ref">"Yesterday, he go to the market and buyed some vegetable for his mother."</div>
+          <div class="rv-label">Candidate's response:</div>
+          <div class="response-viewer empty" id="rv-q13">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q13" min="0" max="5" step="1" value="0" oninput="updateSlider('q13',5)">
+            <div class="score-display" id="disp-q13">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q13" placeholder="Note errors, strengths, or feedback…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block">
+          <div class="mb-header"><div class="mb-qnum">Q14 · Short Writing Task</div><div class="mb-maxmarks">10 marks</div></div>
+          <div class="rv-label">Candidate's written response (120–150 words):</div>
+          <div class="response-viewer empty" id="rv-q14">—</div>
+          <div class="sub-criteria">
+            <p class="inline-note">Score each sub-criterion (0–2.5 each, total 10):</p>
+            <div class="sc-row"><div class="sc-name">Task Achievement</div><input type="range" class="sc-slider" id="sc-q14-task" min="0" max="2.5" step="0.5" value="0" oninput="updateSubCriteria()"><div class="sc-val" id="scv-task">0</div></div>
+            <div class="sc-row"><div class="sc-name">Grammar &amp; Accuracy</div><input type="range" class="sc-slider" id="sc-q14-grammar" min="0" max="2.5" step="0.5" value="0" oninput="updateSubCriteria()"><div class="sc-val" id="scv-grammar">0</div></div>
+            <div class="sc-row"><div class="sc-name">Vocabulary Range</div><input type="range" class="sc-slider" id="sc-q14-vocab" min="0" max="2.5" step="0.5" value="0" oninput="updateSubCriteria()"><div class="sc-val" id="scv-vocab">0</div></div>
+            <div class="sc-row"><div class="sc-name">Coherence &amp; Structure</div><input type="range" class="sc-slider" id="sc-q14-coherence" min="0" max="2.5" step="0.5" value="0" oninput="updateSubCriteria()"><div class="sc-val" id="scv-coherence">0</div></div>
+            <div class="sc-total-line"><div class="sc-total-label">Q14 Total</div><div class="sc-total-val" id="sct-q14">0 / 10</div></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q14" placeholder="Comment on task achievement, language range, organisation…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="btn-nav-row">
+          <button class="btn-back" onclick="showPanel('reading')">← Back</button>
+          <button class="btn-next" onclick="showPanel('listening')">Continue to Listening →</button>
+        </div>
+      </section>
+
+      <!-- ══ LISTENING ══ -->
+      <section class="panel" id="panel-listening">
+        <div class="panel-title"><em>Listening</em> Section</div>
+        <div class="panel-subtitle">Questions 15–20 · Q15–19 auto-scored · Q20 dictation manual · 15 marks total</div>
+        <div class="auto-section" style="border-top-color:var(--blue)">
+          <div class="auto-badge" style="background:var(--blue-bg);color:var(--blue);border-color:rgba(30,77,140,0.25);">Auto-Scored from email</div>
+          <div class="mcq-answer-grid" id="listening-chips"></div>
+          <hr class="divider">
+          <div class="mb-header"><div class="mb-qnum">Q20 · Dictation</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Correct sentence (reference):</div>
+          <div class="response-viewer prompt-ref">The new community centre will open its doors to the public next Saturday morning.</div>
+          <div class="rv-label">Candidate's written response:</div>
+          <div class="response-viewer empty" id="rv-q20">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q20" min="0" max="5" step="1" value="0" oninput="updateSlider('q20',5)">
+            <div class="score-display" id="disp-q20">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="auto-score-line">
+            <div class="asl-label">Listening Score</div>
+            <div class="asl-score" id="listening-score-display">0 <span>/ 15</span></div>
+          </div>
+        </div>
+        <div class="btn-nav-row">
+          <button class="btn-back" onclick="showPanel('writing')">← Back</button>
+          <button class="btn-next" onclick="showPanel('speaking')">Continue to Speaking →</button>
+        </div>
+      </section>
+
+      <!-- ══ SPEAKING ══ -->
+      <section class="panel" id="panel-speaking">
+        <div class="panel-title"><em>Speaking</em> Section</div>
+        <div class="panel-subtitle">Questions 21–24 · Live examiner assessment · 20 marks total</div>
+        <p class="inline-note">The candidate's preparation notes are shown. Score each based on your live observation of their spoken performance.</p>
+
+        <div class="marking-block" style="border-top-color:var(--gold)">
+          <div class="mb-header"><div class="mb-qnum">Q21 · Introduction (Part A)</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Prompt:</div>
+          <div class="response-viewer prompt-ref">Tell me a little about yourself — where you're from, what you do, and what you enjoy doing in your free time.</div>
+          <div class="rv-label">Candidate's preparation notes:</div>
+          <div class="response-viewer empty" id="rv-q21">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q21" min="0" max="5" step="1" value="0" oninput="updateSlider('q21',5)">
+            <div class="score-display" id="disp-q21">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q21" placeholder="Fluency, vocabulary, grammar, confidence…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block" style="border-top-color:var(--gold)">
+          <div class="mb-header"><div class="mb-qnum">Q22 · Everyday Topics (Part A)</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Prompt:</div>
+          <div class="response-viewer prompt-ref">Describe a person in your life who has had an important influence on you. How have they influenced you?</div>
+          <div class="rv-label">Candidate's preparation notes:</div>
+          <div class="response-viewer empty" id="rv-q22">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q22" min="0" max="5" step="1" value="0" oninput="updateSlider('q22',5)">
+            <div class="score-display" id="disp-q22">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q22" placeholder="Use of tenses, descriptive language…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block" style="border-top-color:var(--gold)">
+          <div class="mb-header"><div class="mb-qnum">Q23 · Extended Speaking — 2 min (Part B)</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Prompt:</div>
+          <div class="response-viewer prompt-ref">Talk about a place you have visited or would like to visit. Describe what it is like, explain why it is meaningful to you, and say whether you would recommend it to others.</div>
+          <div class="rv-label">Candidate's preparation notes:</div>
+          <div class="response-viewer empty" id="rv-q23">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q23" min="0" max="5" step="1" value="0" oninput="updateSlider('q23',5)">
+            <div class="score-display" id="disp-q23">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q23" placeholder="Organisation, coherence, extended discourse…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="marking-block" style="border-top-color:var(--gold)">
+          <div class="mb-header"><div class="mb-qnum">Q24 · Discussion &amp; Opinion (Part C)</div><div class="mb-maxmarks">5 marks</div></div>
+          <div class="rv-label">Prompt:</div>
+          <div class="response-viewer prompt-ref">Some people think that university education should be free for everyone. Others believe students should pay for it themselves. What do you think, and why?</div>
+          <div class="rv-label">Candidate's preparation notes:</div>
+          <div class="response-viewer empty" id="rv-q24">—</div>
+          <div class="score-row">
+            <div class="score-label">Score</div>
+            <input type="range" class="score-slider" id="slider-q24" min="0" max="5" step="1" value="0" oninput="updateSlider('q24',5)">
+            <div class="score-display" id="disp-q24">0 <span class="sd-max">/ 5</span></div>
+          </div>
+          <div class="notes-field"><label>Examiner Notes</label><textarea id="notes-q24" placeholder="Opinion clarity, argument support, interaction…" oninput="updateResults()"></textarea></div>
+        </div>
+
+        <div class="btn-nav-row">
+          <button class="btn-back" onclick="showPanel('listening')">← Back</button>
+          <button class="btn-next" onclick="showPanel('results')">View Final Results →</button>
+        </div>
+      </section>
+
+      <!-- ══ RESULTS ══ -->
+      <section class="panel" id="panel-results">
+        <div class="panel-title">Final <em>Results</em></div>
+        <div class="panel-subtitle">Review and send the completed assessment to the candidate.</div>
+
+        <div class="total-display">
+          <div>
+            <div class="td-label">Total Score</div>
+            <div class="td-score" id="res-total">— <span>/ 80</span></div>
+          </div>
+          <div class="cefr-pill">
+            <div class="cp-level" id="res-cefr">—</div>
+            <div class="cp-label">CEFR Level</div>
+          </div>
+        </div>
+
+        <div class="results-grid">
+          <div class="result-card reading"><div class="rc-label">Reading</div><div class="rc-score" id="res-reading">— <span>/ 20</span></div><div class="rc-bar"><div class="rc-bar-fill" id="bar-reading" style="width:0%"></div></div></div>
+          <div class="result-card writing"><div class="rc-label">Writing</div><div class="rc-score" id="res-writing">— <span>/ 25</span></div><div class="rc-bar"><div class="rc-bar-fill" id="bar-writing" style="width:0%"></div></div></div>
+          <div class="result-card listening"><div class="rc-label">Listening</div><div class="rc-score" id="res-listening">— <span>/ 15</span></div><div class="rc-bar"><div class="rc-bar-fill" id="bar-listening" style="width:0%"></div></div></div>
+          <div class="result-card speaking"><div class="rc-label">Speaking</div><div class="rc-score" id="res-speaking">— <span>/ 20</span></div><div class="rc-bar"><div class="rc-bar-fill" id="bar-speaking" style="width:0%"></div></div></div>
+        </div>
+
+        <div class="feedback-block">
+          <div class="fb-label">Overall Examiner Feedback (included in results email)</div>
+          <textarea id="overall-feedback" placeholder="Write overall feedback for the candidate here — strengths, areas for improvement, and recommended next steps…"></textarea>
+        </div>
+
+        <div class="send-block">
+          <div class="sb-label">Send Results to Candidate</div>
+          <div class="email-row">
+            <input type="email" id="candidate-email" placeholder="candidate@email.com">
+            <button class="btn-send" onclick="sendResults()">✉ Send Results</button>
+            <button class="btn-pdf" onclick="window.print()">⎙ Print / PDF</button>
+          </div>
+          <div class="send-status" id="sendStatus"></div>
+        </div>
+
+        <div class="send-block" style="margin-top:12px;border-top:3px solid var(--blue);">
+          <div class="sb-label" style="color:var(--blue);">Save to Google Sheets</div>
+          <p class="inline-note" style="margin-bottom:14px;">Saves the final graded results to an <strong>"Examiner Results"</strong> sheet in the same Google Sheets document used by the test. Paste the same Apps Script webhook URL from your test setup below.</p>
+          <div class="email-row">
+            <button class="btn-send" style="background:var(--blue);padding:12px 36px;" onclick="saveToSheets()">⬆ Save to Sheets</button>
+          </div>
+          <div class="send-status" id="sheetsStatus"></div>
+        </div>
+
+        <div style="margin-top:28px;background:var(--cream);border:1px solid var(--rule);padding:20px 24px;">
+          <div style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:14px;">CEFR Level Reference</div>
+          <div id="cefr-ref"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIGURATION — paste your Google Apps Script URL here
+// (same webhook used by the test itself, but results go
+//  to a sheet named "Examiner Results" automatically)
+// ══════════════════════════════════════════════════════
+const GOOGLE_SHEET_WEBHOOK = 'https://script.google.com/macros/s/AKfycbynIBuiHk6qGmlfCRghXkUYZqXdJuIN0OXgZbg42fvK_uAGgcO_Xsxu8G9vwd8wz78S/exec';
+
+// ══════════════════════════════════════════════════════
+// ANSWER KEYS
+// ══════════════════════════════════════════════════════
+const READING_CORRECT   = { q1:'B', q2:'C', q3:'C', q4:'C', q5:'B', q6:'A', q7:'C', q8:'B', q9:'B', q10:'B' };
+const LISTENING_CORRECT = { q15:'B', q16:'C', q17:'C', q18:'C' };
+const Q19_CORRECT = new Set(['B','C']);
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const scores = { reading:{}, listening:{}, q20:0, q11:0, q12:0, q13:0, q14:0, q21:0, q22:0, q23:0, q24:0 };
+
+const CEFR_BANDS = [
+  { level:'A1', min:0,  max:10, desc:'Beginner' },
+  { level:'A2', min:11, max:20, desc:'Elementary' },
+  { level:'B1', min:21, max:35, desc:'Intermediate' },
+  { level:'B2', min:36, max:50, desc:'Upper-Intermediate' },
+  { level:'C1', min:51, max:65, desc:'Advanced' },
+  { level:'C2', min:66, max:80, desc:'Proficiency' },
+];
+function getCEFR(n) {
+  for (const b of CEFR_BANDS) if (n >= b.min && n <= b.max) return b.level;
+  return n >= 66 ? 'C2' : '—';
+}
+
+// ══════════════════════════════════════════════════════
+// EMAIL PARSER
+// Tuned to exact Formspree format:
+//   field_name\n value\n field_name\n value\n …
+// ══════════════════════════════════════════════════════
+
+/**
+ * Parse the Formspree email into a key→value map.
+ * Formspree sends each field as:
+ *   <field_name>\n <value>\n
+ * (with a leading space before the value line)
+ */
+function parseFormspreeEmail(raw) {
+  const fields = {};
+  // Known field names from the test's submitResults() payload
+  const FIELD_NAMES = [
+    'submitted_at','candidate_name','test_date','date','start_time','end_time','duration',
+    'reading_score','listening_score','auto_total','writing_score','speaking_score',
+    'mcq_answers',
+    'q11_passive_voice','q12_combined_sentence','q13_error_correction','q14_writing_task',
+    'q20_dictation',
+    'q21_speaking_notes','q22_speaking_notes','q23_speaking_notes','q24_speaking_notes',
+  ];
+
+  // Build a regex that splits the text on field name boundaries
+  // Each field value is everything between this field name and the next
+  const boundary = FIELD_NAMES.map(f => f.replace(/_/g,'[_ ]')).join('|');
+  const re = new RegExp('(' + boundary + ')\\s*\\n([\\s\\S]*?)(?=(?:' + boundary + ')\\s*\\n|$)', 'gi');
+
+  let m;
+  while ((m = re.exec(raw)) !== null) {
+    const key = m[1].trim().toLowerCase().replace(/\s+/g,'_');
+    const val = m[2].trim();
+    if (val && val !== '(blank)' && val !== '(not provided)') fields[key] = val;
+  }
+  return fields;
+}
+
+/**
+ * From the mcq_answers string (one long line like
+ * "Q1: A ✗ (correct: B) Q2: B ✗ ... Q9: B ✓ ...")
+ * extract each question's submitted answer letter.
+ */
+function parseMCQAnswers(mcqString) {
+  const result = {};
+  // Match patterns like "Q1: A ✓" or "Q1: A ✗ (correct: B)"
+  const re = /Q(\d+):\s*([A-D])/gi;
+  let m;
+  while ((m = re.exec(mcqString)) !== null) {
+    result['q' + m[1]] = m[2].toUpperCase();
+  }
+  // Q19 multi-select: "Q19: C,B — 2/2 marks" → extract all letters
+  const q19m = mcqString.match(/Q19:\s*([A-D,\s]+)/i);
+  if (q19m) {
+    result['q19'] = (q19m[1].match(/[A-D]/gi) || []).map(l => l.toUpperCase());
+  }
+  return result;
+}
+
+function importEmail() {
+  const raw = document.getElementById('emailPaste').value.trim();
+  if (!raw) { showImportError('Please paste the email content first.'); return; }
+
+  const fields = parseFormspreeEmail(raw);
+  const mcqAnswers = parseMCQAnswers(fields['mcq_answers'] || '');
+
+  // ── Candidate fields ──
+  const name = (fields['candidate_name'] || '').trim();
+  const date = fields['test_date'] || fields['date'] || '';
+
+  if (!name && Object.keys(mcqAnswers).length === 0) {
+    showImportError("Could not find recognisable data. Make sure you've pasted the full Formspree email text and try again.");
+    return;
+  }
+
+  // ── Reading Q1–Q10 ──
+  document.getElementById('reading-chips').innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const q = 'q' + i;
+    const ans = mcqAnswers[q];
+    if (ans) {
+      const correct = ans === READING_CORRECT[q];
+      scores.reading[q] = correct ? 2 : 0;
+      addChip('reading-chips', 'Q'+i, ans, correct ? 2 : 0, 2,
+        correct ? 'Correct' : `Correct: ${READING_CORRECT[q]}`, false);
+    } else {
+      scores.reading[q] = 0;
+      addChip('reading-chips', 'Q'+i, '—', 0, 2, 'Not found', true);
+    }
+  }
+
+  // ── Listening Q15–Q18 ──
+  document.getElementById('listening-chips').innerHTML = '';
+  for (let i = 15; i <= 18; i++) {
+    const q = 'q' + i;
+    const ans = mcqAnswers[q];
+    if (ans) {
+      const correct = ans === LISTENING_CORRECT[q];
+      scores.listening[q] = correct ? 2 : 0;
+      addChip('listening-chips', 'Q'+i, ans, correct ? 2 : 0, 2,
+        correct ? 'Correct' : `Correct: ${LISTENING_CORRECT[q]}`, false);
+    } else {
+      scores.listening[q] = 0;
+      addChip('listening-chips', 'Q'+i, '—', 0, 2, 'Not found', true);
+    }
+  }
+
+  // ── Q19 multi-select ──
+  const q19letters = Array.isArray(mcqAnswers['q19']) ? mcqAnswers['q19'] : [];
+  const q19pts = Math.min(q19letters.filter(l => Q19_CORRECT.has(l)).length, 2);
+  scores.listening.q19 = q19pts;
+  addChip('listening-chips', 'Q19', q19letters.join('+') || '—', q19pts, 2,
+    q19pts === 2 ? 'Both correct (B+C)' : q19pts === 1 ? 'Partial — correct: B+C' : 'Incorrect',
+    q19letters.length === 0);
+
+  // ── Text responses ──
+  setRV('rv-q11', fields['q11_passive_voice']);
+  setRV('rv-q12', fields['q12_combined_sentence']);
+  setRV('rv-q13', fields['q13_error_correction']);
+  setRV('rv-q14', fields['q14_writing_task']);
+  setRV('rv-q20', fields['q20_dictation']);
+  setRV('rv-q21', fields['q21_speaking_notes']);
+  setRV('rv-q22', fields['q22_speaking_notes']);
+  setRV('rv-q23', fields['q23_speaking_notes']);
+  setRV('rv-q24', fields['q24_speaking_notes']);
+
+  // ── Populate candidate card ──
+  if (name) document.getElementById('cand-name').value = name;
+  document.getElementById('cand-date').value = date || new Date().toISOString().split('T')[0];
+
+  document.getElementById('importScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('candidateBanner').style.display = 'flex';
+
+  buildCEFRRef();
+  updateResults();
+  showPanel('candidate');
+}
+
+function addChip(containerId, label, ans, pts, max, detail, unanswered) {
+  const c = document.getElementById(containerId);
+  const d = document.createElement('div');
+  const cls = unanswered ? '' : (pts === max ? 'correct' : 'wrong');
+  d.className = 'mcq-chip ' + cls;
+  d.innerHTML = `<span class="chip-icon">${unanswered ? '○' : (pts === max ? '✓' : '✗')}</span>
+    <div><div style="display:flex;align-items:baseline;gap:6px;"><span class="chip-q">${label}</span><span style="font-size:12px;color:var(--ink);font-weight:600;">→ ${ans}</span></div>
+    <div class="chip-detail">${detail} &nbsp;·&nbsp; ${pts}/${max} pts</div></div>`;
+  c.appendChild(d);
+}
+
+function setRV(id, val) {
+  const el = document.getElementById(id);
+  if (val && val.trim()) {
+    el.textContent = val.trim();
+    el.classList.remove('empty');
+  } else {
+    el.textContent = '(blank — candidate left this empty)';
+    el.classList.add('empty');
+  }
+}
+
+function showImportError(msg) {
+  const el = document.getElementById('importError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function skipImport() {
+  document.getElementById('importScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  document.getElementById('cand-date').value = new Date().toISOString().split('T')[0];
+  for (let i = 1; i <= 10; i++) { scores.reading['q'+i] = 0; addChip('reading-chips','Q'+i,'—',0,2,'Not imported',true); }
+  ['q15','q16','q17','q18','q19'].forEach(q => { scores.listening[q]=0; addChip('listening-chips',q.toUpperCase(),'—',0,2,'Not imported',true); });
+  buildCEFRRef();
+  updateResults();
+  showPanel('candidate');
+}
+
+function goReimport() {
+  document.getElementById('reading-chips').innerHTML = '';
+  document.getElementById('listening-chips').innerHTML = '';
+  document.getElementById('emailPaste').value = '';
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('importScreen').style.display = 'flex';
+  Object.assign(scores, { reading:{}, listening:{}, q20:0, q11:0, q12:0, q13:0, q14:0, q21:0, q22:0, q23:0, q24:0 });
+  ['q11','q12','q13','q14','q20','q21','q22','q23','q24'].forEach(q => {
+    const rv = document.getElementById('rv-'+q);
+    if (rv) { rv.textContent = '—'; rv.classList.add('empty'); }
+    const sl = document.getElementById('slider-'+q);
+    if (sl) { sl.value = 0; }
+    const dp = document.getElementById('disp-'+q);
+    const maxMap = {q11:5,q12:5,q13:5,q14:10,q20:5,q21:5,q22:5,q23:5,q24:5};
+    if (dp) dp.innerHTML = '0 <span class="sd-max">/ '+maxMap[q]+'</span>';
+  });
+  ['task','grammar','vocab','coherence'].forEach(f => {
+    const sc = document.getElementById('sc-q14-'+f); if(sc) sc.value = 0;
+    const sv = document.getElementById('scv-'+f); if(sv) sv.textContent = '0';
+  });
+  document.getElementById('sct-q14').textContent = '0 / 10';
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  document.getElementById('nav-' + id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateResults();
+}
+
+// ══════════════════════════════════════════════════════
+// SLIDERS
+// ══════════════════════════════════════════════════════
+function updateSlider(q, max) {
+  const val = parseFloat(document.getElementById('slider-' + q).value);
+  document.getElementById('disp-' + q).innerHTML = val + ' <span class="sd-max">/ ' + max + '</span>';
+  scores[q] = val;
+  updateResults();
+}
+
+function updateSubCriteria() {
+  let total = 0;
+  ['task','grammar','vocab','coherence'].forEach(f => {
+    const v = parseFloat(document.getElementById('sc-q14-' + f).value);
+    document.getElementById('scv-' + f).textContent = v;
+    total += v;
+  });
+  total = Math.min(total, 10);
+  document.getElementById('sct-q14').textContent = total + ' / 10';
+  scores.q14 = total;
+  updateResults();
+}
+
+// ══════════════════════════════════════════════════════
+// COMPUTE & DISPLAY
+// ══════════════════════════════════════════════════════
+function computeReading()   { return Object.values(scores.reading).reduce((a,b) => a+b, 0); }
+function computeListening() { return Math.min(['q15','q16','q17','q18','q19'].reduce((a,q) => a+(scores.listening[q]||0), 0) + (scores.q20||0), 15); }
+function computeWriting()   { return (scores.q11||0)+(scores.q12||0)+(scores.q13||0)+(scores.q14||0); }
+function computeSpeaking()  { return (scores.q21||0)+(scores.q22||0)+(scores.q23||0)+(scores.q24||0); }
+
+function updateResults() {
+  const r = computeReading(), l = computeListening(), w = computeWriting(), s = computeSpeaking();
+  const total = r + l + w + s;
+  const cefr  = getCEFR(total);
+
+  document.getElementById('pts-reading').textContent    = r + ' / 20';
+  document.getElementById('pts-listening').textContent  = l + ' / 15';
+  document.getElementById('pts-writing').textContent    = w + ' / 25';
+  document.getElementById('pts-speaking').textContent   = s + ' / 20';
+  document.getElementById('sidebarTotal').innerHTML     = total + '<span> / 80</span>';
+  document.getElementById('sidebarCEFR').textContent    = 'CEFR: ' + cefr;
+  document.getElementById('topbarScore').textContent    = total + ' / 80';
+  document.getElementById('reading-score-display').innerHTML  = r + ' <span>/ 20</span>';
+  document.getElementById('listening-score-display').innerHTML = l + ' <span>/ 15</span>';
+  document.getElementById('res-total').innerHTML    = total + ' <span>/ 80</span>';
+  document.getElementById('res-cefr').textContent   = cefr;
+  document.getElementById('res-reading').innerHTML  = r + ' <span>/ 20</span>';
+  document.getElementById('res-writing').innerHTML  = w + ' <span>/ 25</span>';
+  document.getElementById('res-listening').innerHTML = l + ' <span>/ 15</span>';
+  document.getElementById('res-speaking').innerHTML  = s + ' <span>/ 20</span>';
+  document.getElementById('bar-reading').style.width   = (r/20*100) + '%';
+  document.getElementById('bar-writing').style.width   = (w/25*100) + '%';
+  document.getElementById('bar-listening').style.width = (l/15*100) + '%';
+  document.getElementById('bar-speaking').style.width  = (s/20*100) + '%';
+  if (w > 0) document.getElementById('dot-writing').style.background = 'var(--green)';
+  if (s > 0) document.getElementById('dot-speaking').style.background = 'var(--green)';
+}
+
+// ══════════════════════════════════════════════════════
+// CEFR REFERENCE
+// ══════════════════════════════════════════════════════
+function buildCEFRRef() {
+  document.getElementById('cefr-ref').innerHTML = CEFR_BANDS.map(b =>
+    `<div style="display:flex;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--rule);font-size:13px;">
+      <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;width:40px;">${b.level}</span>
+      <span style="color:var(--muted);font-style:italic;width:75px;">${b.min}–${b.max} pts</span>
+      <span>${b.desc}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SEND EMAIL
+// ══════════════════════════════════════════════════════
+function sendResults() {
+  const email    = document.getElementById('candidate-email').value.trim();
+  if (!email) { showSendStatus('Please enter the candidate\'s email address.', true); return; }
+
+  const name     = document.getElementById('cand-name').value     || '(not provided)';
+  const date     = document.getElementById('cand-date').value     || '';
+  const examiner = document.getElementById('cand-examiner').value || '';
+  const feedback = document.getElementById('overall-feedback').value || '';
+
+  const r = computeReading(), l = computeListening(), w = computeWriting(), s = computeSpeaking();
+  const total = r + l + w + s;
+  const cefr  = getCEFR(total);
+
+  const body =
+`Dear ${name},
+
+Please find your English Proficiency Test results below.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ENGLISH PROFICIENCY TEST — RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Candidate:   ${name}
+Date:        ${date}
+Examiner:    ${examiner || '—'}
+
+SECTION BREAKDOWN
+─────────────────
+Reading     ${r} / 20
+Writing     ${w} / 25
+Listening   ${l} / 15
+Speaking    ${s} / 20
+─────────────────
+TOTAL       ${total} / 80
+
+CEFR Level:  ${cefr}
+${feedback ? `\nEXAMINER FEEDBACK\n─────────────────\n${feedback}\n` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you have any questions, please contact your examiner.
+
+Kind regards,
+${examiner || 'Your Examiner'}`;
+
+  window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('English Proficiency Test Results — ' + name)}&body=${encodeURIComponent(body)}`, '_blank');
+  showSendStatus('✓ Email client opened with results pre-filled. Review and click Send.', false);
+}
+
+async function saveToSheets() {
+  const webhookUrl = GOOGLE_SHEET_WEBHOOK;
+
+  const name     = document.getElementById('cand-name').value     || '(not provided)';
+  const date     = document.getElementById('cand-date').value     || '';
+  const examiner = document.getElementById('cand-examiner').value || '';
+  const feedback = document.getElementById('overall-feedback').value || '';
+
+  const r = computeReading(), l = computeListening(), w = computeWriting(), s = computeSpeaking();
+  const total = r + l + w + s;
+  const cefr  = getCEFR(total);
+
+  const payload = {
+    sheet_name:       'Examiner Results',
+    graded_at:        new Date().toLocaleString(),
+    candidate_name:   name,
+    test_date:        date,
+    examiner:         examiner,
+    reading_score:    r + ' / 20',
+    writing_score:    w + ' / 25',
+    listening_score:  l + ' / 15',
+    speaking_score:   s + ' / 20',
+    total_score:      total + ' / 80',
+    cefr_level:       cefr,
+    examiner_feedback: feedback,
+    notes_q11: document.getElementById('notes-q11').value || '',
+    notes_q12: document.getElementById('notes-q12').value || '',
+    notes_q13: document.getElementById('notes-q13').value || '',
+    notes_q14: document.getElementById('notes-q14').value || '',
+    notes_q21: document.getElementById('notes-q21').value || '',
+    notes_q22: document.getElementById('notes-q22').value || '',
+    notes_q23: document.getElementById('notes-q23').value || '',
+    notes_q24: document.getElementById('notes-q24').value || '',
+  };
+
+  showSheetsStatus('Saving…', false);
+
+  try {
+    const formBody = Object.entries(payload)
+      .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0, 2000)))
+      .join('&');
+    await fetch(webhookUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody,
+    });
+    showSheetsStatus('✓ Results saved to the "Examiner Results" sheet.', false);
+  } catch (err) {
+    showSheetsStatus('⚠ Could not reach the webhook. Check the URL and try again.', true);
+  }
+}
+
+function showSheetsStatus(msg, isError) {
+  const el = document.getElementById('sheetsStatus');
+  el.textContent = msg;
+  el.className = 'send-status' + (isError ? ' error' : '');
+  el.style.display = 'block';
+}
+
+function showSendStatus(msg, isError) {
+  const el = document.getElementById('sendStatus');
+  el.textContent = msg;
+  el.className = 'send-status' + (isError ? ' error' : '');
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>

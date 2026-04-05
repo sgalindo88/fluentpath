@@ -1,0 +1,1800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Proficiency Test</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap');
+
+:root {
+  --ink: #1a1208;
+  --paper: #f5f0e8;
+  --cream: #ede8dc;
+  --rust: #b8471e;
+  --gold: #c9933a;
+  --rule: #c8bfa8;
+  --muted: #6b5f4e;
+  --green: #2e6e45;
+  --green-bg: #eaf3ec;
+  --blue: #1e4d8c;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-weight: 300;
+  min-height: 100vh;
+}
+
+/* ── PROGRESS BAR ── */
+.progress-bar-outer {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--cream);
+  z-index: 100;
+}
+.progress-bar-inner {
+  height: 100%;
+  background: linear-gradient(90deg, var(--rust), var(--gold));
+  transition: width 0.5s ease;
+  width: 0%;
+}
+
+/* ── TOP NAV ── */
+.top-nav {
+  position: fixed;
+  top: 4px; left: 0; right: 0;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 52px;
+  z-index: 99;
+}
+.nav-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.nav-title em { color: var(--gold); font-style: italic; }
+.nav-section {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(245,240,232,0.5);
+}
+.nav-score {
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  display: none;
+}
+
+/* ── MAIN WRAPPER ── */
+.main {
+  padding-top: 80px;
+  padding-bottom: 80px;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── COVER ── */
+.cover {
+  min-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 60px 32px;
+}
+.cover-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  color: var(--rust);
+  margin-bottom: 28px;
+  font-weight: 600;
+}
+.cover h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(44px, 8vw, 80px);
+  font-weight: 700;
+  line-height: 1.02;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.cover h1 em { color: var(--rust); font-style: italic; }
+.cover-desc {
+  font-size: 16px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 48px;
+  max-width: 480px;
+}
+.cover-rule { width: 64px; height: 2px; background: var(--gold); margin: 0 auto 40px; }
+
+/* candidate fields */
+.candidate-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 440px;
+  width: 100%;
+  margin-bottom: 40px;
+}
+.field-group { text-align: left; }
+.field-group label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.field-group .required-star { color: var(--rust); }
+.required-note { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 12px; }
+.field-group input {
+  width: 100%;
+  background: white;
+  border: 1px solid var(--rule);
+  border-bottom: 2px solid var(--ink);
+  padding: 10px 12px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.field-group input:focus { border-color: var(--rust); }
+
+/* sections overview */
+.sections-overview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 440px;
+  width: 100%;
+  margin-bottom: 40px;
+}
+.overview-card {
+  background: white;
+  border: 1px solid var(--rule);
+  padding: 16px;
+  text-align: left;
+  border-top: 3px solid var(--rule);
+  transition: border-color 0.2s;
+}
+.overview-card.reading { border-top-color: #2e6e45; }
+.overview-card.writing { border-top-color: var(--rust); }
+.overview-card.listening { border-top-color: var(--blue); }
+.overview-card.speaking { border-top-color: var(--gold); }
+.overview-card .oc-label {
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.overview-card .oc-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.overview-card .oc-marks {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.btn-start {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 16px 48px;
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-style: italic;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  letter-spacing: 0.01em;
+}
+.btn-start:hover { background: var(--rust); transform: translateY(-1px); }
+.btn-start:active { transform: translateY(0); }
+
+/* ── SECTION INTRO ── */
+.section-intro {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 48px 32px;
+  text-align: center;
+}
+.section-intro .si-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 80px;
+  font-weight: 700;
+  color: var(--rule);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.section-intro h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.section-intro p {
+  font-size: 15px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 36px;
+  line-height: 1.7;
+}
+
+/* ── QUESTION AREA ── */
+.question-area {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 32px 48px;
+}
+
+.q-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.q-counter {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+}
+.q-section-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.question-card {
+  background: white;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--ink);
+  padding: 32px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.35s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.q-num-big {
+  font-family: 'Playfair Display', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rust);
+  display: block;
+  margin-bottom: 10px;
+  letter-spacing: 0.05em;
+}
+.q-prompt {
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.q-prompt em { font-style: italic; color: var(--muted); }
+.q-prompt strong { font-weight: 600; }
+
+/* passage */
+.passage {
+  background: var(--cream);
+  border-left: 3px solid var(--gold);
+  padding: 20px 24px;
+  font-size: 14.5px;
+  line-height: 1.9;
+  margin-bottom: 24px;
+  color: var(--ink);
+}
+.passage .passage-title {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-style: normal;
+}
+
+/* MCQ options */
+.options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.option-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--cream);
+  border: 1.5px solid var(--rule);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: 'Source Serif 4', serif;
+  font-size: 14.5px;
+  color: var(--ink);
+  width: 100%;
+}
+.option-btn:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: white;
+  transform: translateX(3px);
+}
+.option-btn .opt-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--rule);
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  background: white;
+  color: var(--muted);
+}
+.option-btn:hover:not(:disabled) .opt-letter {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.option-btn.selected {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+.option-btn.selected .opt-letter {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: white;
+}
+.option-btn.correct {
+  border-color: var(--green);
+  background: var(--green-bg);
+  color: var(--ink);
+}
+.option-btn.correct .opt-letter {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+.option-btn.wrong {
+  border-color: var(--rust);
+  background: #fdecea;
+  color: var(--ink);
+}
+.option-btn.wrong .opt-letter {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: white;
+}
+
+/* Multi-select */
+.multi-note {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+/* Text input */
+.text-input-area {
+  width: 100%;
+  border: 1.5px solid var(--rule);
+  border-bottom: 2px solid var(--ink);
+  background: var(--cream);
+  padding: 14px 16px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 15px;
+  color: var(--ink);
+  outline: none;
+  resize: vertical;
+  min-height: 52px;
+  line-height: 1.6;
+  transition: border-color 0.2s, background 0.2s;
+}
+.text-input-area:focus {
+  border-color: var(--rust);
+  background: white;
+}
+textarea.text-input-area { min-height: 160px; }
+
+.word-count {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 6px;
+  font-style: italic;
+}
+
+/* Task choice */
+.task-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.task-choice-btn {
+  border: 1.5px solid var(--rule);
+  padding: 16px 20px;
+  background: var(--cream);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: 'Source Serif 4', serif;
+}
+.task-choice-btn:hover:not(.chosen) {
+  border-color: var(--ink);
+  background: white;
+}
+.task-choice-btn.chosen {
+  border-color: var(--rust);
+  background: white;
+  border-left: 3px solid var(--rust);
+}
+.task-choice-btn .tch-label {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--rust);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.task-choice-btn .tch-desc {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+/* Listening */
+.audio-box {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.audio-box:hover { background: #2e2618; }
+.play-btn {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--gold);
+  transition: all 0.2s;
+}
+.audio-box:hover .play-btn { background: var(--gold); color: var(--ink); }
+.audio-info strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 3px;
+}
+.audio-info span { font-size: 13px; color: rgba(245,240,232,0.7); font-style: italic; }
+.transcript-reveal {
+  display: none;
+  background: #2e2618;
+  color: rgba(245,240,232,0.85);
+  padding: 18px 24px;
+  font-size: 14px;
+  line-height: 1.8;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-style: italic;
+  margin-bottom: 24px;
+}
+.transcript-reveal.visible { display: block; animation: fadeUp 0.3s ease; }
+
+/* Speaking section */
+.speaking-card {
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--gold);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.speaking-card .sc-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.speaking-card .sc-prompt {
+  font-size: 15px;
+  color: var(--ink);
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+.speaking-card .sc-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-style: italic;
+}
+.speaking-input {
+  margin-top: 16px;
+}
+.speaking-input label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* Navigation buttons */
+.nav-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+.btn-nav {
+  background: white;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  padding: 12px 28px;
+  font-family: 'Source Serif 4', serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.btn-nav:hover { background: var(--cream); }
+.btn-nav.primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-nav.primary:hover { background: var(--rust); border-color: var(--rust); }
+.btn-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.q-feedback {
+  margin-top: 14px;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  display: none;
+  animation: fadeUp 0.3s ease;
+}
+.q-feedback.show { display: block; }
+.q-feedback.correct-fb { background: var(--green-bg); border-left: 3px solid var(--green); color: var(--green); }
+.q-feedback.wrong-fb { background: #fdecea; border-left: 3px solid var(--rust); color: var(--rust); }
+.q-feedback.info-fb { background: #fff8ee; border-left: 3px solid var(--gold); color: var(--muted); }
+
+/* ── RESULTS ── */
+.results-screen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 32px;
+}
+.results-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.results-header .eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.results-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 8px;
+}
+.results-header h2 em { color: var(--rust); font-style: italic; }
+
+.total-score-ring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 32px 0;
+}
+.score-circle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: 4px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  margin-bottom: 12px;
+}
+.score-circle .sc-num {
+  font-family: 'Playfair Display', serif;
+  font-size: 44px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+.score-circle .sc-denom {
+  font-size: 14px;
+  color: var(--muted);
+  font-style: italic;
+}
+.cefr-badge {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--gold);
+  font-size: 13px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  padding: 8px 24px;
+  font-weight: 600;
+  font-family: 'Source Serif 4', serif;
+}
+
+.score-breakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.score-section-card {
+  background: white;
+  border: 1px solid var(--rule);
+  padding: 20px;
+  border-top: 3px solid var(--rule);
+}
+.score-section-card.reading { border-top-color: var(--green); }
+.score-section-card.writing { border-top-color: var(--rust); }
+.score-section-card.listening { border-top-color: var(--blue); }
+.score-section-card.speaking { border-top-color: var(--gold); }
+.ssc-label {
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.ssc-score {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ssc-score span { font-size: 15px; color: var(--muted); font-weight: 400; }
+.ssc-bar-outer {
+  height: 4px;
+  background: var(--cream);
+  margin-top: 10px;
+  border-radius: 2px;
+}
+.ssc-bar-inner {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 1s ease 0.5s;
+}
+.reading .ssc-bar-inner { background: var(--green); }
+.writing .ssc-bar-inner { background: var(--rust); }
+.listening .ssc-bar-inner { background: var(--blue); }
+.speaking .ssc-bar-inner { background: var(--gold); }
+
+.cefr-guide {
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.cefr-guide .cg-title {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.cefr-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13.5px;
+}
+.cefr-row:last-child { border-bottom: none; }
+.cefr-row.highlight { color: var(--rust); font-weight: 600; }
+.cefr-level {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 700;
+  width: 50px;
+  flex-shrink: 0;
+}
+.cefr-range {
+  width: 70px;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.btn-restart {
+  width: 100%;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  padding: 16px;
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-style: italic;
+  cursor: pointer;
+  transition: background 0.2s;
+  letter-spacing: 0.01em;
+}
+.btn-restart:hover { background: var(--rust); }
+
+/* ── SPEAKING NOTE ── */
+.speaking-examiner-note {
+  background: #fff8ee;
+  border: 1px solid #e8d5a3;
+  border-left: 3px solid var(--gold);
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  .candidate-form, .score-breakdown, .sections-overview { grid-template-columns: 1fr; }
+  .question-card { padding: 20px; }
+  .top-nav { padding: 0 16px; }
+  .question-area { padding: 16px 16px 48px; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+
+<nav class="top-nav">
+  <div class="nav-title">English <em>Proficiency</em> Test</div>
+  <div class="nav-section" id="navSection">General Placement</div>
+  <div class="nav-score" id="navScore"></div>
+</nav>
+
+<div class="main">
+
+<!-- ══════════════════ COVER ══════════════════ -->
+<div class="screen active" id="screen-cover">
+  <div class="cover">
+    <div class="cover-eyebrow">General Placement · All Levels</div>
+    <h1>English<br><em>Proficiency</em><br>Test</h1>
+    <div class="cover-desc">A comprehensive assessment of speaking, writing, listening and reading skills</div>
+    <div class="cover-rule"></div>
+    <div class="candidate-form">
+      <div class="field-group">
+        <label>Your Name</label>
+        <input type="text" id="candidateName" placeholder="Full name *" required>
+      </div>
+      <div class="field-group">
+        <label>Date</label>
+        <input type="date" id="candidateDate" required>
+      </div>
+    </div>
+    <div class="sections-overview">
+      <div class="overview-card reading"><div class="oc-label">Part 01</div><div class="oc-title">Reading</div><div class="oc-marks">20 marks</div></div>
+      <div class="overview-card writing"><div class="oc-label">Part 02</div><div class="oc-title">Writing</div><div class="oc-marks">25 marks</div></div>
+      <div class="overview-card listening"><div class="oc-label">Part 03</div><div class="oc-title">Listening</div><div class="oc-marks">15 marks</div></div>
+      <div class="overview-card speaking"><div class="oc-label">Part 04</div><div class="oc-title">Speaking</div><div class="oc-marks">20 marks</div></div>
+    </div>
+    <button class="btn-start" onclick="startTest()">Begin Test →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ READING INTRO ══════════════════ -->
+<div class="screen" id="screen-reading-intro">
+  <div class="section-intro">
+    <div class="si-num">01</div>
+    <h2>Reading</h2>
+    <p>You will read a short passage and answer comprehension questions, followed by vocabulary and grammar questions.<br><br><strong>20 marks &nbsp;·&nbsp; 10 questions</strong></p>
+    <button class="btn-nav primary" onclick="showScreen('screen-reading')">Start Reading →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ READING QUESTIONS ══════════════════ -->
+<div class="screen" id="screen-reading">
+  <div class="question-area">
+    <div class="passage">
+      <div class="passage-title">Read the following passage carefully</div>
+      City farming—growing food in urban spaces—has become increasingly popular over the last decade. Rooftops, balconies, and abandoned lots are being transformed into productive gardens. Supporters argue that urban farms reduce food miles, strengthen communities, and improve mental health. Critics, however, point out that most city farms produce very little food relative to the land and resources they use. Despite this debate, local governments in many cities continue to fund and encourage the movement.
+    </div>
+
+    <!-- Q1 -->
+    <div class="question-card" id="q1-card">
+      <span class="q-num-big">Question 1 of 10 &nbsp;·&nbsp; Reading</span>
+      <div class="q-prompt">What is the main topic of this passage?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q1','A',false)"><span class="opt-letter">A</span> The decline of traditional farming</button>
+        <button class="option-btn" onclick="selectMCQ('q1','B',true)"><span class="opt-letter">B</span> Growing food in cities and the debate around it</button>
+        <button class="option-btn" onclick="selectMCQ('q1','C',false)"><span class="opt-letter">C</span> How rooftop gardens improve mental health</button>
+        <button class="option-btn" onclick="selectMCQ('q1','D',false)"><span class="opt-letter">D</span> Government funding for environmental projects</button>
+      </div>
+      <div class="q-feedback" id="q1-fb"></div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="question-card" id="q2-card">
+      <span class="q-num-big">Question 2 of 10 &nbsp;·&nbsp; Reading</span>
+      <div class="q-prompt">According to the passage, what is one criticism of urban farming?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q2','A',false)"><span class="opt-letter">A</span> It is illegal in most cities</button>
+        <button class="option-btn" onclick="selectMCQ('q2','B',false)"><span class="opt-letter">B</span> It increases pollution in urban areas</button>
+        <button class="option-btn" onclick="selectMCQ('q2','C',true)"><span class="opt-letter">C</span> It produces relatively little food for the resources used</button>
+        <button class="option-btn" onclick="selectMCQ('q2','D',false)"><span class="opt-letter">D</span> It reduces community interaction</button>
+      </div>
+      <div class="q-feedback" id="q2-fb"></div>
+    </div>
+
+    <!-- Q3 -->
+    <div class="question-card" id="q3-card">
+      <span class="q-num-big">Question 3 of 10 &nbsp;·&nbsp; Reading</span>
+      <div class="q-prompt">The word <em>"productive"</em> in the passage most closely means:</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q3','A',false)"><span class="opt-letter">A</span> decorative</button>
+        <button class="option-btn" onclick="selectMCQ('q3','B',false)"><span class="opt-letter">B</span> expensive</button>
+        <button class="option-btn" onclick="selectMCQ('q3','C',true)"><span class="opt-letter">C</span> generating useful output</button>
+        <button class="option-btn" onclick="selectMCQ('q3','D',false)"><span class="opt-letter">D</span> popular among residents</button>
+      </div>
+      <div class="q-feedback" id="q3-fb"></div>
+    </div>
+
+    <!-- Q4 -->
+    <div class="question-card" id="q4-card">
+      <span class="q-num-big">Question 4 of 10 &nbsp;·&nbsp; Reading</span>
+      <div class="q-prompt">Based on the passage, which of the following statements is TRUE?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q4','A',false)"><span class="opt-letter">A</span> All governments oppose urban farming</button>
+        <button class="option-btn" onclick="selectMCQ('q4','B',false)"><span class="opt-letter">B</span> Urban farming has no environmental benefits</button>
+        <button class="option-btn" onclick="selectMCQ('q4','C',true)"><span class="opt-letter">C</span> Some local governments continue to support urban farming</button>
+        <button class="option-btn" onclick="selectMCQ('q4','D',false)"><span class="opt-letter">D</span> Critics believe urban farming is the future of food production</button>
+      </div>
+      <div class="q-feedback" id="q4-fb"></div>
+    </div>
+
+    <!-- Q5 -->
+    <div class="question-card" id="q5-card">
+      <span class="q-num-big">Question 5 of 10 &nbsp;·&nbsp; Reading</span>
+      <div class="q-prompt">What does the phrase <em>"food miles"</em> most likely refer to?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q5','A',false)"><span class="opt-letter">A</span> The nutritional value of food</button>
+        <button class="option-btn" onclick="selectMCQ('q5','B',true)"><span class="opt-letter">B</span> The distance food travels from farm to consumer</button>
+        <button class="option-btn" onclick="selectMCQ('q5','C',false)"><span class="opt-letter">C</span> The cost of transporting food locally</button>
+        <button class="option-btn" onclick="selectMCQ('q5','D',false)"><span class="opt-letter">D</span> A programme to encourage healthy eating</button>
+      </div>
+      <div class="q-feedback" id="q5-fb"></div>
+    </div>
+
+    <!-- Q6 -->
+    <div class="question-card" id="q6-card">
+      <span class="q-num-big">Question 6 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <div class="q-prompt">Choose the word that best completes the sentence:<br><em>"Despite the rain, the team ________ to finish the project on time."</em></div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q6','A',true)"><span class="opt-letter">A</span> managed</button>
+        <button class="option-btn" onclick="selectMCQ('q6','B',false)"><span class="opt-letter">B</span> managed to</button>
+        <button class="option-btn" onclick="selectMCQ('q6','C',false)"><span class="opt-letter">C</span> has managed</button>
+        <button class="option-btn" onclick="selectMCQ('q6','D',false)"><span class="opt-letter">D</span> was managing</button>
+      </div>
+      <div class="q-feedback" id="q6-fb"></div>
+    </div>
+
+    <!-- Q7 -->
+    <div class="question-card" id="q7-card">
+      <span class="q-num-big">Question 7 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <div class="q-prompt">Which sentence uses the word <em>"raise"</em> correctly?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q7','A',false)"><span class="opt-letter">A</span> "She raise the question during the meeting."</button>
+        <button class="option-btn" onclick="selectMCQ('q7','B',false)"><span class="opt-letter">B</span> "The sun will raise at 6 a.m. tomorrow."</button>
+        <button class="option-btn" onclick="selectMCQ('q7','C',true)"><span class="opt-letter">C</span> "They decided to raise funds for the charity."</button>
+        <button class="option-btn" onclick="selectMCQ('q7','D',false)"><span class="opt-letter">D</span> "He raise his hand slowly."</button>
+      </div>
+      <div class="q-feedback" id="q7-fb"></div>
+    </div>
+
+    <!-- Q8 -->
+    <div class="question-card" id="q8-card">
+      <span class="q-num-big">Question 8 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <div class="q-prompt">Fill in the blank with the correct preposition:<br><em>"She has been working ________ this company for three years."</em></div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q8','A',false)"><span class="opt-letter">A</span> in</button>
+        <button class="option-btn" onclick="selectMCQ('q8','B',true)"><span class="opt-letter">B</span> at</button>
+        <button class="option-btn" onclick="selectMCQ('q8','C',false)"><span class="opt-letter">C</span> for</button>
+        <button class="option-btn" onclick="selectMCQ('q8','D',false)"><span class="opt-letter">D</span> with</button>
+      </div>
+      <div class="q-feedback" id="q8-fb"></div>
+    </div>
+
+    <!-- Q9 -->
+    <div class="question-card" id="q9-card">
+      <span class="q-num-big">Question 9 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <div class="q-prompt">Select the word closest in meaning to <em>"hesitant"</em>:</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q9','A',false)"><span class="opt-letter">A</span> confident</button>
+        <button class="option-btn" onclick="selectMCQ('q9','B',true)"><span class="opt-letter">B</span> uncertain</button>
+        <button class="option-btn" onclick="selectMCQ('q9','C',false)"><span class="opt-letter">C</span> excited</button>
+        <button class="option-btn" onclick="selectMCQ('q9','D',false)"><span class="opt-letter">D</span> determined</button>
+      </div>
+      <div class="q-feedback" id="q9-fb"></div>
+    </div>
+
+    <!-- Q10 -->
+    <div class="question-card" id="q10-card">
+      <span class="q-num-big">Question 10 of 10 &nbsp;·&nbsp; Grammar</span>
+      <div class="q-prompt">Identify the sentence with correct grammar:</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q10','A',false)"><span class="opt-letter">A</span> "If I would have known, I called you."</button>
+        <button class="option-btn" onclick="selectMCQ('q10','B',true)"><span class="opt-letter">B</span> "If I had known, I would have called you."</button>
+        <button class="option-btn" onclick="selectMCQ('q10','C',false)"><span class="opt-letter">C</span> "If I knew, I would called you."</button>
+        <button class="option-btn" onclick="selectMCQ('q10','D',false)"><span class="opt-letter">D</span> "If I have known, I had called you."</button>
+      </div>
+      <div class="q-feedback" id="q10-fb"></div>
+    </div>
+
+    <div class="nav-buttons">
+      <div style="font-size:13px;color:var(--muted);font-style:italic;">Reading · 20 marks</div>
+      <button class="btn-nav primary" onclick="finishReading()">Continue to Writing →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ WRITING INTRO ══════════════════ -->
+<div class="screen" id="screen-writing-intro">
+  <div class="section-intro">
+    <div class="si-num">02</div>
+    <h2>Writing</h2>
+    <p>You will complete sentence transformation tasks and write a short text of 120–150 words.<br><br><strong>25 marks &nbsp;·&nbsp; 4 tasks</strong></p>
+    <button class="btn-nav primary" onclick="showScreen('screen-writing')">Start Writing →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ WRITING QUESTIONS ══════════════════ -->
+<div class="screen" id="screen-writing">
+  <div class="question-area">
+
+    <!-- Q11 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 11 &nbsp;·&nbsp; Passive Voice</span>
+      <div class="q-prompt">Rewrite the following sentence in the <strong>passive voice</strong>:<br><em>"The chef prepared the meal in less than ten minutes."</em></div>
+      <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" oninput="saveText('q11')">
+    </div>
+
+    <!-- Q12 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 12 &nbsp;·&nbsp; Combining Sentences</span>
+      <div class="q-prompt">Combine these two sentences into one using an appropriate connector:<br><em>"She was tired." &nbsp; "She stayed up to finish her essay."</em></div>
+      <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" oninput="saveText('q12')">
+    </div>
+
+    <!-- Q13 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 13 &nbsp;·&nbsp; Error Correction</span>
+      <div class="q-prompt">Correct all errors in the following sentence and write the corrected version:<br><em>"Yesterday, he go to the market and buyed some vegetable for his mother."</em></div>
+      <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" oninput="saveText('q13')">
+    </div>
+
+    <!-- Q14 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 14 &nbsp;·&nbsp; Short Writing Task (20 marks)</span>
+      <div class="q-prompt">Choose <strong>one</strong> of the tasks below and write <strong>120–150 words</strong>:</div>
+      <div class="task-choices">
+        <button class="task-choice-btn" id="taskA" onclick="chooseTask('A')">
+          <div class="tch-label">Option A · Informal Email</div>
+          <div class="tch-desc">Write an email to a friend you haven't spoken to in a year. Tell them about something important that happened in your life recently, and suggest meeting up.</div>
+        </button>
+        <button class="task-choice-btn" id="taskB" onclick="chooseTask('B')">
+          <div class="tch-label">Option B · Opinion Paragraph</div>
+          <div class="tch-desc">Do you think social media has made people more or less connected? Write a paragraph giving your opinion and supporting it with at least two reasons.</div>
+        </button>
+      </div>
+      <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" oninput="updateWordCount()"></textarea>
+      <div class="word-count" id="wordCount">0 words</div>
+    </div>
+
+    <div class="nav-buttons">
+      <div style="font-size:13px;color:var(--muted);font-style:italic;">Writing · 25 marks</div>
+      <button class="btn-nav primary" onclick="showScreen('screen-listening-intro')">Continue to Listening →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ LISTENING INTRO ══════════════════ -->
+<div class="screen" id="screen-listening-intro">
+  <div class="section-intro">
+    <div class="si-num">03</div>
+    <h2>Listening</h2>
+    <p>Press play to listen to the audio recording, then answer the comprehension questions below. You may play the audio up to <strong>3 times</strong>.<br><br><strong>15 marks &nbsp;·&nbsp; 6 questions</strong></p>
+    <button class="btn-nav primary" onclick="showScreen('screen-listening')">Start Listening →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ LISTENING QUESTIONS ══════════════════ -->
+<div class="screen" id="screen-listening">
+  <div class="question-area">
+
+    <div class="audio-box" onclick="playListeningAudio()" id="listeningAudioBox">
+      <div class="play-btn" id="playBtn">▶</div>
+      <div class="audio-info">
+        <strong>Community Centre Announcement</strong>
+        <span id="audioStatus">Press play to listen — you may play this up to 3 times</span>
+      </div>
+      <div id="audioPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
+    </div>
+
+    <!-- Q15 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 15 &nbsp;·&nbsp; Listening</span>
+      <div class="q-prompt">What is the speaker's job?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q15','A',false)"><span class="opt-letter">A</span> Swimming instructor</button>
+        <button class="option-btn" onclick="selectMCQ('q15','B',true)"><span class="opt-letter">B</span> Programme coordinator</button>
+        <button class="option-btn" onclick="selectMCQ('q15','C',false)"><span class="opt-letter">C</span> Receptionist</button>
+        <button class="option-btn" onclick="selectMCQ('q15','D',false)"><span class="opt-letter">D</span> Yoga teacher</button>
+      </div>
+      <div class="q-feedback" id="q15-fb"></div>
+    </div>
+
+    <!-- Q16 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 16 &nbsp;·&nbsp; Listening</span>
+      <div class="q-prompt">When has the yoga class been rescheduled to?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q16','A',false)"><span class="opt-letter">A</span> Wednesday at 7 p.m.</button>
+        <button class="option-btn" onclick="selectMCQ('q16','B',false)"><span class="opt-letter">B</span> Thursday at 6 p.m.</button>
+        <button class="option-btn" onclick="selectMCQ('q16','C',true)"><span class="opt-letter">C</span> Thursday at 7 p.m.</button>
+        <button class="option-btn" onclick="selectMCQ('q16','D',false)"><span class="opt-letter">D</span> Friday at 7 p.m.</button>
+      </div>
+      <div class="q-feedback" id="q16-fb"></div>
+    </div>
+
+    <!-- Q17 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 17 &nbsp;·&nbsp; Listening</span>
+      <div class="q-prompt">Why will the swimming pool be closed?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q17','A',false)"><span class="opt-letter">A</span> Renovation works</button>
+        <button class="option-btn" onclick="selectMCQ('q17','B',false)"><span class="opt-letter">B</span> A community event</button>
+        <button class="option-btn" onclick="selectMCQ('q17','C',true)"><span class="opt-letter">C</span> Maintenance</button>
+        <button class="option-btn" onclick="selectMCQ('q17','D',false)"><span class="opt-letter">D</span> Health and safety inspection</button>
+      </div>
+      <div class="q-feedback" id="q17-fb"></div>
+    </div>
+
+    <!-- Q18 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 18 &nbsp;·&nbsp; Listening</span>
+      <div class="q-prompt">How many days will the swimming pool be closed?</div>
+      <div class="options-grid">
+        <button class="option-btn" onclick="selectMCQ('q18','A',false)"><span class="opt-letter">A</span> 5 days</button>
+        <button class="option-btn" onclick="selectMCQ('q18','B',false)"><span class="opt-letter">B</span> 6 days</button>
+        <button class="option-btn" onclick="selectMCQ('q18','C',true)"><span class="opt-letter">C</span> 7 days</button>
+        <button class="option-btn" onclick="selectMCQ('q18','D',false)"><span class="opt-letter">D</span> 14 days</button>
+      </div>
+      <div class="q-feedback" id="q18-fb"></div>
+    </div>
+
+    <!-- Q19 -->
+    <div class="question-card">
+      <span class="q-num-big">Question 19 &nbsp;·&nbsp; Listening — 1 mark each</span>
+      <div class="q-prompt">Where can you get more information about the changes? <em>Select all that apply.</em></div>
+      <div class="multi-note">Select all correct answers (2 marks total)</div>
+      <div class="options-grid" id="q19-options">
+        <button class="option-btn" id="q19-A" onclick="toggleMulti('q19','A')"><span class="opt-letter">A</span> By calling the yoga instructor</button>
+        <button class="option-btn" id="q19-B" onclick="toggleMulti('q19','B')"><span class="opt-letter">B</span> At reception</button>
+        <button class="option-btn" id="q19-C" onclick="toggleMulti('q19','C')"><span class="opt-letter">C</span> On the website</button>
+        <button class="option-btn" id="q19-D" onclick="toggleMulti('q19','D')"><span class="opt-letter">D</span> By emailing the manager</button>
+      </div>
+      <div class="q-feedback" id="q19-fb"></div>
+    </div>
+
+    <!-- Q20 Dictation -->
+    <div class="question-card">
+      <span class="q-num-big">Question 20 &nbsp;·&nbsp; Dictation (5 marks)</span>
+      <div class="q-prompt">Listen to the sentence and write exactly what you hear. You may play it up to <strong>3 times</strong>.</div>
+      <div class="audio-box" onclick="playDictationAudio()" id="dictationAudioBox" style="margin-bottom:14px;">
+        <div class="play-btn" id="dictPlayBtn">▶</div>
+        <div class="audio-info">
+          <strong>Dictation Sentence</strong>
+          <span id="dictAudioStatus">Press play to hear the sentence</span>
+        </div>
+        <div id="dictPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
+      </div>
+      <textarea class="text-input-area" id="q20" placeholder="Write what you heard here…" rows="3" oninput="saveText('q20')"></textarea>
+    </div>
+
+    <div class="nav-buttons">
+      <div style="font-size:13px;color:var(--muted);font-style:italic;">Listening · 15 marks</div>
+      <button class="btn-nav primary" onclick="showScreen('screen-speaking-intro')">Continue to Speaking →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ SPEAKING INTRO ══════════════════ -->
+<div class="screen" id="screen-speaking-intro">
+  <div class="section-intro">
+    <div class="si-num">04</div>
+    <h2>Speaking</h2>
+    <p>This section is conducted with an examiner. Read each prompt aloud and record or note your responses.<br>You may use the notes fields to jot down key points before speaking.<br><br><strong>20 marks &nbsp;·&nbsp; 3 tasks</strong></p>
+    <button class="btn-nav primary" onclick="showScreen('screen-speaking')">Start Speaking →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ SPEAKING QUESTIONS ══════════════════ -->
+<div class="screen" id="screen-speaking">
+  <div class="question-area">
+
+    <div class="speaking-examiner-note">
+      💬 Speak your answers aloud. Use the notes fields below to plan what you want to say. An examiner will assess your fluency, grammar, vocabulary, and coherence.
+    </div>
+
+    <!-- Q21 -->
+    <div class="question-card">
+      <span class="q-num-big">Part A &nbsp;·&nbsp; Introduction</span>
+      <div class="speaking-card">
+        <div class="sc-label">Question 21</div>
+        <div class="sc-prompt">Tell me a little about yourself — where you're from, what you do, and what you enjoy doing in your free time.</div>
+        <div class="sc-note">Speak for 1–2 minutes. Try to give extended answers, not just one-word replies.</div>
+      </div>
+      <div class="speaking-input">
+        <label>Notes / Key Points (optional)</label>
+        <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q21')"></textarea>
+      </div>
+    </div>
+
+    <!-- Q22 -->
+    <div class="question-card">
+      <span class="q-num-big">Part A &nbsp;·&nbsp; Everyday Topics</span>
+      <div class="speaking-card">
+        <div class="sc-label">Question 22</div>
+        <div class="sc-prompt">Describe a person in your life who has had an important influence on you. How have they influenced you?</div>
+        <div class="sc-note">Use descriptive language and a mix of past and present tenses.</div>
+      </div>
+      <div class="speaking-input">
+        <label>Notes / Key Points (optional)</label>
+        <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q22')"></textarea>
+      </div>
+    </div>
+
+    <!-- Q23 -->
+    <div class="question-card">
+      <span class="q-num-big">Part B &nbsp;·&nbsp; Extended Speaking (2 minutes)</span>
+      <div class="speaking-card">
+        <div class="sc-label">Question 23 &nbsp;·&nbsp; 1 minute to prepare</div>
+        <div class="sc-prompt">Talk about a place you have visited or would like to visit. Describe what it is like, explain why it is (or would be) meaningful to you, and say whether you would recommend it to others.</div>
+        <div class="sc-note">Organise your ideas: describe → why it matters → recommendation.</div>
+      </div>
+      <div class="speaking-input">
+        <label>Preparation Notes (1 minute)</label>
+        <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" rows="4" oninput="saveText('q23')"></textarea>
+      </div>
+    </div>
+
+    <!-- Q24 -->
+    <div class="question-card">
+      <span class="q-num-big">Part C &nbsp;·&nbsp; Discussion & Opinion</span>
+      <div class="speaking-card">
+        <div class="sc-label">Question 24</div>
+        <div class="sc-prompt">Some people think that university education should be free for everyone. Others believe students should pay for it themselves. What do you think, and why?</div>
+        <div class="sc-note">Give your opinion clearly, support it with reasons, and be ready for follow-up questions from the examiner.</div>
+      </div>
+      <div class="speaking-input">
+        <label>Notes / Key Arguments (optional)</label>
+        <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" rows="3" oninput="saveText('q24')"></textarea>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <div style="font-size:13px;color:var(--muted);font-style:italic;">Speaking · 20 marks</div>
+      <button class="btn-nav primary" onclick="finishTest()">Finish Test & See Results →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ SUBMITTING OVERLAY ══════════════════ -->
+<div class="screen" id="screen-submitting">
+  <div style="min-height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 32px;">
+    <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px;">Please wait</div>
+    <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:700;color:var(--ink);margin-bottom:12px;">Submitting your<br><em style="color:var(--rust);">results…</em></div>
+    <div style="width:48px;height:48px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.8s linear infinite;margin:28px auto;"></div>
+    <div id="submittingStatus" style="font-size:14px;color:var(--muted);font-style:italic;max-width:400px;line-height:1.7;"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ RESULTS ══════════════════ -->
+<div class="screen" id="screen-results">
+  <div class="results-screen">
+
+    <!-- Submission status banner (auto-filled) -->
+    <div id="submissionBanner" style="margin-bottom:32px;padding:18px 24px;border-left:4px solid var(--green);background:var(--green-bg);font-size:14px;color:var(--green);display:none;"></div>
+
+    <div class="results-header">
+      <div class="eyebrow">Test Complete</div>
+      <h2>Thank <em>You!</em></h2>
+    </div>
+
+    <div style="text-align:center;max-width:520px;margin:0 auto 40px;font-size:16px;color:var(--muted);line-height:1.8;font-style:italic;">
+      Your test has been submitted. Your examiner will review all sections — including writing and speaking — and get back to you with your full results.
+    </div>
+
+    <!-- Time summary -->
+    <div id="timeSummary" style="background:white;border:1px solid var(--rule);padding:20px 24px;margin-bottom:28px;display:flex;gap:32px;justify-content:center;flex-wrap:wrap;text-align:center;"></div>
+
+    <div class="cefr-guide">
+      <div class="cg-title">CEFR Level Reference Guide</div>
+      <div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:14px;">Your examiner will use this scale to assign your final level once all sections are graded.</div>
+      <div class="cefr-row"><span class="cefr-level">A1</span><span class="cefr-range">0–10 pts</span><span>Beginner: can understand and use very basic expressions</span></div>
+      <div class="cefr-row"><span class="cefr-level">A2</span><span class="cefr-range">11–20 pts</span><span>Elementary: can communicate in simple, routine tasks</span></div>
+      <div class="cefr-row"><span class="cefr-level">B1</span><span class="cefr-range">21–35 pts</span><span>Intermediate: can deal with most situations while travelling or working</span></div>
+      <div class="cefr-row"><span class="cefr-level">B2</span><span class="cefr-range">36–50 pts</span><span>Upper-Intermediate: can interact with fluency and spontaneity</span></div>
+      <div class="cefr-row"><span class="cefr-level">C1</span><span class="cefr-range">51–65 pts</span><span>Advanced: can express ideas fluently and use language flexibly</span></div>
+      <div class="cefr-row"><span class="cefr-level">C2</span><span class="cefr-range">66–80 pts</span><span>Proficiency: near-native mastery; precise, spontaneous, effortless use</span></div>
+    </div>
+
+    <div style="margin-top:28px;background:var(--cream);border:1px solid var(--rule);padding:20px 24px;font-size:13.5px;color:var(--muted);line-height:1.8;">
+      <strong style="color:var(--ink);font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:8px;">What happens next?</strong>
+      Your examiner will grade your writing (Q11–14) and speaking (Q21–24) sections and combine them with your reading and listening scores to produce a final result. You will be contacted once grading is complete.
+    </div>
+
+    <div id="submitStatus" style="display:none;margin-top:16px;padding:12px 16px;font-size:13px;"></div>
+
+    <button class="btn-restart" onclick="restartTest()" style="margin-top:28px;">↩ Take Test Again</button>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// SETUP GUIDE — fill in both values below
+//
+// ── EMAIL (Formspree) ──────────────────────────────
+// 1. Go to https://formspree.io and sign up (free)
+// 2. Click "New Form" → name it "English Test Results"
+// 3. Copy your endpoint (looks like https://formspree.io/f/abcdefgh)
+// 4. Paste it below
+//
+// ── GOOGLE SHEET (Apps Script) ────────────────────
+// 1. Open a new Google Sheet
+// 2. Click Extensions → Apps Script
+// 3. Delete any existing code and paste the script from
+//    the GOOGLE_APPS_SCRIPT_CODE comment block below
+// 4. Click Deploy → New deployment → Web app
+//    - Execute as: Me
+//    - Who has access: Anyone
+// 5. Copy the Web app URL and paste it below
+//
+// GOOGLE_APPS_SCRIPT_CODE:
+// ─────────────────────────────────────────────────
+// NOTE: The test sends form-encoded data (not JSON).
+// Use this Apps Script — it reads e.parameter instead of e.postData.
+//
+// function doPost(e) {
+//   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+//   var params = e.parameter;  // form-encoded fields land here
+//   var headers = [
+//     'submitted_at','candidate_name','date',
+//     'reading_score','listening_score','auto_total',
+//     'writing_score','speaking_score','mcq_answers',
+//     'q11_passive_voice','q12_combined_sentence','q13_error_correction',
+//     'q14_writing_task','q20_dictation',
+//     'q21_speaking_notes','q22_speaking_notes',
+//     'q23_speaking_notes','q24_speaking_notes'
+//   ];
+//   if (sheet.getLastRow() === 0) {
+//     sheet.appendRow(headers);
+//   }
+//   sheet.appendRow(headers.map(function(h) { return params[h] || ''; }));
+//   return ContentService
+//     .createTextOutput(JSON.stringify({ result: 'success' }))
+//     .setMimeType(ContentService.MimeType.JSON);
+// }
+// ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
+const GOOGLE_SHEET_WEBHOOK = 'https://script.google.com/macros/s/AKfycbynIBuiHk6qGmlfCRghXkUYZqXdJuIN0OXgZbg42fvK_uAGgcO_Xsxu8G9vwd8wz78S/exec';
+
+// ── STATE ──
+const state = {
+  answers: {},
+  textAnswers: {},
+  chosenTask: null,
+  q19selected: new Set(),
+  transcriptOpen: false,
+  startTime: null,
+  endTime: null,
+  listeningPlays: 0,
+  dictationPlays: 0,
+};
+const MAX_PLAYS = 3;
+
+const CORRECT_ANSWERS = { q1:'B',q2:'C',q3:'C',q4:'C',q5:'B',q6:'A',q7:'C',q8:'B',q9:'B',q10:'B',q15:'B',q16:'C',q17:'C',q18:'C' };
+const MCQ_MARKS = { q1:2,q2:2,q3:2,q4:2,q5:2,q6:2,q7:2,q8:2,q9:2,q10:2,q15:2,q16:2,q17:2,q18:2 };
+
+// ── SCREEN MANAGEMENT ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  updateNav(id);
+  updateProgress(id);
+}
+
+function updateNav(id) {
+  const labels = {
+    'screen-cover': 'General Placement',
+    'screen-reading-intro': 'Part 01 · Reading',
+    'screen-reading': 'Part 01 · Reading',
+    'screen-writing-intro': 'Part 02 · Writing',
+    'screen-writing': 'Part 02 · Writing',
+    'screen-listening-intro': 'Part 03 · Listening',
+    'screen-listening': 'Part 03 · Listening',
+    'screen-speaking-intro': 'Part 04 · Speaking',
+    'screen-speaking': 'Part 04 · Speaking',
+    'screen-results': 'Results',
+  };
+  document.getElementById('navSection').textContent = labels[id] || '';
+}
+
+const screenOrder = ['screen-cover','screen-reading-intro','screen-reading','screen-writing-intro','screen-writing','screen-listening-intro','screen-listening','screen-speaking-intro','screen-speaking','screen-results'];
+
+function updateProgress(id) {
+  const idx = screenOrder.indexOf(id);
+  const pct = idx < 0 ? 0 : Math.round((idx / (screenOrder.length - 1)) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+}
+
+// ── START ──
+function startTest() {
+  const nameEl = document.getElementById('candidateName');
+  const dateEl = document.getElementById('candidateDate');
+  if (!nameEl.value.trim()) {
+    nameEl.style.borderColor = 'var(--rust)';
+    nameEl.focus();
+    nameEl.placeholder = 'Name is required *';
+    return;
+  }
+  if (!dateEl.value) {
+    dateEl.style.borderColor = 'var(--rust)';
+    dateEl.focus();
+    return;
+  }
+  nameEl.style.borderColor = '';
+  dateEl.style.borderColor = '';
+  if (!dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+  state.startTime = new Date();
+  showScreen('screen-reading-intro');
+}
+
+// ── MCQ ──
+function selectMCQ(qId, letter, isCorrect) {
+  if (state.answers[qId]) return; // already answered
+  state.answers[qId] = { selected: letter, correct: isCorrect };
+
+  const card = document.getElementById(qId + '-card') || document.querySelector(`[id^="${qId}"]`)?.closest('.question-card');
+  const btns = document.querySelectorAll(`[onclick*="'${qId}'"]`);
+
+  btns.forEach(btn => {
+    btn.disabled = true;
+    const btnLetter = btn.querySelector('.opt-letter').textContent.trim();
+    const correctLetter = CORRECT_ANSWERS[qId];
+    if (btnLetter === correctLetter) btn.classList.add('correct');
+    else if (btnLetter === letter && !isCorrect) btn.classList.add('wrong');
+  });
+
+  const fb = document.getElementById(qId + '-fb');
+  if (fb) {
+    fb.classList.add('show');
+    if (isCorrect) {
+      fb.classList.add('correct-fb');
+      fb.textContent = '✓ Correct! +' + (MCQ_MARKS[qId] || 2) + ' marks';
+    } else {
+      fb.classList.add('wrong-fb');
+      fb.textContent = '✗ Incorrect. The correct answer is ' + CORRECT_ANSWERS[qId] + '.';
+    }
+  }
+  updateScoreDisplay();
+}
+
+// ── MULTI-SELECT Q19 ──
+const Q19_CORRECT = new Set(['B','C']);
+function toggleMulti(qId, letter) {
+  if (state.answers[qId + '_submitted']) return;
+  const btn = document.getElementById(qId + '-' + letter);
+  if (state.q19selected.has(letter)) {
+    state.q19selected.delete(letter);
+    btn.classList.remove('selected');
+  } else {
+    state.q19selected.add(letter);
+    btn.classList.add('selected');
+  }
+  // Auto-submit when 2 selected
+  if (state.q19selected.size >= 2) submitQ19();
+}
+
+function submitQ19() {
+  state.answers['q19_submitted'] = true;
+  const correct = [...state.q19selected].every(l => Q19_CORRECT.has(l)) && state.q19selected.size === 2;
+  const partialCorrect = [...state.q19selected].filter(l => Q19_CORRECT.has(l)).length;
+
+  document.querySelectorAll('[id^="q19-"]').forEach(btn => {
+    if (!btn.classList.contains('q-feedback') && btn.tagName === 'BUTTON') {
+      btn.disabled = true;
+      const letter = btn.id.replace('q19-','');
+      if (Q19_CORRECT.has(letter)) btn.classList.add('correct');
+      else if (state.q19selected.has(letter)) btn.classList.add('wrong');
+    }
+  });
+
+  const fb = document.getElementById('q19-fb');
+  fb.classList.add('show');
+  if (correct) {
+    fb.classList.add('correct-fb');
+    fb.textContent = '✓ Correct! Both answers found. +2 marks';
+    state.answers['q19'] = { correct: true, marks: 2 };
+  } else {
+    fb.classList.add(partialCorrect > 0 ? 'info-fb' : 'wrong-fb');
+    fb.textContent = partialCorrect > 0 ? `Partially correct. ${partialCorrect}/2 correct answers selected. +${partialCorrect} mark${partialCorrect>1?'s':''}.` : '✗ Neither answer was correct. Correct answers: Reception and the Website.';
+    state.answers['q19'] = { correct: false, marks: partialCorrect };
+  }
+  updateScoreDisplay();
+}
+
+// ── TEXT ANSWERS ──
+function saveText(qId) {
+  state.textAnswers[qId] = document.getElementById(qId).value;
+}
+
+function updateWordCount() {
+  const text = document.getElementById('q14').value.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  const wc = document.getElementById('wordCount');
+  wc.textContent = words + ' words';
+  wc.style.color = (words >= 120 && words <= 150) ? 'var(--green)' : words > 150 ? 'var(--rust)' : 'var(--muted)';
+  saveText('q14');
+}
+
+function chooseTask(opt) {
+  state.chosenTask = opt;
+  document.getElementById('taskA').classList.toggle('chosen', opt === 'A');
+  document.getElementById('taskB').classList.toggle('chosen', opt === 'B');
+  document.getElementById('q14').placeholder = opt === 'A'
+    ? 'Write your informal email here (120–150 words)…'
+    : 'Write your opinion paragraph here (120–150 words)…';
+}
+
+// transcript toggle removed — audio only
+
+// ── SCORE DISPLAY ──
+function getMCQScore() {
+  let total = 0;
+  Object.keys(CORRECT_ANSWERS).forEach(qId => {
+    if (state.answers[qId]?.correct) total += (MCQ_MARKS[qId] || 2);
+  });
+  if (state.answers['q19']) total += state.answers['q19'].marks || 0;
+  return total;
+}
+
+function updateScoreDisplay() {
+  // Live score intentionally hidden from candidate
+}
+
+// ── SECTION FINISH ──
+function finishReading() {
+  showScreen('screen-writing-intro');
+}
+
+// ── AUDIO: Text-to-Speech ──
+const LISTENING_TEXT = "Hello, and welcome to the Westfield Community Centre. My name is Diane, and I am the programme coordinator. I would like to let you know about a few changes this month. First, the yoga class on Wednesday evenings has moved to Thursday at seven p.m. Second, the swimming pool will be closed for maintenance from the fourteenth to the twentieth of this month. If you have any questions, please speak to reception or visit our website. Thank you, and have a great day.";
+const DICTATION_TEXT = "Although the weather was unpredictable, they decided to go ahead with the outdoor festival.";
+
+function speakText(text, onEnd) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 0.88;
+  utt.pitch = 1;
+  utt.lang = 'en-GB';
+  // Pick a natural English voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
+    || voices.find(v => v.lang.startsWith('en-GB'))
+    || voices.find(v => v.lang.startsWith('en'));
+  if (preferred) utt.voice = preferred;
+  if (onEnd) utt.onend = onEnd;
+  window.speechSynthesis.speak(utt);
+}
+
+function playListeningAudio() {
+  if (state.listeningPlays >= MAX_PLAYS) return;
+  state.listeningPlays++;
+  const left = MAX_PLAYS - state.listeningPlays;
+  document.getElementById('audioPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
+  document.getElementById('audioStatus').textContent = 'Playing…';
+  document.getElementById('playBtn').textContent = '■';
+  if (left === 0) {
+    document.getElementById('listeningAudioBox').style.opacity = '0.5';
+    document.getElementById('listeningAudioBox').style.cursor = 'default';
+  }
+  speakText(LISTENING_TEXT, () => {
+    document.getElementById('playBtn').textContent = '▶';
+    document.getElementById('audioStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays available';
+  });
+}
+
+function playDictationAudio() {
+  if (state.dictationPlays >= MAX_PLAYS) return;
+  state.dictationPlays++;
+  const left = MAX_PLAYS - state.dictationPlays;
+  document.getElementById('dictPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
+  document.getElementById('dictAudioStatus').textContent = 'Playing…';
+  document.getElementById('dictPlayBtn').textContent = '■';
+  if (left === 0) {
+    document.getElementById('dictationAudioBox').style.opacity = '0.5';
+    document.getElementById('dictationAudioBox').style.cursor = 'default';
+  }
+  speakText(DICTATION_TEXT, () => {
+    document.getElementById('dictPlayBtn').textContent = '▶';
+    document.getElementById('dictAudioStatus').textContent = left > 0 ? 'Click to hear again' : 'No more plays available';
+  });
+}
+
+// Preload voices on page load
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+// ── FINAL RESULTS — auto-submit ──
+async function finishTest() {
+  state.endTime = new Date();
+  showScreen('screen-submitting');
+  await submitResults();
+}
+
+function formatDuration(ms) {
+  const totalSec = Math.round(ms / 1000);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  return mins + 'm ' + secs + 's';
+}
+
+function showResultsScreen(submissionOk, submissionMsg) {
+  // Time summary
+  const duration = state.endTime && state.startTime ? state.endTime - state.startTime : null;
+  const timeSummary = document.getElementById('timeSummary');
+  timeSummary.innerHTML = [
+    { label: 'Started', value: state.startTime ? state.startTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
+    { label: 'Finished', value: state.endTime ? state.endTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
+    { label: 'Duration', value: duration ? formatDuration(duration) : '—' },
+  ].map(item => `<div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px;">${item.label}</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--ink);">${item.value}</div></div>`).join('');
+
+  // Submission banner
+  const banner = document.getElementById('submissionBanner');
+  if (submissionOk) {
+    banner.style.display = 'block';
+    banner.textContent = '✓ ' + submissionMsg;
+  } else {
+    banner.style.borderColor = 'var(--rust)';
+    banner.style.background = '#fdecea';
+    banner.style.color = 'var(--rust)';
+    banner.style.display = 'block';
+    banner.textContent = submissionMsg;
+  }
+
+  showScreen('screen-results');
+}
+
+// ── DUAL SUBMISSION (Email + Google Sheet) ──
+async function submitResults() {
+  const missingFormspree = FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID_HERE');
+  const missingSheet     = GOOGLE_SHEET_WEBHOOK.includes('YOUR_SCRIPT_ID_HERE');
+
+  // Build payload
+  const mcqDetail = Object.keys(CORRECT_ANSWERS).map(q => {
+    const ans = state.answers[q];
+    return `${q.toUpperCase()}: ${ans ? ans.selected + (ans.correct ? ' ✓' : ' ✗ (correct: ' + CORRECT_ANSWERS[q] + ')') : 'Not answered'}`;
+  }).join('\n');
+  const q19ans    = state.answers['q19'];
+  const q19detail = q19ans ? `Q19: ${[...state.q19selected].join(',')} — ${q19ans.marks}/2 marks` : 'Q19: Not answered';
+
+  let readingScore = 0;
+  ['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10'].forEach(q => { if (state.answers[q]?.correct) readingScore += 2; });
+  let listeningScore = 0;
+  ['q15','q16','q17','q18'].forEach(q => { if (state.answers[q]?.correct) listeningScore += 2; });
+  if (q19ans) listeningScore += q19ans.marks || 0;
+
+  const duration = state.endTime && state.startTime
+    ? formatDuration(state.endTime - state.startTime)
+    : 'unknown';
+
+  const payload = {
+    submitted_at:           new Date().toLocaleString(),
+    candidate_name:         document.getElementById('candidateName').value || '(not provided)',
+    test_date:              document.getElementById('candidateDate').value || '',
+    start_time:             state.startTime ? state.startTime.toLocaleTimeString() : '',
+    end_time:               state.endTime   ? state.endTime.toLocaleTimeString()   : '',
+    duration:               duration,
+    reading_score:          `${readingScore} / 20`,
+    listening_score:        `${listeningScore} / 15`,
+    auto_total:             `${readingScore + listeningScore} / 35`,
+    writing_score:          'Pending examiner review (/ 25)',
+    speaking_score:         'Pending examiner review (/ 20)',
+    mcq_answers:            mcqDetail + '\n' + q19detail,
+    q11_passive_voice:      state.textAnswers['q11'] || '(blank)',
+    q12_combined_sentence:  state.textAnswers['q12'] || '(blank)',
+    q13_error_correction:   state.textAnswers['q13'] || '(blank)',
+    q14_writing_task:       `[Option ${state.chosenTask || '?'}] ${state.textAnswers['q14'] || '(blank)'}`,
+    q20_dictation:          state.textAnswers['q20'] || '(blank)',
+    q21_speaking_notes:     state.textAnswers['q21'] || '(blank)',
+    q22_speaking_notes:     state.textAnswers['q22'] || '(blank)',
+    q23_speaking_notes:     state.textAnswers['q23'] || '(blank)',
+    q24_speaking_notes:     state.textAnswers['q24'] || '(blank)',
+  };
+
+  const results = { email: 'skipped', sheet: 'skipped' };
+
+  // ── Formspree (email) ──
+  if (!missingFormspree) {
+    try {
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      results.email = res.ok ? 'ok' : 'error';
+    } catch { results.email = 'error'; }
+  }
+
+  // ── Google Sheet (form-encoded + no-cors — required for Apps Script) ──
+  if (!missingSheet) {
+    try {
+      const formBody = Object.entries(payload)
+        .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0, 2000)))
+        .join('&');
+      await fetch(GOOGLE_SHEET_WEBHOOK, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody,
+      });
+      results.sheet = 'ok';
+    } catch { results.sheet = 'error'; }
+  }
+
+  // ── Determine outcome message then show results screen ──
+  const anyOk = results.email === 'ok' || results.sheet === 'ok';
+  const allOk = (missingFormspree || results.email === 'ok') && (missingSheet || results.sheet === 'ok');
+  const bothUnconfigured = missingFormspree && missingSheet;
+
+  let ok, msg;
+  if (bothUnconfigured) {
+    ok = false;
+    msg = '⚠️ Submission endpoints not configured. Please ask your examiner to set up the test.';
+  } else if (allOk && anyOk) {
+    const parts = [];
+    if (results.email === 'ok') parts.push('emailed to your examiner');
+    if (results.sheet === 'ok') parts.push('saved to the examiner\'s Google Sheet');
+    ok = true;
+    msg = 'Your results have been ' + parts.join(' and ') + '.';
+  } else if (anyOk) {
+    ok = true;
+    msg = 'Results partially submitted. Your examiner has been notified.';
+  } else {
+    ok = false;
+    msg = '⚠️ Submission failed due to a network error. Please inform your examiner directly.';
+  }
+
+  showResultsScreen(ok, msg);
+}
+
+function restartTest() {
+  // Reset state
+  state.answers = {};
+  state.textAnswers = {};
+  state.chosenTask = null;
+  state.q19selected = new Set();
+  state.transcriptOpen = false;
+  state.startTime = null;
+  state.endTime = null;
+  state.listeningPlays = 0;
+  state.dictationPlays = 0;
+
+  // Reset all MCQ buttons
+  document.querySelectorAll('.option-btn').forEach(btn => {
+    btn.disabled = false;
+    btn.classList.remove('selected','correct','wrong');
+  });
+
+  // Reset all feedbacks
+  document.querySelectorAll('.q-feedback').forEach(fb => {
+    fb.className = 'q-feedback';
+    fb.textContent = '';
+  });
+
+  // Reset text inputs
+  document.querySelectorAll('.text-input-area').forEach(el => el.value = '');
+  document.getElementById('wordCount').textContent = '0 words';
+
+  // Reset task choice
+  document.getElementById('taskA').classList.remove('chosen');
+  document.getElementById('taskB').classList.remove('chosen');
+
+  // Reset audio players
+  document.getElementById('audioStatus').textContent = 'Press play to listen — you may play this up to 3 times';
+  document.getElementById('playBtn').textContent = '▶';
+  document.getElementById('audioPlaysLeft').textContent = '3 plays left';
+  document.getElementById('listeningAudioBox').style.opacity = '';
+  document.getElementById('listeningAudioBox').style.cursor = '';
+  document.getElementById('dictAudioStatus').textContent = 'Press play to hear the sentence';
+  document.getElementById('dictPlayBtn').textContent = '▶';
+  document.getElementById('dictPlaysLeft').textContent = '3 plays left';
+  document.getElementById('dictationAudioBox').style.opacity = '';
+  document.getElementById('dictationAudioBox').style.cursor = '';
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  // Reset submission banner
+  const banner = document.getElementById('submissionBanner');
+  if (banner) { banner.style.display = 'none'; banner.textContent = ''; }
+
+  // Reset nav score
+  document.getElementById('navScore').textContent = '';
+
+  showScreen('screen-cover');
+}
+
+// Set today's date on load
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
+});
+</script>
+</body>
+</html>
