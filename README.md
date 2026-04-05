@@ -1,17 +1,22 @@
 # English Path -- Language Learning & Assessment Platform
 
-A comprehensive, browser-based English language learning and assessment system built as a set of four self-contained HTML applications. The platform serves two audiences -- **students** taking tests and completing lessons, and **teachers/examiners** marking work and managing course progress. All interfaces share a cohesive visual identity (Playfair Display + Source Serif 4 typography, cream/ink/rust colour palette) and integrate with Google Sheets and the Claude API.
+A comprehensive, browser-based English language learning and assessment system designed for **adult immigrants** (ages 20--50) who lack the time or resources for formal schooling. The platform supports **one-on-one tutoring** with live video calls and asynchronous self-study.
+
+It serves two audiences -- **students** taking tests and completing lessons, and **teachers/examiners** marking work and managing course progress. All interfaces share a cohesive visual identity (Playfair Display + Source Serif 4 typography, cream/ink/rust colour palette) and integrate with Google Sheets, the Claude API, and Jitsi Meet for video calls.
 
 ---
 
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
+- [Project Structure](#project-structure)
 - [File Descriptions](#file-descriptions)
-  - [student-initial-test.html](#1-student-initial-testhtmlstudent-interface--placement-test)
-  - [examiner-marking.html](#2-examiner-markinghtmlteacher-interface--test-marking-panel)
-  - [student-course.html](#3-student-coursehtmlstudent-interface--daily-lesson)
-  - [examiner-panel.html](#4-examiner-panelhtmlteacher-interface--course-dashboard)
+  - [index.html -- Student Hub](#1-indexhtml--student-hub)
+  - [student-initial-test.html -- Placement Test](#2-student-initial-testhtml--placement-test)
+  - [examiner-marking.html -- Test Marking Panel](#3-examiner-markinghtmlteacher-interface--test-marking-panel)
+  - [student-course.html -- Daily Lesson](#4-student-coursehtml--daily-lesson)
+  - [examiner-panel.html -- Course Dashboard](#5-examiner-panelhtml--course-dashboard)
+- [Shared Utilities](#shared-utilities)
 - [Shared Design System](#shared-design-system)
 - [Integration Points](#integration-points)
 - [Technology Stack](#technology-stack)
@@ -21,31 +26,90 @@ A comprehensive, browser-based English language learning and assessment system b
 
 ## Architecture Overview
 
-The platform follows a two-phase workflow:
+The platform follows a two-phase workflow, with a central hub page guiding the student through their journey:
 
 ```
-Phase 1 -- Placement                    Phase 2 -- Course
-================================        ================================
-Student takes initial test              Student completes daily lessons
-  (student-initial-test.html)             (student-course.html)
-         |                                       |
-         v                                       v
-Examiner marks the test                 Examiner manages course progress
-  (examiner-marking.html)                 (examiner-panel.html)
-         |                                       |
-         v                                       v
-   CEFR level assigned              Lessons approved, marked, tracked
+                    ┌─────────────────┐
+                    │   index.html    │
+                    │  (Student Hub)  │
+                    └───────┬─────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+   Phase 1 -- Placement          Phase 2 -- Course
+   ========================      ========================
+   Student takes test            Student completes lessons
+     (student-initial-test)        (student-course)
+              │                           │
+              v                           v
+   Examiner marks test           Examiner manages course
+     (examiner-marking)            (examiner-panel)
+              │                           │
+              v                           v
+     CEFR level assigned         Lessons approved, marked
 ```
 
 **Phase 1 -- Placement:** A student completes a four-skill English proficiency test. The examiner then marks it, assigns a CEFR level (A1--C2), and the student is placed into the appropriate course tier.
 
 **Phase 2 -- Course:** The student works through a 20-day structured course with AI-generated daily lessons. The examiner approves lessons before they are delivered, marks writing and speaking submissions, tracks attendance, adjusts difficulty, and writes weekly summaries.
 
+**All live sessions** (tests and lessons) include an embedded Jitsi Meet video call so teacher and student can communicate in real time.
+
+---
+
+## Project Structure
+
+```
+files/
+├── index.html                    # Student hub / landing portal
+├── README.md                     # This file
+├── CHANGELOG.md                  # Version history
+└── src/
+    ├── student-initial-test.html # Placement test (student)
+    ├── student-course.html       # Daily lesson (student)
+    ├── examiner-marking.html     # Test marking panel (teacher)
+    ├── examiner-panel.html       # Course dashboard (teacher)
+    ├── video-call.js             # Jitsi Meet floating video panel
+    ├── mobile.css                # Mobile-first enhancements
+    ├── i18n.js                   # Spanish language support
+    └── checkpoint.js             # Session recovery / auto-save
+```
+
 ---
 
 ## File Descriptions
 
-### 1. `student-initial-test.html` -- Student Interface / Placement Test
+### 1. `index.html` -- Student Hub
+
+**Purpose:** The central landing portal for students. Provides name-based login, fetches progress from Google Sheets, and displays a journey timeline that always points the student to their next action.
+
+#### Screens
+
+| # | Screen | Description |
+|---|--------|-------------|
+| 1 | **Welcome** | Name input with language selector (English / Spanish). Returning students are auto-logged-in via localStorage. |
+| 2 | **Loading** | Spinner while progress is fetched from Google Sheets. |
+| 3 | **Dashboard** | Journey timeline with three milestones and a context-aware CTA button. |
+
+#### Journey Milestones
+
+| # | Milestone | States |
+|---|-----------|--------|
+| 1 | **Placement Test** | Not started (active CTA) / Completed (green, with score) |
+| 2 | **Your Level** | Locked / Awaiting review (pending badge) / Assigned (CEFR badge with level name and theme) |
+| 3 | **Your Course** | Locked / Ready to begin / In progress with progress bar (Day X/20) / Complete |
+
+#### Key Features
+
+- **Progress tracking** via Google Sheets (`?action=get_progress`) with localStorage fallback
+- **Auto-login** for returning students (name saved in localStorage)
+- **Context-aware CTA** that always shows the right next action (take test, wait for review, start lesson)
+- **"Not you?" link** to switch students
+- **Spanish language support** via the shared i18n system
+
+---
+
+### 2. `student-initial-test.html` -- Placement Test
 
 **Purpose:** A comprehensive English proficiency placement test that evaluates four language skills: Reading, Writing, Listening, and Speaking. Scores 80 marks total, with 35 auto-graded and 45 requiring examiner review.
 
@@ -84,11 +148,14 @@ Examiner marks the test                 Examiner manages course progress
 - **Dual submission** to Formspree (email) and Google Sheets (webhook)
 - **Timer** recording test start/end time and duration
 - **Progress bar** animating across all screens
-- **No data persistence** -- all answers are held in memory only
+- **Session recovery** -- state auto-saved every 5 seconds; on page reload a bilingual modal offers "Resume" or "Start Over"
+- **Video call** -- floating Jitsi Meet panel activates when the test begins
+- **Spanish UI hints** via the shared i18n system
+- **Mobile-optimised** with 48px touch targets, sticky navigation, and iOS zoom prevention
 
 ---
 
-### 2. `examiner-marking.html` -- Teacher Interface / Test Marking Panel
+### 3. `examiner-marking.html` -- Teacher Interface / Test Marking Panel
 
 **Purpose:** A marking tool for examiners to grade the placement test. Imports raw submission emails from Formspree, auto-scores objective sections, provides sliders for manual marking of subjective sections, calculates CEFR levels, and exports results.
 
@@ -140,7 +207,7 @@ A fixed total score box at the bottom displays the running total and CEFR level.
 
 ---
 
-### 3. `student-course.html` -- Student Interface / Daily Lesson
+### 4. `student-course.html` -- Daily Lesson
 
 **Purpose:** An AI-powered daily lesson platform that delivers a structured 90-minute lesson with 7 sequential activities. Lessons are generated by the Claude API, personalised to the student's CEFR level and day in the course, and require teacher approval before starting.
 
@@ -186,10 +253,14 @@ A fixed total score box at the bottom displays the running total and CEFR level.
 - **Fallback lesson** baked in for offline/API-failure scenarios
 - **XSS prevention** with `escHtml()` sanitisation on all user-generated content
 - **Progress saved** to Google Sheets on lesson completion with all responses and metadata
+- **Session recovery** -- state auto-saved every 5 seconds (including full AI-generated lesson content); on page reload a bilingual modal offers "Resume" or "Start Over"
+- **Video call** -- floating Jitsi Meet panel activates when the lesson begins
+- **Spanish UI hints** via the shared i18n system
+- **Mobile-optimised** with sticky bottom navigation, 48px touch targets, and iOS zoom prevention
 
 ---
 
-### 4. `examiner-panel.html` -- Teacher Interface / Course Dashboard
+### 5. `examiner-panel.html` -- Teacher Interface / Course Dashboard
 
 **Purpose:** A comprehensive one-on-one teaching dashboard for managing a student's progress through the English Path course. Covers lesson approval, attendance, marking, difficulty adjustment, progress tracking, and weekly summaries.
 
@@ -236,12 +307,59 @@ A fixed total score box at the bottom displays the running total and CEFR level.
 - **Pending badge** in the topbar showing count of items awaiting action
 - **Demo submission data** built in for testing the marking interface without live data
 - **Print-ready** with a dedicated print stylesheet hiding all interactive elements
+- **Video call** -- floating Jitsi Meet panel activates on dashboard load, joining the same room as the student
+
+---
+
+## Shared Utilities
+
+Four shared JavaScript/CSS files in `src/` provide cross-cutting functionality to all student-facing pages:
+
+### `video-call.js` -- Live Video Calls
+
+- Embeds **Jitsi Meet** (free, no accounts required) in a floating panel
+- **Deterministic room names** generated from student name + date (e.g. `EnglishPath-maria-gonzalez-20260405`) so teacher and student auto-join the same room
+- **Collapsed state:** Small "Join Video Call" button in the bottom-right corner
+- **Expanded state:** 380x320 embedded iframe with toolbar (copy link, pop-out to new tab, minimise, end call)
+- Included in: `student-initial-test.html`, `student-course.html`, `examiner-panel.html`
+
+### `mobile.css` -- Mobile-First Enhancements
+
+- **iOS zoom prevention:** All inputs and textareas forced to 16px minimum font-size
+- **Touch targets:** MCQ options, buttons, and interactive cards enforce 48px minimum height (WCAG compliant)
+- **Sticky bottom navigation:** Lesson Continue/Back buttons anchor to the viewport bottom on mobile
+- **Full-width primary buttons** on mobile for easier tapping
+- **Slimmer topbar** (46px) with non-essential info hidden on mobile
+- **Small phone support:** Extra breakpoint at 380px for iPhone SE and similar narrow screens
+- **Desktop hover enhancements** gated behind `(hover: hover)` so touch devices are not affected
+- **Touch optimisations:** 300ms tap delay eliminated, default tap highlight removed
+- Included in: `index.html`, `student-initial-test.html`, `student-course.html`
+
+### `i18n.js` -- Spanish Language Support
+
+- **Language selector:** Floating widget on all pages + prominent selector on the hub welcome screen
+- **120+ Spanish translations** covering buttons, headings, instructions, form labels, placeholders, status messages, activity labels, level names, and confidence ratings
+- **Bilingual display:** Translations appear as subtle italic hints below the English text, so students learn English while understanding instructions in Spanish
+- **Visual section icons:** Automatic emoji icons (📖 Reading, ✍️ Writing, 🎧 Listening, 🗣️ Speaking, etc.) prepended to section headings
+- **Dynamic content support:** MutationObserver re-applies translations when the DOM changes
+- **Extensible:** Adding a new language requires only a new key in `TRANSLATIONS` and `LANG_META`
+- Choice persists in localStorage across all pages
+- Included in: `index.html`, `student-initial-test.html`, `student-course.html`
+
+### `checkpoint.js` -- Session Recovery
+
+- **Generic API:** `Checkpoint.save(key, data)`, `Checkpoint.load(key)`, `Checkpoint.clear(key)`
+- **Bilingual recovery modal:** On page reload, shows a styled modal asking "Resume where you left off?" in English and Spanish, with a time-ago indicator
+- **Placement test:** Auto-saves every 5 seconds (current screen, all MCQ and text answers, audio play counts, task choice); clears on submission or restart
+- **Course lesson:** Auto-saves every 5 seconds (current step, all answers, full AI-generated lesson content, elapsed timer); rebuilds lesson from saved content on resume; clears on completion
+- **Immediate save** also triggered on every screen/step navigation change
+- Included in: `student-initial-test.html`, `student-course.html`
 
 ---
 
 ## Shared Design System
 
-All four interfaces share a consistent visual language:
+All interfaces share a consistent visual language:
 
 | Element | Value |
 |---------|-------|
@@ -257,7 +375,7 @@ All four interfaces share a consistent visual language:
 | **Body font** | Source Serif 4 (serif, 300/400/600) |
 | **Max content width** | 680--900px |
 | **Animation** | `fadeIn` 0.25--0.3s ease with `translateY` |
-| **Responsive breakpoint** | 600--768px |
+| **Responsive breakpoints** | 380px (small phone), 600px (mobile/tablet) |
 
 The aesthetic is intentionally print-inspired, academic, and warm -- designed to feel calm and professional for adult learners.
 
@@ -267,10 +385,11 @@ The aesthetic is intentionally print-inspired, academic, and warm -- designed to
 
 ### Google Sheets (via Apps Script Webhook)
 
-All four files communicate with a shared Google Apps Script web app for data persistence:
+All files communicate with a shared Google Apps Script web app for data persistence:
 
 | File | Direction | Data |
 |------|-----------|------|
+| `index.html` | Receives | Student progress (test status, CEFR level, lessons completed) |
 | `student-initial-test.html` | Sends | Test answers, scores, timing, candidate info |
 | `examiner-marking.html` | Sends | Graded scores, CEFR level, examiner feedback |
 | `student-course.html` | Sends / Receives | Lesson requests, approval status (polling), completion data |
@@ -290,6 +409,16 @@ All four files communicate with a shared Google Apps Script web app for data per
 | `student-course.html` | claude-sonnet-4-20250514 | Generates personalised daily lessons based on CEFR level and day |
 | `examiner-panel.html` | claude-sonnet-4-20250514 | Generates AI-drafted weekly summary narratives from student performance data |
 
+### Jitsi Meet (Video Calls)
+
+| File | Role | Room Name |
+|------|------|-----------|
+| `student-initial-test.html` | Student joins | `EnglishPath-{name}-{YYYYMMDD}` |
+| `student-course.html` | Student joins | `EnglishPath-{name}-{YYYYMMDD}` |
+| `examiner-panel.html` | Teacher joins | `EnglishPath-{name}-{YYYYMMDD}` |
+
+Room names are deterministic (derived from student name + date) so both parties auto-join the same call with no manual link sharing required.
+
 ### Web Speech API (Browser)
 
 | File | Speech Synthesis | Speech Recognition |
@@ -297,16 +426,30 @@ All four files communicate with a shared Google Apps Script web app for data per
 | `student-initial-test.html` | Listening passages + dictation audio | -- |
 | `student-course.html` | Vocabulary pronunciation + listening passages | Pronunciation drills + free conversation |
 
+### localStorage (Client-Side Persistence)
+
+| Key Pattern | Purpose | Set By |
+|-------------|---------|--------|
+| `ep_student_name` | Remember student for hub auto-login | Hub, test, course |
+| `ep_test_completed` | Track test completion for hub | Test |
+| `ep_cefr_level` | Track assigned level for hub | Course |
+| `ep_last_lesson_day` | Track course progress for hub | Course |
+| `ep_lang` | Language preference (en/es) | i18n.js |
+| `ep_ckpt_test` | Placement test checkpoint | checkpoint.js |
+| `ep_ckpt_lesson` | Course lesson checkpoint | checkpoint.js |
+| `englishpath_examiner` | Full examiner panel state | examiner-panel.html |
+
 ---
 
 ## Technology Stack
 
 - **Frontend:** Pure HTML, CSS, and vanilla JavaScript (no frameworks or build tools)
-- **Styling:** CSS custom properties, Flexbox, CSS Grid, media queries, print stylesheets
+- **Styling:** CSS custom properties, Flexbox, CSS Grid, media queries, print stylesheets, shared `mobile.css`
 - **Fonts:** Google Fonts (Playfair Display, Source Serif 4)
-- **APIs:** Claude API (lesson generation, summaries), Google Apps Script (data persistence), Formspree (email delivery), Web Speech API (TTS + STT)
-- **Storage:** In-memory state (test), localStorage (examiner panel), Google Sheets (shared persistence)
-- **Deployment:** Static files -- no server required; open directly in a browser
+- **APIs:** Claude API (lesson generation, summaries), Google Apps Script (data persistence), Formspree (email delivery), Web Speech API (TTS + STT), Jitsi Meet (video calls)
+- **Storage:** localStorage (checkpoints, preferences, examiner state), Google Sheets (shared persistence)
+- **Internationalisation:** Spanish (es) with extensible dictionary, bilingual UI hints
+- **Deployment:** Static files on Netlify -- no server required
 
 ---
 
