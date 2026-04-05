@@ -326,8 +326,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         <option value="C2">C2 — Proficiency · Full Fluency</option>
       </select>
     </div>
-    <hr class="divider">
-    <div class="pf"><label>Google Sheet Webhook URL<br><span style="font-size:11px;font-weight:300;letter-spacing:0;text-transform:none;color:var(--muted);">From your Google Apps Script deployment</span></label><input type="url" id="setup-webhook" placeholder="https://script.google.com/macros/s/…/exec"></div>
   </div>
 
   <button class="btn-primary" onclick="setupExaminer()">Open Teacher Dashboard →</button>
@@ -364,10 +362,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       <div class="sb-section">LESSONS</div>
       <div class="sb-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
         <div class="sb-icon">📊</div> Dashboard
-      </div>
-      <div class="sb-link" id="nav-approvals" onclick="showPanel('approvals')">
-        <div class="sb-icon">✅</div> Lesson Approvals
-        <span class="sb-badge" id="sb-pending-badge">0</span>
       </div>
       <div class="sb-link" id="nav-attendance" onclick="showPanel('attendance')">
         <div class="sb-icon">📅</div> Attendance
@@ -469,26 +463,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       </div>
 
       <!-- ══ APPROVALS ══ -->
-      <div class="panel" id="panel-approvals">
-        <div class="panel-header">
-          <div class="panel-eyebrow">LESSON MANAGEMENT</div>
-          <div class="panel-title">Lesson <em>Approvals</em></div>
-          <div class="panel-sub">Review AI-generated lesson content before your student begins. You can adjust difficulty or regenerate.</div>
-        </div>
-
-        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-          <button class="btn-primary" onclick="loadApprovalQueue()">🔄 Refresh Queue</button>
-          <button class="btn-secondary" onclick="createManualLesson()">+ Create Manual Lesson</button>
-        </div>
-
-        <div id="approval-queue">
-          <div style="text-align:center;padding:40px;color:var(--muted);font-style:italic;">
-            <div style="font-size:32px;margin-bottom:12px;">📬</div>
-            Loading pending lessons…<div class="spinner"></div>
-          </div>
-        </div>
-      </div>
-
       <!-- ══ ATTENDANCE ══ -->
       <div class="panel" id="panel-attendance">
         <div class="panel-header">
@@ -529,19 +503,14 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         <div class="panel-header">
           <div class="panel-eyebrow">EXAMINER MARKING</div>
           <div class="panel-title">Mark Writing <em>&</em> Speaking</div>
-          <div class="panel-sub">Import the student's latest lesson submission to mark their written and spoken responses.</div>
+          <div class="panel-sub">Automatically loads the latest lesson submission from Google Sheets for your student.</div>
         </div>
 
         <div class="card card-top gold" style="margin-bottom:20px;">
-          <div class="card-label">LOAD STUDENT SUBMISSION</div>
-          <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-            <div style="flex:1;">
-              <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Paste the JSON data from the Google Sheet, or load from the most recent submission.</div>
-              <textarea id="submission-json" class="mark-notes" style="min-height:100px;" placeholder='{"student_name":"...","writing_response":"...","speaking_transcript":"..."}'></textarea>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px;">
-            <button class="btn-primary" onclick="loadSubmission()">Load Submission</button>
+          <div class="card-label">STUDENT SUBMISSION</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Fetches the latest ungraded lesson from Google Sheets for <strong id="mark-student-name-display">your student</strong>.</p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-primary" onclick="autoLoadSubmission()">Fetch Latest Submission</button>
             <button class="btn-secondary" onclick="loadDemoSubmission()">Load Demo Data</button>
           </div>
           <div class="send-status" id="load-status"></div>
@@ -805,7 +774,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div class="card-label">TEACHER & CONNECTION</div>
           <div class="profile-form">
             <div class="pf pf-full"><label>Teacher Name <span style="color:var(--rust)">*</span></label><input type="text" id="prof-teacher" placeholder="Your name"></div>
-            <div class="pf pf-full"><label>Google Sheet Webhook URL</label><input type="url" id="prof-webhook" placeholder="https://script.google.com/macros/s/…/exec"></div>
           </div>
         </div>
 
@@ -987,6 +955,11 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 
 <script>
 // ══════════════════════════════════════════════════════
+// WEBHOOK (hardcoded — same URL used across the platform)
+// ══════════════════════════════════════════════════════
+const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbynIBuiHk6qGmlfCRghXkUYZqXdJuIN0OXgZbg42fvK_uAGgcO_Xsxu8G9vwd8wz78S/exec';
+
+// ══════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════
 let ex = {
@@ -1033,7 +1006,6 @@ function setupExaminer() {
   const teacher = document.getElementById('setup-teacher').value.trim();
   const student = document.getElementById('setup-student').value.trim();
   const level   = document.getElementById('setup-level').value;
-  const webhook = document.getElementById('setup-webhook').value.trim();
 
   if (!teacher) { alert('Please enter your name.'); return; }
   if (!student) { alert('Please enter the student\'s name.'); return; }
@@ -1042,7 +1014,6 @@ function setupExaminer() {
   ex.teacherName  = teacher;
   ex.studentName  = student;
   ex.studentLevel = level;
-  ex.webhook      = webhook;
 
   saveToLocalStorage();
   initApp();
@@ -1132,9 +1103,9 @@ async function loadPlacementTest() {
 
   // Try fetching from Google Sheets
   let data = null;
-  if (ex.webhook && ex.webhook.includes('script.google.com')) {
+  if (WEBHOOK_URL && WEBHOOK_URL.includes('script.google.com')) {
     try {
-      const url = ex.webhook + '?action=get_test_results&student=' + encodeURIComponent(name);
+      const url = WEBHOOK_URL + '?action=get_test_results&student=' + encodeURIComponent(name);
       const resp = await fetch(url, { method: 'GET' });
       data = await resp.json();
     } catch (e) {}
@@ -1218,7 +1189,7 @@ async function loadPlacementTest() {
 }
 
 async function savePlacementToSheets() {
-  if (!ex.webhook || !ex.webhook.includes('script.google.com')) {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com')) {
     document.getElementById('pt-save-status').textContent = 'No webhook configured. Set one in Student Profile.';
     return;
   }
@@ -1249,7 +1220,7 @@ async function savePlacementToSheets() {
   document.getElementById('pt-save-status').textContent = 'Saving...';
   try {
     const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0,2000))).join('&');
-    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    await fetch(WEBHOOK_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
     document.getElementById('pt-save-status').textContent = '✓ Results saved to "Examiner Results" sheet.';
     document.getElementById('pt-save-status').style.color = 'var(--green)';
   } catch(e) {
@@ -1275,7 +1246,6 @@ function initApp() {
 
   // Profile form
   document.getElementById('prof-teacher').value       = ex.teacherName;
-  document.getElementById('prof-webhook').value       = ex.webhook;
   document.getElementById('prof-student-name').value  = ex.studentName;
   document.getElementById('prof-level').value         = ex.studentLevel;
   document.getElementById('prof-month').value         = ex.studentMonth;
@@ -1285,7 +1255,6 @@ function initApp() {
   buildDifficultyGrid();
   buildFocusTags();
   updateDashboardStats();
-  loadApprovalQueue();
   updateLessonRecord();
 
   // Launch video call panel so the teacher can join the student's call
@@ -1298,6 +1267,9 @@ function initApp() {
   }
 
   document.getElementById('pt-student-name-btn').textContent = ex.studentName || 'Student';
+  document.getElementById('mark-student-name-display').textContent = ex.studentName || 'your student';
+  // Auto-load latest submission for marking
+  autoLoadSubmission();
 }
 
 function getLevelTheme(level) {
@@ -1417,7 +1389,7 @@ async function loadApprovalQueue() {
   const container = document.getElementById('approval-queue');
 
   // In demo: show demo pending lessons
-  if (!ex.webhook || ex.webhook.includes('script.google.com') === false) {
+  if (!WEBHOOK_URL || WEBHOOK_URL.includes('script.google.com') === false) {
     // Show a demo pending lesson
     ex.pendingLessons = [
       { id: 'demo-1', studentName: ex.studentName || 'Student', level: ex.studentLevel, date: new Date().toISOString().split('T')[0], day: getCurrentDay(), status: 'pending', topic: 'Daily Communication at Work', content: getDemoLessonPreview() }
@@ -1430,7 +1402,7 @@ async function loadApprovalQueue() {
   container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-style:italic;">Loading…<div class="spinner"></div></div>';
 
   try {
-    const url = ex.webhook + '?action=get_pending&teacher_code=' + encodeURIComponent(ex.teacherCode);
+    const url = WEBHOOK_URL + '?action=get_pending&teacher_code=' + encodeURIComponent(ex.teacherCode);
     const res = await fetch(url);
     const data = await res.json();
     ex.pendingLessons = data.lessons || [];
@@ -1525,10 +1497,10 @@ async function rejectLesson(id) {
 }
 
 async function sendApprovalToSheet(id, status) {
-  if (!ex.webhook || !ex.webhook.startsWith('https://')) return;
+  if (!WEBHOOK_URL || !WEBHOOK_URL.startsWith('https://')) return;
   const body = `action=update_approval&lesson_id=${encodeURIComponent(id)}&status=${status}&teacher_code=${encodeURIComponent(ex.teacherCode)}`;
   try {
-    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    await fetch(WEBHOOK_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
   } catch(e) {}
 }
 
@@ -1559,16 +1531,28 @@ function showMarkTab(tab) {
   document.querySelectorAll('.m-tab').forEach(t => { if (t.textContent.toLowerCase().includes(tab)) t.classList.add('active'); });
 }
 
-function loadSubmission() {
-  const raw = document.getElementById('submission-json').value.trim();
-  if (!raw) { showStatus('load-status', 'Please paste submission data.', true); return; }
+async function autoLoadSubmission() {
+  var name = ex.studentName;
+  if (!name) { showStatus('load-status', 'Set up a student profile first.', true); return; }
+  showStatus('load-status', 'Fetching latest submission for ' + escHtml(name) + '...', false);
   try {
-    const data = JSON.parse(raw);
-    displaySubmission(data);
-    showStatus('load-status', '✓ Submission loaded.', false);
-  } catch(e) {
-    showStatus('load-status', 'Invalid JSON. Check the data and try again.', true);
-  }
+    var url = WEBHOOK_URL + '?action=get_latest_submission&student=' + encodeURIComponent(name);
+    var resp = await fetch(url, { method: 'GET' });
+    var data = await resp.json();
+    if (data && data.found) {
+      displaySubmission(data);
+      showStatus('load-status', '✓ Loaded Day ' + (data.day_number || '?') + ' submission.', false);
+      return;
+    }
+  } catch(e) {}
+  // Fallback to demo
+  showStatus('load-status', 'No ungraded submission found. Showing demo data.', true);
+  loadDemoSubmission();
+}
+
+function loadSubmission() {
+  // Legacy: manual JSON paste (kept for backwards compatibility)
+  autoLoadSubmission();
 }
 
 function loadDemoSubmission() {
@@ -1587,7 +1571,6 @@ function loadDemoSubmission() {
     confidence: 2,
     review_notes: 'The vocabulary was not too hard but the writing task was challenging for me.',
   };
-  document.getElementById('submission-json').value = JSON.stringify(demo, null, 2);
   displaySubmission(demo);
   showStatus('load-status', '✓ Demo submission loaded.', false);
 }
@@ -1856,7 +1839,7 @@ ${ex.teacherName || 'Your Teacher'}`;
 }
 
 async function saveToSheet() {
-  if (!ex.webhook || !ex.webhook.startsWith('https://')) {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.startsWith('https://')) {
     showStatus('sheet-status', 'No webhook configured. Add it in Student Profile.', true);
     return;
   }
@@ -1879,7 +1862,7 @@ async function saveToSheet() {
   };
   try {
     const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k)+'='+encodeURIComponent(v)).join('&');
-    await fetch(ex.webhook, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    await fetch(WEBHOOK_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
     showStatus('sheet-status', '✓ Marks saved to Google Sheet.', false);
 
     // Update local record
@@ -1917,7 +1900,6 @@ function saveProfile() {
   if (!level)   { showStatus('profile-save-status', 'Student level is required.', true); return; }
 
   ex.teacherName  = teacher;
-  ex.webhook      = document.getElementById('prof-webhook').value;
   ex.studentName  = student;
   ex.studentEmail = document.getElementById('prof-email').value;
   ex.studentLevel = level;
@@ -1953,7 +1935,7 @@ function saveToLocalStorage() {
       teacherName: ex.teacherName,
       studentName: ex.studentName, studentLevel: ex.studentLevel,
       studentMonth: ex.studentMonth, studentEmail: ex.studentEmail,
-      studentNotes: ex.studentNotes, webhook: ex.webhook,
+      studentNotes: ex.studentNotes, webhook: WEBHOOK_URL,
       attendance: ex.attendance, weeklySummaries: ex.weeklySummaries,
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
@@ -2002,7 +1984,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (ex.teacherName) document.getElementById('setup-teacher').value = ex.teacherName;
   if (ex.studentName) document.getElementById('setup-student').value = ex.studentName;
   if (ex.studentLevel) document.getElementById('setup-level').value = ex.studentLevel;
-  if (ex.webhook) document.getElementById('setup-webhook').value = ex.webhook;
 });
 </script>
 <script src="video-call.js"></script>
