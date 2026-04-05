@@ -342,9 +342,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       <div class="topbar-sub">TEACHER DASHBOARD</div>
     </div>
     <div class="topbar-right">
-      <div class="topbar-badge alert" id="pendingBadge" onclick="showPanel('approvals')" style="display:none;">
-        Pending <span class="pending-count" id="pendingCount">0</span>
-      </div>
       <div class="topbar-badge" onclick="showPanel('profile')">⚙ Settings</div>
     </div>
   </div>
@@ -417,8 +414,8 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
             <div class="stat-lbl">Avg. Lesson Time</div>
           </div>
           <div class="stat-box rust">
-            <div class="stat-val" id="stat-pending">0</div>
-            <div class="stat-lbl">Awaiting Approval</div>
+            <div class="stat-val" id="stat-marked">0</div>
+            <div class="stat-lbl">Lessons Marked</div>
           </div>
         </div>
 
@@ -1106,9 +1103,11 @@ async function loadPlacementTest() {
   if (WEBHOOK_URL && WEBHOOK_URL.includes('script.google.com')) {
     try {
       const url = WEBHOOK_URL + '?action=get_test_results&student=' + encodeURIComponent(name);
-      const resp = await fetch(url, { method: 'GET' });
-      data = await resp.json();
-    } catch (e) {}
+      const resp = await fetch(url, { method: 'GET', redirect: 'follow' });
+      if (resp.ok) data = await resp.json();
+    } catch (e) {
+      console.warn('[FluentPath] Could not fetch test results (CORS or network error). Using demo data.', e.message);
+    }
   }
 
   // If no data from sheet, use demo data
@@ -1309,8 +1308,6 @@ function updateDashboardStats() {
 
   document.getElementById('stat-days-done').textContent = present;
   document.getElementById('stat-attendance').textContent = done > 0 ? Math.round(present/done*100) + '%' : '—%';
-  document.getElementById('stat-pending').textContent   = ex.pendingLessons.filter(l => l.status === 'pending').length;
-
   const dayNum = getCurrentDay();
   document.getElementById('dash-day-num').textContent    = dayNum;
   const pctOverall = Math.round(done / total * 100);
@@ -1325,19 +1322,6 @@ function updateDashboardStats() {
   const markPct = done > 0 ? Math.round(markedCount/done*100) : 0;
   document.getElementById('prog-writing').style.width  = markPct + '%';
   document.getElementById('prog-writing-val').textContent = markPct + '%';
-
-  // pending badge
-  const pendingCount = ex.pendingLessons.filter(l => l.status === 'pending').length;
-  document.getElementById('sb-pending-badge').textContent = pendingCount;
-  document.getElementById('sb-pending-badge').className = 'sb-badge' + (pendingCount > 0 ? ' show' : '');
-  document.getElementById('stat-pending').textContent = pendingCount;
-
-  if (pendingCount > 0) {
-    document.getElementById('pendingBadge').style.display = 'block';
-    document.getElementById('pendingCount').textContent = pendingCount;
-  } else {
-    document.getElementById('pendingBadge').style.display = 'none';
-  }
 
   // progress panel
   document.getElementById('prog-days').textContent = present;
@@ -1543,8 +1527,8 @@ async function autoLoadSubmission() {
   showStatus('load-status', 'Fetching latest submission for ' + escHtml(name) + '...', false);
   try {
     var url = WEBHOOK_URL + '?action=get_latest_submission&student=' + encodeURIComponent(name);
-    var resp = await fetch(url, { method: 'GET' });
-    var data = await resp.json();
+    var resp = await fetch(url, { method: 'GET', redirect: 'follow' });
+    var data = resp.ok ? await resp.json() : null;
     if (data && data.found) {
       displaySubmission(data);
       showStatus('load-status', '✓ Loaded Day ' + (data.day_number || '?') + ' submission.', false);
