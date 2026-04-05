@@ -1169,21 +1169,24 @@ async function loadPlacementTest() {
     '<span style="color:' + (q19correct ? 'var(--green)' : 'var(--rust)') + ';font-weight:600;">' + (q19correct ? '✓' : '✗') + '</span> Q19 ' + q19answers.join(',') + ' <span style="font-size:11px;">' + ptScores.listening['q19'] + '/2</span></div>';
   document.getElementById('pt-listening-chips').innerHTML = listeningHtml;
 
-  // Populate response viewers
-  document.getElementById('pt-rv-q11').textContent = data.q11_passive_voice || '—';
-  document.getElementById('pt-rv-q12').textContent = data.q12_combined_sentence || '—';
-  document.getElementById('pt-rv-q13').textContent = data.q13_error_correction || '—';
-  document.getElementById('pt-rv-q14').textContent = data.q14_writing_task || '—';
-  document.getElementById('pt-rv-q20').textContent = data.q20_dictation || '—';
-  document.getElementById('pt-rv-q21').textContent = data.q21_speaking_notes || '—';
-  document.getElementById('pt-rv-q22').textContent = data.q22_speaking_notes || '—';
-  document.getElementById('pt-rv-q23').textContent = data.q23_speaking_notes || '—';
-  document.getElementById('pt-rv-q24').textContent = data.q24_speaking_notes || '—';
+  // Populate response viewers (try multiple possible field name formats)
+  document.getElementById('pt-rv-q11').textContent = data.q11_passive_voice || data.q11 || '(no response)';
+  document.getElementById('pt-rv-q12').textContent = data.q12_combined_sentence || data.q12 || '(no response)';
+  document.getElementById('pt-rv-q13').textContent = data.q13_error_correction || data.q13 || '(no response)';
+  document.getElementById('pt-rv-q14').textContent = data.q14_writing_task || data.q14 || '(no response)';
+  document.getElementById('pt-rv-q20').textContent = data.q20_dictation || data.q20 || '(no response)';
+  document.getElementById('pt-rv-q21').textContent = data.q21_speaking_notes || data.q21 || '(no response)';
+  document.getElementById('pt-rv-q22').textContent = data.q22_speaking_notes || data.q22 || '(no response)';
+  document.getElementById('pt-rv-q23').textContent = data.q23_speaking_notes || data.q23 || '(no response)';
+  document.getElementById('pt-rv-q24').textContent = data.q24_speaking_notes || data.q24 || '(no response)';
 
   // Show all cards
   ['pt-reading-card','pt-listening-card','pt-writing-card','pt-speaking-card','pt-results-card'].forEach(id => {
     document.getElementById(id).style.display = 'block';
   });
+
+  // Log for debugging
+  console.log('[FluentPath] Placement test data loaded:', Object.keys(data));
 
   updatePTResults();
 }
@@ -1290,6 +1293,9 @@ function showPanel(id) {
   document.getElementById('panel-' + id).classList.add('active');
   document.getElementById('nav-' + id)?.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Auto-load data when navigating to marking panels
+  if (id === 'placementtest') loadPlacementTest();
+  if (id === 'marking') autoLoadSubmission();
 }
 
 // ══════════════════════════════════════════════════════
