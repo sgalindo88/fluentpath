@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Examiner Panel · English Path</title>
+<title>Teacher Dashboard · FluentPath</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
@@ -308,8 +308,8 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 
 <!-- ══════════════════ SETUP SCREEN ══════════════════ -->
 <div id="setup-screen" class="setup-screen">
-  <div style="font-size:10px;letter-spacing:0.45em;text-transform:uppercase;color:var(--rust);font-weight:600;margin-bottom:20px;">ENGLISH PATH</div>
-  <h1>Examiner <em>Panel</em></h1>
+  <div style="font-size:10px;letter-spacing:0.45em;text-transform:uppercase;color:var(--rust);font-weight:600;margin-bottom:20px;">FLUENTPATH</div>
+  <h1>Teacher <em>Dashboard</em></h1>
   <p class="setup-sub">One-on-one teaching dashboard. Set up your student profile and Google Sheet webhook to get started.</p>
   <div class="setup-rule"></div>
 
@@ -330,7 +330,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
     <div class="pf"><label>Google Sheet Webhook URL<br><span style="font-size:11px;font-weight:300;letter-spacing:0;text-transform:none;color:var(--muted);">From your Google Apps Script deployment</span></label><input type="url" id="setup-webhook" placeholder="https://script.google.com/macros/s/…/exec"></div>
   </div>
 
-  <button class="btn-primary" onclick="setupExaminer()">Open Examiner Panel →</button>
+  <button class="btn-primary" onclick="setupExaminer()">Open Teacher Dashboard →</button>
   <p style="font-size:11px;color:var(--rule);margin-top:16px;font-style:italic;">You can update these settings later in the Student Profile tab.</p>
 </div>
 
@@ -340,8 +340,8 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
   <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-left">
-      <div class="topbar-title"><em>English</em> Path</div>
-      <div class="topbar-sub">EXAMINER PANEL</div>
+      <div class="topbar-title"><em>Fluent</em>Path</div>
+      <div class="topbar-sub">TEACHER DASHBOARD</div>
     </div>
     <div class="topbar-right">
       <div class="topbar-badge alert" id="pendingBadge" onclick="showPanel('approvals')" style="display:none;">
@@ -1587,7 +1587,7 @@ function exportProfile() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `english-path-${(ex.studentName||'student').replace(/\s/g,'-')}-export.json`;
+  a.download = `fluentpath-${(ex.studentName||'student').replace(/\s/g,'-')}-export.json`;
   a.click();
 }
 
@@ -1595,7 +1595,7 @@ function exportProfile() {
 // LOCAL STORAGE
 // ══════════════════════════════════════════════════════
 function autoSave(key, value) {
-  try { localStorage.setItem('ep_' + key, value); } catch(e) {}
+  try { localStorage.setItem('fp_' + key, value); } catch(e) {}
 }
 
 function saveToLocalStorage() {
@@ -1609,13 +1609,13 @@ function saveToLocalStorage() {
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
     };
-    localStorage.setItem('englishpath_examiner', JSON.stringify(toSave));
+    localStorage.setItem('fluentpath_teacher', JSON.stringify(toSave));
   } catch(e) {}
 }
 
 function loadFromLocalStorage() {
   try {
-    const saved = localStorage.getItem('englishpath_examiner');
+    const saved = localStorage.getItem('fluentpath_teacher');
     if (!saved) return false;
     const data = JSON.parse(saved);
     Object.assign(ex, data);

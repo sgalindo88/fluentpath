@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   English Path — Internationalisation & UX Helper
+   FluentPath — Internationalisation & UX Helper
    ─────────────────────────────────────────────────────────────
    Self-contained: injects its own CSS, builds a language selector,
    and translates UI chrome (buttons, headings, instructions).
@@ -20,8 +20,9 @@ const I18n = (() => {
     es: { label: 'Español', flag: '🇪🇸' },
   };
 
-  const LS_KEY = 'ep_lang';
+  const LS_KEY = 'fp_lang';
   let currentLang = 'en';
+  let spanishApproved = false; // gated by teacher setting in Google Sheets
 
   /* ── Visual cues — section icons ────────────────────────── */
   const SECTION_ICONS = {
@@ -86,8 +87,8 @@ const I18n = (() => {
       'Tu primer paso es la prueba de nivel. Toma unos 40 minutos.',
     'Your teacher will review your test soon. Check back later.':
       'Tu profesor revisará tu prueba pronto. Vuelve más tarde.',
-    'You have completed the English Path course. Talk to your teacher about next steps.':
-      'Has completado el curso English Path. Habla con tu profesor sobre los próximos pasos.',
+    'You have completed the FluentPath course. Talk to your teacher about next steps.':
+      'Has completado el curso FluentPath. Habla con tu profesor sobre los próximos pasos.',
     'Let\'s begin with your placement test.':
       'Comencemos con tu prueba de nivel.',
     'Your test is being reviewed by your teacher.':
@@ -103,7 +104,7 @@ const I18n = (() => {
     'Complete':                     'Completo',
 
     /* ── Test page ──────────────────────────────────────── */
-    'English Proficiency Test':     'Prueba de Nivel de Inglés',
+    'FluentPath Placement Test':     'Prueba de Nivel FluentPath',
     'A comprehensive assessment of speaking, writing, listening and reading skills':
       'Una evaluación completa de las habilidades de habla, escritura, comprensión auditiva y lectura',
     'Full name *':                  'Nombre completo *',
@@ -131,7 +132,7 @@ const I18n = (() => {
 
     /* ── Course page ────────────────────────────────────── */
     'Your Path to Better English':  'Tu Camino hacia un Mejor Inglés',
-    'CEFR English Course':          'Curso de Inglés CEFR',
+    'FluentPath Course':          'Curso FluentPath',
     'Your Journey to Fluency':      'Tu Camino hacia la Fluidez',
     'Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation, speaking — at your pace, on your schedule.':
       'Lecciones diarias paso a paso diseñadas para adultos ocupados. Vocabulario, pronunciación, conversación — a tu ritmo, en tu horario.',
@@ -323,7 +324,26 @@ const I18n = (() => {
         border-color: var(--ink, #1a1208);
       }
 
-      /* ── Hide selector on very small heights ── */
+      /* ── Disabled state (not approved by teacher) ── */
+      .i18n-lang-btn.disabled,
+      .i18n-welcome-btn.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      .i18n-lang-btn.disabled:hover,
+      .i18n-welcome-btn.disabled:hover {
+        background: transparent;
+      }
+      .i18n-disabled-hint {
+        font-size: 11px;
+        color: var(--muted, #6b5f4e);
+        font-style: italic;
+        text-align: center;
+        margin-top: 4px;
+      }
+
+      /* ── Hide selector on very small heights ─�� */
       @media (max-width: 600px) {
         .i18n-selector { top: 50px; right: 8px; padding: 2px; }
         .i18n-lang-btn { padding: 4px 10px; font-size: 11px; }
@@ -341,9 +361,10 @@ const I18n = (() => {
     wrap.className = 'i18n-selector';
     Object.entries(LANG_META).forEach(([code, meta]) => {
       const btn = document.createElement('button');
-      btn.className = 'i18n-lang-btn' + (code === currentLang ? ' active' : '');
+      const isDisabled = code !== 'en' && !spanishApproved;
+      btn.className = 'i18n-lang-btn' + (code === currentLang ? ' active' : '') + (isDisabled ? ' disabled' : '');
       btn.textContent = meta.flag + ' ' + meta.label;
-      btn.onclick = () => setLang(code);
+      if (!isDisabled) btn.onclick = () => setLang(code);
       wrap.appendChild(btn);
     });
     document.body.appendChild(wrap);
@@ -356,12 +377,19 @@ const I18n = (() => {
     wrap.className = 'i18n-welcome-selector';
     Object.entries(LANG_META).forEach(([code, meta]) => {
       const btn = document.createElement('button');
-      btn.className = 'i18n-welcome-btn' + (code === currentLang ? ' active' : '');
+      const isDisabled = code !== 'en' && !spanishApproved;
+      btn.className = 'i18n-welcome-btn' + (code === currentLang ? ' active' : '') + (isDisabled ? ' disabled' : '');
       btn.textContent = meta.flag + ' ' + meta.label;
-      btn.onclick = () => setLang(code);
+      if (!isDisabled) btn.onclick = () => setLang(code);
       wrap.appendChild(btn);
     });
     target.insertAdjacentElement('afterend', wrap);
+    if (!spanishApproved) {
+      const hint = document.createElement('div');
+      hint.className = 'i18n-disabled-hint';
+      hint.textContent = 'Spanish hints require teacher approval.';
+      wrap.insertAdjacentElement('afterend', hint);
+    }
   }
 
   function updateSelectorUI() {
@@ -613,6 +641,7 @@ const I18n = (() => {
 
   function setLang(lang) {
     if (!LANG_META[lang]) return;
+    if (lang !== 'en' && !spanishApproved) return; // blocked by teacher
     currentLang = lang;
     localStorage.setItem(LS_KEY, lang);
     updateSelectorUI();
@@ -623,16 +652,70 @@ const I18n = (() => {
     return currentLang;
   }
 
+  /** Check Google Sheets Settings tab for Spanish approval */
+  async function checkSpanishApproval() {
+    // Look up student name from localStorage or page input
+    const name = localStorage.getItem('fp_student_name')
+      || (document.getElementById('studentName') && document.getElementById('studentName').value.trim())
+      || (document.getElementById('candidateName') && document.getElementById('candidateName').value.trim())
+      || '';
+    if (!name) return;
+
+    // Use the same webhook URL defined in the page (if available)
+    const webhookEl = document.querySelector('script[data-webhook]');
+    const webhook = (typeof WEBHOOK_URL !== 'undefined' && WEBHOOK_URL)
+      || (typeof GOOGLE_SHEET_WEBHOOK !== 'undefined' && GOOGLE_SHEET_WEBHOOK)
+      || '';
+    if (!webhook || webhook.includes('YOUR_')) return;
+
+    try {
+      const url = webhook + '?action=get_settings&student=' + encodeURIComponent(name);
+      const resp = await fetch(url, { method: 'GET' });
+      const data = await resp.json();
+      if (data && data.found && data.allow_spanish) {
+        spanishApproved = true;
+        rebuildSelectors();
+        // If student had previously selected Spanish, re-apply
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved === 'es') {
+          currentLang = 'es';
+          apply();
+        }
+      }
+    } catch (e) {
+      // Sheet unavailable — Spanish stays disabled
+    }
+  }
+
+  /** Rebuild selector widgets after approval status changes */
+  function rebuildSelectors() {
+    const floating = document.querySelector('.i18n-selector');
+    if (floating) floating.remove();
+    const welcome = document.querySelector('.i18n-welcome-selector');
+    const disabledHint = document.querySelector('.i18n-disabled-hint');
+    if (welcome) welcome.remove();
+    if (disabledHint) disabledHint.remove();
+    buildFloatingSelector();
+    buildWelcomeSelector();
+    updateSelectorUI();
+  }
+
   function init() {
     // Load saved preference
     const saved = localStorage.getItem(LS_KEY);
     if (saved && LANG_META[saved]) currentLang = saved;
+
+    // If Spanish was saved but not yet approved, force English until verified
+    if (currentLang !== 'en' && !spanishApproved) currentLang = 'en';
 
     injectCSS();
     buildFloatingSelector();
     buildWelcomeSelector();
     apply();
     observeDOM();
+
+    // Check teacher approval asynchronously
+    checkSpanishApproval();
   }
 
   // Auto-init when DOM is ready

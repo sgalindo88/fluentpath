@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>English Path · Your Journey to Fluency</title>
+<title>FluentPath · Your Journey to Fluency</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
@@ -340,7 +340,7 @@ body {
 
 <!-- Top nav -->
 <div class="top-nav">
-  <div class="nav-brand"><em>English</em> Path</div>
+  <div class="nav-brand"><em>Fluent</em>Path</div>
   <div class="nav-info" id="navInfo">Your Journey to Fluency</div>
   <div class="nav-right">
     <div class="nav-day-badge" id="navDay" style="display:none"></div>
@@ -351,7 +351,7 @@ body {
 <!-- ══════════════════ SCREEN: LANDING ══════════════════ -->
 <div class="screen active" id="screen-landing">
   <div class="landing">
-    <div class="landing-eye">CEFR English Course</div>
+    <div class="landing-eye">FluentPath Course</div>
     <h1>Your Path to<br><em>Better English</em></h1>
     <p class="landing-sub">Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation, speaking — at your pace, on your schedule.</p>
     <div class="landing-rule"></div>
@@ -408,8 +408,10 @@ body {
       </div>
     </div>
 
-    <button class="btn-begin" onclick="startCourse()">Begin Today's Lesson →</button>
-    <p style="font-size:11px;color:var(--rule);margin-top:16px;font-style:italic;">Your lesson must be approved by your teacher before it starts.</p>
+    <div id="videoCallContainer"></div>
+    <button class="btn-begin" id="btnBeginLesson" onclick="startCourse()" disabled style="opacity:0.35;cursor:not-allowed;">Begin Today's Lesson →</button>
+    <p id="vcHint" style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;">Join the video call above to begin.</p>
+    <p style="font-size:11px;color:var(--rule);margin-top:12px;font-style:italic;">Your lesson must be approved by your teacher before it starts.</p>
   </div>
 </div>
 
@@ -641,10 +643,32 @@ function showScreen(id) {
 // ══════════════════════════════════════════════════════
 // LEVEL SELECTION
 // ══════════════════════════════════════════════════════
+var vcInitDone = false;
 function selectLevel(card) {
   document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
   card.classList.add('selected');
   state.level = card.dataset.level;
+
+  // Init video call in required mode when level is selected
+  var name = document.getElementById('studentName').value.trim();
+  if (name && !vcInitDone && typeof VideoCall !== 'undefined') {
+    vcInitDone = true;
+    VideoCall.init({
+      studentName: name,
+      date: document.getElementById('lessonDate').value || new Date().toISOString().split('T')[0],
+      role: 'student',
+      required: true,
+      targetEl: document.getElementById('videoCallContainer'),
+      onConnect: function() {
+        var btn = document.getElementById('btnBeginLesson');
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        var hint = document.getElementById('vcHint');
+        if (hint) hint.style.display = 'none';
+      }
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -736,14 +760,7 @@ async function beginLesson() {
   state.startTime = new Date();
   startTimer();
 
-  // Launch video call panel so the student can connect with their teacher
-  if (typeof VideoCall !== 'undefined') {
-    VideoCall.init({
-      studentName: state.studentName,
-      date: state.lessonDate,
-      role: 'student'
-    });
-  }
+  // Video call already initialized on the landing screen in required mode
 
   // Update nav
   const info = LEVEL_THEMES[state.level];
@@ -1453,10 +1470,10 @@ async function finishLesson() {
 
   // Save progress to localStorage so the hub page can track status
   try {
-    localStorage.setItem('ep_student_name', state.studentName);
-    localStorage.setItem('ep_cefr_level', state.level);
-    localStorage.setItem('ep_last_lesson_day', String(state.dayNumber));
-    localStorage.setItem('ep_last_lesson_date', state.lessonDate);
+    localStorage.setItem('fp_student_name', state.studentName);
+    localStorage.setItem('fp_cefr_level', state.level);
+    localStorage.setItem('fp_last_lesson_day', String(state.dayNumber));
+    localStorage.setItem('fp_last_lesson_date', state.lessonDate);
   } catch(e) { /* localStorage unavailable */ }
 
   // Save to Google Sheet

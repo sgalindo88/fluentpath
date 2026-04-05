@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FluentPath · Teacher Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --ink:#1a1208;--paper:#f5f0e8;--cream:#ede8dc;
+  --rust:#b8471e;--gold:#c9933a;--rule:#c8bfa8;--muted:#6b5f4e;
+  --green:#2e6e45;--green-bg:#eaf3ec;
+  --blue:#1e4d8c;--blue-bg:#eaf0fb;
+}
+html{background:var(--paper);color:var(--ink);}
+body{font-family:'Source Serif 4',Georgia,serif;font-weight:300;line-height:1.7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.2;}
+
+.container{max-width:520px;width:100%;text-align:center;}
+
+.header{margin-bottom:40px;}
+.header h1{font-size:clamp(36px,7vw,52px);margin-bottom:6px;}
+.header h1 .accent{color:var(--rust);font-style:italic;}
+.header .subtitle{font-size:15px;color:var(--muted);font-style:italic;}
+.header .role-badge{display:inline-block;font-size:10px;letter-spacing:0.3em;text-transform:uppercase;font-weight:600;color:var(--gold);border:1px solid var(--gold);padding:4px 14px;border-radius:3px;margin-top:16px;}
+.divider{width:60px;height:2px;background:var(--gold);margin:20px auto 0;}
+
+.card-grid{display:flex;flex-direction:column;gap:16px;margin-bottom:32px;}
+
+.portal-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:28px 24px;text-align:left;text-decoration:none;color:var(--ink);display:block;transition:all 0.2s;}
+.portal-card:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 4px 16px rgba(26,18,8,0.1);}
+.portal-card .card-icon{font-size:28px;margin-bottom:10px;}
+.portal-card .card-title{font-family:'Playfair Display',Georgia,serif;font-size:19px;font-weight:700;margin-bottom:4px;}
+.portal-card .card-desc{font-size:14px;color:var(--muted);line-height:1.5;}
+.portal-card .card-arrow{float:right;color:var(--rust);font-size:18px;margin-top:-20px;transition:transform 0.2s;}
+.portal-card:hover .card-arrow{transform:translateX(4px);}
+
+.portal-card.primary{border-top:3px solid var(--rust);}
+.portal-card.secondary{border-top:3px solid var(--gold);}
+
+.footer{font-size:12px;color:var(--muted);}
+.footer a{color:var(--rust);text-decoration:none;}
+
+@media(max-width:600px){
+  body{padding:24px 16px;align-items:flex-start;padding-top:40px;}
+  .portal-card{padding:22px 18px;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>Fluent<span class="accent">Path</span></h1>
+    <p class="subtitle">Teacher Portal</p>
+    <div class="divider"></div>
+    <div class="role-badge">Instructor Access</div>
+  </div>
+
+  <div class="card-grid">
+
+    <a class="portal-card primary" href="src/examiner-panel.html">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Teacher Dashboard</div>
+      <div class="card-desc">Manage your student's course: approve lessons, mark writing and speaking, track attendance, adjust difficulty, and review progress.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+    <a class="portal-card secondary" href="src/examiner-marking.html">
+      <div class="card-icon">📝</div>
+      <div class="card-title">Placement Test Marking</div>
+      <div class="card-desc">Grade a student's placement test: auto-score reading and listening, manually mark writing and speaking, assign a CEFR level.</div>
+      <span class="card-arrow">→</span>
+    </a>
+
+  </div>
+
+  <div class="footer">
+    <p>A <a href="#">Fluentora</a> programme</p>
+  </div>
+</div>
+
+</body>
+</html>

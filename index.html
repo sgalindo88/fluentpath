@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>English Path · Your Journey to Fluency</title>
+<title>FluentPath · Your Journey to Fluency</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet">
@@ -126,7 +126,7 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 <div id="screen-welcome" class="screen active">
   <div class="container">
     <div class="welcome-header">
-      <h1>English <span class="accent">Path</span></h1>
+      <h1>Fluent<span class="accent">Path</span></h1>
       <p>Your journey to fluency starts here.</p>
       <div class="welcome-divider"></div>
     </div>
@@ -140,7 +140,7 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
     <button class="btn-enter" id="btnEnter" onclick="enterHub()">Continue</button>
 
     <div class="welcome-footer">
-      <p>A programme by <a href="#">English Path</a></p>
+      <p>A <a href="#">Fluentora</a> programme</p>
     </div>
   </div>
 </div>
@@ -258,7 +258,7 @@ function enterHub() {
   if (!name) { input.focus(); return; }
 
   studentName = name;
-  localStorage.setItem('ep_student_name', name);
+  localStorage.setItem('fp_student_name', name);
   showScreen('screen-loading');
   fetchProgress(name);
 }
@@ -280,12 +280,12 @@ async function fetchProgress(name) {
     if (data && data.found) {
       progress = data;
       // Cache to localStorage
-      if (data.test_completed)   localStorage.setItem('ep_test_completed', 'true');
-      if (data.test_date)        localStorage.setItem('ep_test_date', data.test_date);
-      if (data.cefr_level)       localStorage.setItem('ep_cefr_level', data.cefr_level);
-      if (data.total_score)      localStorage.setItem('ep_test_score', String(data.total_score));
-      if (data.lessons_completed) localStorage.setItem('ep_last_lesson_day', String(data.lessons_completed));
-      if (data.last_lesson_date) localStorage.setItem('ep_last_lesson_date', data.last_lesson_date);
+      if (data.test_completed)   localStorage.setItem('fp_test_completed', 'true');
+      if (data.test_date)        localStorage.setItem('fp_test_date', data.test_date);
+      if (data.cefr_level)       localStorage.setItem('fp_cefr_level', data.cefr_level);
+      if (data.total_score)      localStorage.setItem('fp_test_score', String(data.total_score));
+      if (data.lessons_completed) localStorage.setItem('fp_last_lesson_day', String(data.lessons_completed));
+      if (data.last_lesson_date) localStorage.setItem('fp_last_lesson_date', data.last_lesson_date);
       renderDashboard();
       return;
     }
@@ -296,12 +296,12 @@ async function fetchProgress(name) {
   // Fallback: build progress from localStorage
   progress = {
     found: false,
-    test_completed:    localStorage.getItem('ep_test_completed') === 'true',
-    test_date:         localStorage.getItem('ep_test_date') || null,
-    cefr_level:        localStorage.getItem('ep_cefr_level') || null,
-    total_score:       localStorage.getItem('ep_test_score') ? Number(localStorage.getItem('ep_test_score')) : null,
-    lessons_completed: localStorage.getItem('ep_last_lesson_day') ? Number(localStorage.getItem('ep_last_lesson_day')) : 0,
-    last_lesson_date:  localStorage.getItem('ep_last_lesson_date') || null,
+    test_completed:    localStorage.getItem('fp_test_completed') === 'true',
+    test_date:         localStorage.getItem('fp_test_date') || null,
+    cefr_level:        localStorage.getItem('fp_cefr_level') || null,
+    total_score:       localStorage.getItem('fp_test_score') ? Number(localStorage.getItem('fp_test_score')) : null,
+    lessons_completed: localStorage.getItem('fp_last_lesson_day') ? Number(localStorage.getItem('fp_last_lesson_day')) : 0,
+    last_lesson_date:  localStorage.getItem('fp_last_lesson_date') || null,
   };
 
   renderDashboard();
@@ -417,7 +417,7 @@ function renderDashboard() {
       '<button class="btn-cta secondary" onclick="refreshProgress()">Refresh</button>';
   } else if (courseComplete) {
     cta.innerHTML =
-      '<p>You have completed the English Path course. Talk to your teacher about next steps.</p>';
+      '<p>You have completed the FluentPath course. Talk to your teacher about next steps.</p>';
   } else {
     const nextDay = courseDays + 1;
     cta.innerHTML =
@@ -466,7 +466,7 @@ function formatDate(dateStr) {
    Auto-login if returning student
    ───────────────────────────────────────────────────────────── */
 (function init() {
-  const saved = localStorage.getItem('ep_student_name');
+  const saved = localStorage.getItem('fp_student_name');
   if (saved) {
     document.getElementById('studentName').value = saved;
     // Auto-enter for returning students

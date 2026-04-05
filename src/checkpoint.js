@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   English Path — Checkpoint / Session Recovery
+   FluentPath — Checkpoint / Session Recovery
    ─────────────────────────────────────────────────────────────
    Generic save/load/clear API for localStorage checkpointing,
    plus a bilingual recovery modal UI.
@@ -17,7 +17,7 @@
 const Checkpoint = (() => {
   'use strict';
 
-  const PREFIX = 'ep_ckpt_';
+  const PREFIX = 'fp_ckpt_';
 
   /* ── Core API ───────────────────────────────────────────── */
 

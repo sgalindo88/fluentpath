@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   English Path — Video Call Component
+   FluentPath — Video Call Component
    Uses Jitsi Meet (free, no accounts required).
 
    Usage:
@@ -26,6 +26,9 @@ const VideoCall = (() => {
   let panelState = 'collapsed'; // collapsed | expanded
   let container = null;
   let initialized = false;
+  let requiredMode = false;
+  let connected = false;
+  let onConnectCallback = null;
 
   /* ── Room name generation ─────────────────────────────────── */
   function generateRoom(name, dateStr) {
@@ -35,7 +38,7 @@ const VideoCall = (() => {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
     const d = dateStr || new Date().toISOString().split('T')[0];
-    return 'EnglishPath-' + clean + '-' + d.replace(/-/g, '');
+    return 'FluentPath-' + clean + '-' + d.replace(/-/g, '');
   }
 
   function getRoomUrl() {
@@ -203,6 +206,49 @@ const VideoCall = (() => {
         100% { opacity: 0; }
       }
 
+      /* ── Required mode: inline panel ── */
+      .vc-required {
+        position: relative;
+        bottom: auto;
+        right: auto;
+        margin: 24px auto;
+        max-width: 480px;
+      }
+      .vc-required .vc-expanded {
+        width: 100%;
+        height: 300px;
+        border-radius: 8px;
+      }
+      .vc-status-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background: var(--cream, #ede8dc);
+        border: 1px solid var(--rule, #c8bfa8);
+        border-radius: 6px;
+        margin-top: 12px;
+        font-size: 14px;
+        color: var(--muted, #6b5f4e);
+        font-style: italic;
+      }
+      .vc-status-bar.connected {
+        background: var(--green-bg, #eaf3ec);
+        border-color: #c0dcc8;
+        color: var(--green, #2e6e45);
+      }
+      .vc-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--muted, #6b5f4e);
+      }
+      .vc-status-bar.connected .vc-status-dot {
+        background: var(--green, #2e6e45);
+        animation: vcPulse 2s ease infinite;
+      }
+
       /* ── Responsive ── */
       @media (max-width: 600px) {
         .vc-expanded {
@@ -314,6 +360,87 @@ const VideoCall = (() => {
     panelState = 'expanded';
   }
 
+  /* ── Build required/inline UI ───────────────────────────── */
+  function buildRequired(targetEl) {
+    container.innerHTML = '';
+    container.classList.add('vc-required');
+
+    // Heading
+    const heading = document.createElement('div');
+    heading.style.cssText = 'text-align:center;margin-bottom:12px;font-family:Playfair Display,Georgia,serif;font-size:17px;font-weight:700;color:var(--ink,#1a1208);';
+    heading.textContent = 'Connect with your teacher';
+    container.appendChild(heading);
+
+    const subtext = document.createElement('div');
+    subtext.style.cssText = 'text-align:center;margin-bottom:16px;font-size:13px;color:var(--muted,#6b5f4e);font-style:italic;';
+    subtext.textContent = 'You must join the video call before starting.';
+    container.appendChild(subtext);
+
+    // Build the expanded Jitsi panel inline
+    const panel = document.createElement('div');
+    panel.className = 'vc-expanded';
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'vc-toolbar';
+    const left = document.createElement('div');
+    left.className = 'vc-toolbar-left';
+    left.innerHTML = '<span class="vc-room-label">Video Call</span>';
+    const right = document.createElement('div');
+    right.className = 'vc-toolbar-right';
+    const btnPop = document.createElement('button');
+    btnPop.className = 'vc-tool-btn';
+    btnPop.title = 'Open in new tab';
+    btnPop.innerHTML = ICONS.popout;
+    btnPop.onclick = popout;
+    right.appendChild(btnPop);
+    toolbar.append(left, right);
+
+    const iframeWrap = document.createElement('div');
+    iframeWrap.className = 'vc-iframe-wrap';
+    iframeWrap.innerHTML = '<div class="vc-iframe-loading">Connecting to video call&hellip;</div>';
+
+    const iframe = document.createElement('iframe');
+    iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
+    iframe.src = getRoomUrl() + '#config.prejoinPageEnabled=false'
+      + '&userInfo.displayName=' + encodeURIComponent(displayName);
+    iframe.onload = function() {
+      const loading = iframeWrap.querySelector('.vc-iframe-loading');
+      if (loading) loading.remove();
+      // Mark as connected after a short delay (Jitsi needs a moment after iframe load)
+      setTimeout(function() {
+        connected = true;
+        updateStatusBar();
+        if (onConnectCallback) onConnectCallback();
+      }, 2000);
+    };
+    iframeWrap.appendChild(iframe);
+    panel.append(toolbar, iframeWrap);
+    container.appendChild(panel);
+
+    // Status bar
+    const status = document.createElement('div');
+    status.className = 'vc-status-bar';
+    status.id = 'vc-status';
+    status.innerHTML = '<span class="vc-status-dot"></span> Waiting for connection...';
+    container.appendChild(status);
+
+    panelState = 'expanded';
+
+    // Insert into target element if provided, otherwise into body
+    if (targetEl) {
+      targetEl.appendChild(container);
+    }
+  }
+
+  function updateStatusBar() {
+    const status = document.getElementById('vc-status');
+    if (!status) return;
+    if (connected) {
+      status.className = 'vc-status-bar connected';
+      status.innerHTML = '<span class="vc-status-dot"></span> Connected — you may begin';
+    }
+  }
+
   /* ── Actions ──────────────────────────────────────────────── */
   function expand() {
     buildExpanded();
@@ -369,26 +496,40 @@ const VideoCall = (() => {
       displayName = opts.studentName || displayName;
       role = opts.role || role;
       roomName = generateRoom(opts.studentName, opts.date);
-      if (panelState === 'collapsed') buildCollapsed();
+      if (!requiredMode && panelState === 'collapsed') buildCollapsed();
       show();
       return;
     }
 
     displayName = opts.studentName || 'Participant';
     role = opts.role || 'student';
+    requiredMode = opts.required || false;
+    onConnectCallback = opts.onConnect || null;
     roomName = generateRoom(opts.studentName, opts.date);
+    connected = false;
 
     injectCSS();
 
     container = document.createElement('div');
     container.className = 'vc-panel';
     container.style.display = 'block';
-    document.body.appendChild(container);
 
-    buildCollapsed();
+    if (requiredMode) {
+      // Insert inline into specified target element
+      buildRequired(opts.targetEl || null);
+      if (!opts.targetEl) document.body.appendChild(container);
+    } else {
+      document.body.appendChild(container);
+      buildCollapsed();
+    }
+
     initialized = true;
   }
 
+  function isConnected() {
+    return connected;
+  }
+
   /* ── Public API ────────────────────────────────────────────── */
-  return { init, show, hide, expand, collapse, popout, getRoom, getUrl };
+  return { init, show, hide, expand, collapse, popout, getRoom, getUrl, isConnected };
 })();

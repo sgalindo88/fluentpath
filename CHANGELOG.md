@@ -1,6 +1,21 @@
 # Changelog
 
-All notable changes to the English Path platform are documented here.
+All notable changes to the FluentPath platform are documented here.
+
+---
+
+## [0.6.0] - 2026-04-05
+
+### Changed — Rebranding & Structural Overhaul
+- **Rebranded** the entire platform: company name "Fluentora", product name "FluentPath"
+  - Updated all page titles, headings, nav bars, footers, and UI text across all files
+  - Renamed localStorage keys from `ep_*` to `fp_*` and `englishpath_*` to `fluentpath_*`
+  - Updated Jitsi room prefix from `EnglishPath-` to `FluentPath-`
+  - "Examiner Panel" renamed to "Teacher Dashboard" throughout
+- **Split landing pages:** `index.html` is now student-only; created `teacher.html` as a separate teacher portal with links to the dashboard and marking tools
+- **Required video call:** Jitsi Meet now embeds inline on the cover/landing screen of both `student-initial-test.html` and `student-course.html`; the "Begin" button is disabled until the video call connects
+- **Spanish gated by teacher approval:** Language selector is greyed out by default; `i18n.js` checks the Google Sheets Settings tab for `allow_spanish` permission before enabling the Spanish toggle
+- **Google Sheets schema:** Created `GOOGLE_SHEETS_SCHEMA.md` documenting all 6 tabs (Initial Test Results, Examiner Results, Course Progress, Settings, Lesson Approvals, Lesson Marks) with column definitions and API actions
 
 ---
 

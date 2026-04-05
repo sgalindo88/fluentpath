@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Examiner Marking Panel · English Proficiency Test</title>
+<title>Placement Test Marking · FluentPath</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
 <style>
@@ -372,8 +372,8 @@ body {
 
 <!-- ══════════════════ IMPORT SCREEN ══════════════════ -->
 <div id="importScreen" class="import-screen">
-  <div class="import-eyebrow">Examiner Marking Panel</div>
-  <h1>English <em>Proficiency</em> Test</h1>
+  <div class="import-eyebrow">Placement Test Marking</div>
+  <h1>FluentPath <em>Placement</em> Test</h1>
   <p class="sub">Paste the full Formspree email you received below. The tool will automatically read and populate all candidate responses, so you can go straight to marking.</p>
   <div class="import-rule"></div>
 
@@ -1034,10 +1034,10 @@ function sendResults() {
   const body =
 `Dear ${name},
 
-Please find your English Proficiency Test results below.
+Please find your FluentPath Placement Test results below.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ENGLISH PROFICIENCY TEST — RESULTS
+FLUENTPATH PLACEMENT TEST — RESULTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Candidate:   ${name}
@@ -1062,7 +1062,7 @@ If you have any questions, please contact your examiner.
 Kind regards,
 ${examiner || 'Your Examiner'}`;
 
-  window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('English Proficiency Test Results — ' + name)}&body=${encodeURIComponent(body)}`, '_blank');
+  window.open(`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('FluentPath Placement Test Results — ' + name)}&body=${encodeURIComponent(body)}`, '_blank');
   showSendStatus('✓ Email client opened with results pre-filled. Review and click Send.', false);
 }
 
