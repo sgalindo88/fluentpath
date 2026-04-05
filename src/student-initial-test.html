@@ -1011,21 +1011,24 @@ textarea.text-input-area { min-height: 160px; }
     <div class="question-card">
       <span class="q-num-big">Question 11 &nbsp;·&nbsp; Passive Voice</span>
       <div class="q-prompt">Rewrite the following sentence in the <strong>passive voice</strong>:<br><em>"The chef prepared the meal in less than ten minutes."</em></div>
-      <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" oninput="saveText('q11')">
+      <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" oninput="saveText('q11')" required>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q11')"> Skip this question</label>
     </div>
 
     <!-- Q12 -->
     <div class="question-card">
       <span class="q-num-big">Question 12 &nbsp;·&nbsp; Combining Sentences</span>
       <div class="q-prompt">Combine these two sentences into one using an appropriate connector:<br><em>"She was tired." &nbsp; "She stayed up to finish her essay."</em></div>
-      <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" oninput="saveText('q12')">
+      <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" oninput="saveText('q12')" required>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q12')"> Skip this question</label>
     </div>
 
     <!-- Q13 -->
     <div class="question-card">
       <span class="q-num-big">Question 13 &nbsp;·&nbsp; Error Correction</span>
       <div class="q-prompt">Correct all errors in the following sentence and write the corrected version:<br><em>"Yesterday, he go to the market and buyed some vegetable for his mother."</em></div>
-      <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" oninput="saveText('q13')">
+      <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" oninput="saveText('q13')" required>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q13')"> Skip this question</label>
     </div>
 
     <!-- Q14 -->
@@ -1042,8 +1045,9 @@ textarea.text-input-area { min-height: 160px; }
           <div class="tch-desc">Do you think social media has made people more or less connected? Write a paragraph giving your opinion and supporting it with at least two reasons.</div>
         </button>
       </div>
-      <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" oninput="updateWordCount()"></textarea>
+      <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" oninput="updateWordCount()" required></textarea>
       <div class="word-count" id="wordCount">0 words</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q14')"> Skip this question</label>
     </div>
 
     <div class="nav-buttons">
@@ -1183,7 +1187,7 @@ textarea.text-input-area { min-height: 160px; }
   <div class="question-area">
 
     <div class="speaking-examiner-note">
-      💬 Speak your answers aloud. Use the notes fields below to plan what you want to say. An examiner will assess your fluency, grammar, vocabulary, and coherence.
+      💬 Record your spoken answers using the microphone button below each question. You can also use the notes field to plan before speaking. Your teacher will be listening on the video call.
     </div>
 
     <!-- Q21 -->
@@ -1197,6 +1201,9 @@ textarea.text-input-area { min-height: 160px; }
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q21')"></textarea>
+        <button class="record-speaking-btn" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <div id="rec-status-q21" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
+        <div id="rec-transcript-q21" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
     </div>
 
@@ -1211,6 +1218,9 @@ textarea.text-input-area { min-height: 160px; }
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q22')"></textarea>
+        <button class="record-speaking-btn" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <div id="rec-status-q22" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
+        <div id="rec-transcript-q22" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
     </div>
 
@@ -1225,6 +1235,9 @@ textarea.text-input-area { min-height: 160px; }
       <div class="speaking-input">
         <label>Preparation Notes (1 minute)</label>
         <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" rows="4" oninput="saveText('q23')"></textarea>
+        <button class="record-speaking-btn" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <div id="rec-status-q23" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
+        <div id="rec-transcript-q23" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
     </div>
 
@@ -1239,6 +1252,9 @@ textarea.text-input-area { min-height: 160px; }
       <div class="speaking-input">
         <label>Notes / Key Arguments (optional)</label>
         <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" rows="3" oninput="saveText('q24')"></textarea>
+        <button class="record-speaking-btn" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <div id="rec-status-q24" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
+        <div id="rec-transcript-q24" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
     </div>
 
@@ -1586,6 +1602,21 @@ function saveText(qId) {
   state.textAnswers[qId] = document.getElementById(qId).value;
 }
 
+function toggleSkipQ(checkbox, qId) {
+  var el = document.getElementById(qId);
+  if (checkbox.checked) {
+    el.required = false;
+    el.disabled = true;
+    el.style.opacity = '0.4';
+    state.textAnswers[qId] = '[SKIPPED]';
+  } else {
+    el.required = true;
+    el.disabled = false;
+    el.style.opacity = '';
+    state.textAnswers[qId] = el.value;
+  }
+}
+
 function updateWordCount() {
   const text = document.getElementById('q14').value.trim();
   const words = text ? text.split(/\s+/).length : 0;
@@ -1628,6 +1659,76 @@ function finishReading() {
 // ── AUDIO: Text-to-Speech ──
 const LISTENING_TEXT = "Hello, and welcome to the Westfield Community Centre. My name is Diane, and I am the programme coordinator. I would like to let you know about a few changes this month. First, the yoga class on Wednesday evenings has moved to Thursday at seven p.m. Second, the swimming pool will be closed for maintenance from the fourteenth to the twentieth of this month. If you have any questions, please speak to reception or visit our website. Thank you, and have a great day.";
 const DICTATION_TEXT = "Although the weather was unpredictable, they decided to go ahead with the outdoor festival.";
+
+// ── SPEAKING: Speech Recognition for Q21-Q24 ──
+var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+var speakingRecorders = {}; // { q21: { recognition, recording, transcript } }
+
+function toggleSpeakingRec(qId) {
+  if (!SpeechRecognition) {
+    alert('Speech recognition is not available in this browser. Please use Chrome.');
+    return;
+  }
+  if (!speakingRecorders[qId]) {
+    speakingRecorders[qId] = { recognition: null, recording: false, transcript: '' };
+  }
+  var rec = speakingRecorders[qId];
+  var btn = document.getElementById('rec-btn-' + qId);
+  var statusEl = document.getElementById('rec-status-' + qId);
+  var transcriptEl = document.getElementById('rec-transcript-' + qId);
+
+  if (rec.recording) {
+    // Stop recording
+    rec.recording = false;
+    if (rec.recognition) rec.recognition.stop();
+    btn.textContent = '🎤 Record again';
+    btn.style.background = 'var(--ink)';
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Recording stopped.';
+    // Save transcript as the speaking answer
+    state.textAnswers[qId + '_transcript'] = rec.transcript;
+  } else {
+    // Start recording
+    rec.transcript = '';
+    rec.recording = true;
+    btn.textContent = '■ Stop Recording';
+    btn.style.background = 'var(--rust)';
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Listening… speak now.';
+    transcriptEl.style.display = 'block';
+    transcriptEl.textContent = '…';
+
+    var recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = function(event) {
+      var text = '';
+      for (var i = 0; i < event.results.length; i++) {
+        text += event.results[i][0].transcript;
+      }
+      rec.transcript = text;
+      transcriptEl.textContent = text || '…';
+    };
+
+    recognition.onerror = function(e) {
+      if (e.error !== 'aborted') {
+        statusEl.textContent = 'Error: ' + e.error;
+      }
+    };
+
+    recognition.onend = function() {
+      if (rec.recording) {
+        // Restart if ended unexpectedly while still recording
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+
+    rec.recognition = recognition;
+    recognition.start();
+  }
+}
 
 function speakText(text, onEnd) {
   if (!window.speechSynthesis) return;
@@ -1994,5 +2095,6 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 <script src="video-call.js"></script>
 <script src="i18n.js"></script>
+<script>if (typeof I18n !== 'undefined') I18n.setLevel('test');</script>
 </body>
 </html>

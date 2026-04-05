@@ -372,9 +372,16 @@ const VideoCall = (() => {
     container.appendChild(heading);
 
     const subtext = document.createElement('div');
-    subtext.style.cssText = 'text-align:center;margin-bottom:16px;font-size:13px;color:var(--muted,#6b5f4e);font-style:italic;';
+    subtext.style.cssText = 'text-align:center;margin-bottom:8px;font-size:13px;color:var(--muted,#6b5f4e);font-style:italic;';
     subtext.textContent = 'You must join the video call before starting.';
     container.appendChild(subtext);
+
+    // Show room name and shareable link for teacher
+    const roomInfo = document.createElement('div');
+    roomInfo.style.cssText = 'text-align:center;margin-bottom:16px;padding:8px 14px;background:var(--cream,#ede8dc);border:1px solid var(--rule,#c8bfa8);border-radius:6px;font-size:12px;';
+    roomInfo.innerHTML = '<span style="color:var(--muted,#6b5f4e);">Room: </span><strong style="color:var(--ink,#1a1208);user-select:all;">' + roomName + '</strong>' +
+      '<br><a href="' + getRoomUrl() + '" target="_blank" style="color:var(--rust,#b8471e);font-size:11px;text-decoration:none;">Share this link with your teacher ↗</a>';
+    container.appendChild(roomInfo);
 
     // Build the expanded Jitsi panel inline
     const panel = document.createElement('div');
