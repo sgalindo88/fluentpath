@@ -940,6 +940,15 @@ function initApp() {
   updateDashboardStats();
   loadApprovalQueue();
   updateLessonRecord();
+
+  // Launch video call panel so the teacher can join the student's call
+  if (typeof VideoCall !== 'undefined' && ex.studentName) {
+    VideoCall.init({
+      studentName: ex.studentName,
+      date: new Date().toISOString().split('T')[0],
+      role: 'teacher'
+    });
+  }
 }
 
 function getLevelTheme(level) {
@@ -1647,5 +1656,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (ex.webhook) document.getElementById('setup-webhook').value = ex.webhook;
 });
 </script>
+<script src="video-call.js"></script>
 </body>
 </html>

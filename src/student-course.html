@@ -637,6 +637,15 @@ async function beginLesson() {
   state.startTime = new Date();
   startTimer();
 
+  // Launch video call panel so the student can connect with their teacher
+  if (typeof VideoCall !== 'undefined') {
+    VideoCall.init({
+      studentName: state.studentName,
+      date: state.lessonDate,
+      role: 'student'
+    });
+  }
+
   // Update nav
   const info = LEVEL_THEMES[state.level];
   document.getElementById('navInfo').textContent = `${state.level} · ${info.theme}`;
@@ -1416,5 +1425,6 @@ window.addEventListener('DOMContentLoaded', () => {
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 });
 </script>
+<script src="video-call.js"></script>
 </body>
 </html>

@@ -1413,6 +1413,16 @@ function startTest() {
   dateEl.style.borderColor = '';
   if (!dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
   state.startTime = new Date();
+
+  // Launch video call panel so the student can connect with their teacher
+  if (typeof VideoCall !== 'undefined') {
+    VideoCall.init({
+      studentName: nameEl.value.trim(),
+      date: dateEl.value,
+      role: 'student'
+    });
+  }
+
   showScreen('screen-reading-intro');
 }
 
@@ -1804,5 +1814,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
 });
 </script>
+<script src="video-call.js"></script>
 </body>
 </html>

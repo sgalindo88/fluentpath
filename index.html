@@ -409,7 +409,7 @@ function renderDashboard() {
   if (!testDone) {
     cta.innerHTML =
       '<p>Your first step is the placement test. It takes about 40 minutes.</p>' +
-      '<a class="btn-cta" href="student-initial-test.html">Take the Placement Test</a>';
+      '<a class="btn-cta" href="src/student-initial-test.html">Take the Placement Test</a>';
   } else if (!hasLevel) {
     cta.innerHTML =
       '<p>Your teacher will review your test soon. Check back later.</p>' +
@@ -421,7 +421,7 @@ function renderDashboard() {
     const nextDay = courseDays + 1;
     cta.innerHTML =
       '<p>Ready for Day ' + nextDay + '? Your teacher will be with you on the video call.</p>' +
-      '<a class="btn-cta" href="student-course.html">Start Day ' + nextDay + ' Lesson</a>';
+      '<a class="btn-cta" href="src/student-course.html">Start Day ' + nextDay + ' Lesson</a>';
   }
 
   showScreen('screen-dashboard');
