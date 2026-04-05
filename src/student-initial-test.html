@@ -823,7 +823,7 @@ textarea.text-input-area { min-height: 160px; }
       </div>
       <div class="field-group">
         <label>Date</label>
-        <input type="date" id="candidateDate" required>
+        <input type="date" id="candidateDate" required readonly style="background:var(--cream);cursor:default;">
       </div>
     </div>
     <div class="sections-overview">
@@ -1067,11 +1067,13 @@ textarea.text-input-area { min-height: 160px; }
 <div class="screen" id="screen-listening">
   <div class="question-area">
 
-    <div class="audio-box" onclick="playListeningAudio()" id="listeningAudioBox">
-      <div class="play-btn" id="playBtn">▶</div>
+    <div class="audio-box" id="listeningAudioBox" style="cursor:default;">
+      <div class="play-btn" id="playBtn" onclick="playListeningAudio()" style="cursor:pointer;">▶</div>
+      <div class="play-btn" id="stopBtn" onclick="stopListeningAudio()" style="cursor:pointer;display:none;background:var(--rust);color:white;">■</div>
       <div class="audio-info">
         <strong>Community Centre Announcement</strong>
         <span id="audioStatus">Press play to listen — you may play this up to 3 times</span>
+        <span id="audioPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
       </div>
       <div id="audioPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
     </div>
@@ -1146,11 +1148,13 @@ textarea.text-input-area { min-height: 160px; }
     <div class="question-card">
       <span class="q-num-big">Question 20 &nbsp;·&nbsp; Dictation (5 marks)</span>
       <div class="q-prompt">Listen to the sentence and write exactly what you hear. You may play it up to <strong>3 times</strong>.</div>
-      <div class="audio-box" onclick="playDictationAudio()" id="dictationAudioBox" style="margin-bottom:14px;">
-        <div class="play-btn" id="dictPlayBtn">▶</div>
+      <div class="audio-box" id="dictationAudioBox" style="margin-bottom:14px;cursor:default;">
+        <div class="play-btn" id="dictPlayBtn" onclick="playDictationAudio()" style="cursor:pointer;">▶</div>
+        <div class="play-btn" id="dictStopBtn" onclick="stopDictationAudio()" style="cursor:pointer;display:none;background:var(--rust);color:white;">■</div>
         <div class="audio-info">
           <strong>Dictation Sentence</strong>
           <span id="dictAudioStatus">Press play to hear the sentence</span>
+          <span id="dictPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
         </div>
         <div id="dictPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
       </div>
@@ -1292,7 +1296,8 @@ textarea.text-input-area { min-height: 160px; }
 
     <div id="submitStatus" style="display:none;margin-top:16px;padding:12px 16px;font-size:13px;"></div>
 
-    <button class="btn-restart" onclick="restartTest()" style="margin-top:28px;">↩ Take Test Again</button>
+    <a href="../index.html" style="display:block;text-align:center;margin-top:28px;padding:16px;background:var(--ink);color:var(--paper);text-decoration:none;font-family:'Playfair Display',serif;font-size:17px;font-style:italic;border-radius:4px;transition:background 0.2s;" onmouseover="this.style.background='var(--rust)'" onmouseout="this.style.background='var(--ink)'">Return to FluentPath</a>
+    <button class="btn-restart" onclick="restartTest()" style="margin-top:12px;">↩ Take Test Again</button>
   </div>
 </div>
 
@@ -1641,38 +1646,95 @@ function speakText(text, onEnd) {
   window.speechSynthesis.speak(utt);
 }
 
+// ── Listening audio with stop button and play-time tracking ──
+let listeningPlayStart = null;
+let listeningTotalTime = 0;
+let dictationPlayStart = null;
+let dictationTotalTime = 0;
+
+function formatPlayTime(ms) {
+  var s = Math.round(ms / 1000);
+  return s < 60 ? s + 's listened' : Math.floor(s / 60) + 'm ' + (s % 60) + 's listened';
+}
+
 function playListeningAudio() {
   if (state.listeningPlays >= MAX_PLAYS) return;
   state.listeningPlays++;
-  const left = MAX_PLAYS - state.listeningPlays;
+  var left = MAX_PLAYS - state.listeningPlays;
   document.getElementById('audioPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
   document.getElementById('audioStatus').textContent = 'Playing…';
-  document.getElementById('playBtn').textContent = '■';
+  document.getElementById('playBtn').style.display = 'none';
+  document.getElementById('stopBtn').style.display = 'flex';
+  listeningPlayStart = Date.now();
   if (left === 0) {
-    document.getElementById('listeningAudioBox').style.opacity = '0.5';
-    document.getElementById('listeningAudioBox').style.cursor = 'default';
+    document.getElementById('listeningAudioBox').style.opacity = '0.7';
   }
-  speakText(LISTENING_TEXT, () => {
-    document.getElementById('playBtn').textContent = '▶';
-    document.getElementById('audioStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays available';
+  speakText(LISTENING_TEXT, function() {
+    finishListeningPlay(left);
   });
+}
+
+function stopListeningAudio() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  var left = MAX_PLAYS - state.listeningPlays;
+  finishListeningPlay(left);
+}
+
+function finishListeningPlay(left) {
+  if (listeningPlayStart) {
+    listeningTotalTime += Date.now() - listeningPlayStart;
+    listeningPlayStart = null;
+  }
+  document.getElementById('stopBtn').style.display = 'none';
+  document.getElementById('playBtn').style.display = 'flex';
+  document.getElementById('audioStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays available';
+  var ptEl = document.getElementById('audioPlayTime');
+  ptEl.style.display = 'inline';
+  ptEl.textContent = ' · ' + formatPlayTime(listeningTotalTime);
+  if (left === 0) {
+    document.getElementById('playBtn').style.opacity = '0.4';
+    document.getElementById('playBtn').style.cursor = 'default';
+  }
 }
 
 function playDictationAudio() {
   if (state.dictationPlays >= MAX_PLAYS) return;
   state.dictationPlays++;
-  const left = MAX_PLAYS - state.dictationPlays;
+  var left = MAX_PLAYS - state.dictationPlays;
   document.getElementById('dictPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
   document.getElementById('dictAudioStatus').textContent = 'Playing…';
-  document.getElementById('dictPlayBtn').textContent = '■';
+  document.getElementById('dictPlayBtn').style.display = 'none';
+  document.getElementById('dictStopBtn').style.display = 'flex';
+  dictationPlayStart = Date.now();
   if (left === 0) {
-    document.getElementById('dictationAudioBox').style.opacity = '0.5';
-    document.getElementById('dictationAudioBox').style.cursor = 'default';
+    document.getElementById('dictationAudioBox').style.opacity = '0.7';
   }
-  speakText(DICTATION_TEXT, () => {
-    document.getElementById('dictPlayBtn').textContent = '▶';
-    document.getElementById('dictAudioStatus').textContent = left > 0 ? 'Click to hear again' : 'No more plays available';
+  speakText(DICTATION_TEXT, function() {
+    finishDictationPlay(left);
   });
+}
+
+function stopDictationAudio() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  var left = MAX_PLAYS - state.dictationPlays;
+  finishDictationPlay(left);
+}
+
+function finishDictationPlay(left) {
+  if (dictationPlayStart) {
+    dictationTotalTime += Date.now() - dictationPlayStart;
+    dictationPlayStart = null;
+  }
+  document.getElementById('dictStopBtn').style.display = 'none';
+  document.getElementById('dictPlayBtn').style.display = 'flex';
+  document.getElementById('dictAudioStatus').textContent = left > 0 ? 'Click to hear again' : 'No more plays available';
+  var ptEl = document.getElementById('dictPlayTime');
+  ptEl.style.display = 'inline';
+  ptEl.textContent = ' · ' + formatPlayTime(dictationTotalTime);
+  if (left === 0) {
+    document.getElementById('dictPlayBtn').style.opacity = '0.4';
+    document.getElementById('dictPlayBtn').style.cursor = 'default';
+  }
 }
 
 // Preload voices on page load
@@ -1890,10 +1952,15 @@ function restartTest() {
 // Set today's date on load and init required video call
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
+
+  // Auto-fill name from hub (localStorage)
+  var nameField = document.getElementById('candidateName');
+  var savedName = localStorage.getItem('fp_student_name');
+  if (savedName) nameField.value = savedName;
+
   tryResumeTest();
 
   // Init video call in required mode when student enters their name
-  var nameField = document.getElementById('candidateName');
   var vcInitDone = false;
   function initRequiredVideoCall() {
     var name = nameField.value.trim();
@@ -1921,6 +1988,8 @@ window.addEventListener('DOMContentLoaded', () => {
   nameField.addEventListener('keydown', function(e) {
     if (e.key === 'Tab' || e.key === 'Enter') setTimeout(initRequiredVideoCall, 100);
   });
+  // If name was pre-filled from hub, auto-init video call
+  if (savedName) setTimeout(initRequiredVideoCall, 200);
 });
 </script>
 <script src="video-call.js"></script>
