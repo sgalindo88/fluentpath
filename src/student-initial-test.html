@@ -795,6 +795,7 @@ textarea.text-input-area { min-height: 160px; }
 }
 </style>
 <link rel="stylesheet" href="mobile.css">
+<script src="checkpoint.js"></script>
 </head>
 <body>
 
@@ -1362,6 +1363,86 @@ const MAX_PLAYS = 3;
 const CORRECT_ANSWERS = { q1:'B',q2:'C',q3:'C',q4:'C',q5:'B',q6:'A',q7:'C',q8:'B',q9:'B',q10:'B',q15:'B',q16:'C',q17:'C',q18:'C' };
 const MCQ_MARKS = { q1:2,q2:2,q3:2,q4:2,q5:2,q6:2,q7:2,q8:2,q9:2,q10:2,q15:2,q16:2,q17:2,q18:2 };
 
+// ── CHECKPOINT (session recovery) ──
+const CKPT_KEY = 'test';
+let ckptInterval = null;
+
+function saveTestCheckpoint() {
+  const screen = document.querySelector('.screen.active')?.id;
+  if (!screen || screen === 'screen-cover' || screen === 'screen-results' || screen === 'screen-submitting') return;
+  const textValues = {};
+  ['q11','q12','q13','q14','q20','q21','q22','q23','q24'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) textValues[id] = el.value;
+  });
+  Checkpoint.save(CKPT_KEY, {
+    screen,
+    candidateName: document.getElementById('candidateName').value,
+    candidateDate: document.getElementById('candidateDate').value,
+    answers: state.answers,
+    textAnswers: state.textAnswers,
+    textValues,
+    chosenTask: state.chosenTask,
+    q19selected: [...state.q19selected],
+    startTime: state.startTime ? state.startTime.toISOString() : null,
+    listeningPlays: state.listeningPlays,
+    dictationPlays: state.dictationPlays,
+  });
+}
+
+function startTestAutoSave() {
+  if (ckptInterval) return;
+  saveTestCheckpoint();
+  ckptInterval = setInterval(saveTestCheckpoint, 5000);
+}
+
+function clearTestCheckpoint() {
+  if (ckptInterval) { clearInterval(ckptInterval); ckptInterval = null; }
+  Checkpoint.clear(CKPT_KEY);
+}
+
+function tryResumeTest() {
+  const data = Checkpoint.load(CKPT_KEY);
+  if (!data || !data.screen) return;
+  Checkpoint.showRecoveryModal({
+    title: 'Resume Your Test?',
+    titleEs: '¿Continuar tu Prueba?',
+    message: 'You have an unfinished test. Would you like to pick up where you left off?',
+    messageEs: 'Tienes una prueba sin terminar. ¿Quieres continuar donde lo dejaste?',
+    savedAt: data._savedAt,
+    onResume: function() {
+      document.getElementById('candidateName').value = data.candidateName || '';
+      document.getElementById('candidateDate').value = data.candidateDate || '';
+      state.answers = data.answers || {};
+      state.textAnswers = data.textAnswers || {};
+      state.chosenTask = data.chosenTask || null;
+      state.q19selected = new Set(data.q19selected || []);
+      state.startTime = data.startTime ? new Date(data.startTime) : new Date();
+      state.listeningPlays = data.listeningPlays || 0;
+      state.dictationPlays = data.dictationPlays || 0;
+      // Restore textarea values
+      if (data.textValues) {
+        Object.entries(data.textValues).forEach(function(pair) {
+          var el = document.getElementById(pair[0]);
+          if (el) el.value = pair[1];
+        });
+      }
+      // Restore task choice visual
+      if (data.chosenTask) chooseTask(data.chosenTask);
+      // Restore audio play counts display
+      var playsLeft = MAX_PLAYS - state.listeningPlays;
+      document.getElementById('audioPlaysLeft').textContent = playsLeft > 0 ? playsLeft + ' plays left' : 'No plays left';
+      var dPlays = MAX_PLAYS - state.dictationPlays;
+      document.getElementById('dictPlaysLeft').textContent = dPlays > 0 ? dPlays + ' plays left' : 'No plays left';
+      showScreen(data.screen);
+      startTestAutoSave();
+    },
+    onStartOver: function() {
+      clearTestCheckpoint();
+    }
+  });
+}
+
 // ── SCREEN MANAGEMENT ──
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1369,6 +1450,7 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   updateNav(id);
   updateProgress(id);
+  if (ckptInterval) saveTestCheckpoint();
 }
 
 function updateNav(id) {
@@ -1425,6 +1507,7 @@ function startTest() {
   }
 
   showScreen('screen-reading-intro');
+  startTestAutoSave();
 }
 
 // ── MCQ ──
@@ -1620,6 +1703,7 @@ function formatDuration(ms) {
 }
 
 function showResultsScreen(submissionOk, submissionMsg) {
+  clearTestCheckpoint();
   // Time summary
   const duration = state.endTime && state.startTime ? state.endTime - state.startTime : null;
   const timeSummary = document.getElementById('timeSummary');
@@ -1757,6 +1841,7 @@ async function submitResults() {
 }
 
 function restartTest() {
+  clearTestCheckpoint();
   // Reset state
   state.answers = {};
   state.textAnswers = {};
@@ -1813,6 +1898,7 @@ function restartTest() {
 // Set today's date on load
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
+  tryResumeTest();
 });
 </script>
 <script src="video-call.js"></script>

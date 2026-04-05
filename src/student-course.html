@@ -331,6 +331,7 @@ body {
 }
 </style>
 <link rel="stylesheet" href="mobile.css">
+<script src="checkpoint.js"></script>
 </head>
 <body>
 
@@ -533,6 +534,103 @@ const STEP_STRUCTURE = [
 ];
 
 // ══════════════════════════════════════════════════════
+// CHECKPOINT (session recovery)
+// ══════════════════════════════════════════════════════
+const CKPT_KEY = 'lesson';
+let ckptInterval = null;
+
+function saveLessonCheckpoint() {
+  if (!state.lessonContent || !state.steps.length) return;
+  // Collect current textarea values from the DOM
+  const domAnswers = Object.assign({}, state.answers);
+  var wr = document.getElementById('writing-resp');
+  if (wr) domAnswers['writing'] = wr.value;
+  var rn = document.getElementById('review-notes');
+  if (rn) domAnswers['review_notes'] = rn.value;
+
+  Checkpoint.save(CKPT_KEY, {
+    studentName: state.studentName,
+    level: state.level,
+    lessonDate: state.lessonDate,
+    dayNumber: state.dayNumber,
+    lessonContent: state.lessonContent,
+    currentStep: state.currentStep,
+    answers: domAnswers,
+    timeElapsed: state.timeElapsed,
+  });
+}
+
+function startLessonAutoSave() {
+  if (ckptInterval) return;
+  saveLessonCheckpoint();
+  ckptInterval = setInterval(saveLessonCheckpoint, 5000);
+}
+
+function clearLessonCheckpoint() {
+  if (ckptInterval) { clearInterval(ckptInterval); ckptInterval = null; }
+  Checkpoint.clear(CKPT_KEY);
+}
+
+function tryResumeLesson() {
+  var data = Checkpoint.load(CKPT_KEY);
+  if (!data || !data.lessonContent) return;
+  Checkpoint.showRecoveryModal({
+    title: 'Resume Your Lesson?',
+    titleEs: '¿Continuar tu Lección?',
+    message: 'You have an unfinished lesson (Day ' + data.dayNumber + '). Would you like to pick up where you left off?',
+    messageEs: 'Tienes una lección sin terminar (Día ' + data.dayNumber + '). ¿Quieres continuar donde lo dejaste?',
+    savedAt: data._savedAt,
+    onResume: function() {
+      // Restore state
+      state.studentName = data.studentName;
+      state.level = data.level;
+      state.lessonDate = data.lessonDate;
+      state.dayNumber = data.dayNumber;
+      state.lessonContent = data.lessonContent;
+      state.answers = data.answers || {};
+      state.timeElapsed = data.timeElapsed || 0;
+      state.approved = true;
+      state.startTime = new Date(Date.now() - (state.timeElapsed * 1000));
+
+      // Rebuild steps and set position
+      state.steps = buildSteps(state.lessonContent);
+      state.currentStep = Math.min(data.currentStep || 0, state.steps.length - 1);
+
+      // Show lesson screen and start
+      showScreen('screen-lesson');
+      var info = LEVEL_THEMES[state.level] || { theme: '' };
+      document.getElementById('navInfo').textContent = state.level + ' · ' + info.theme;
+      document.getElementById('navDay').textContent = 'Day ' + state.dayNumber;
+      document.getElementById('navDay').style.display = 'block';
+      document.getElementById('navTimer').style.display = 'block';
+      document.getElementById('lessonLabel').textContent = 'Day ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme;
+
+      // Resume timer from saved elapsed time
+      startTimer();
+      state.timeElapsed = data.timeElapsed || 0;
+      updateTimerDisplay();
+
+      // Launch video call
+      if (typeof VideoCall !== 'undefined') {
+        VideoCall.init({ studentName: state.studentName, date: state.lessonDate, role: 'student' });
+      }
+
+      buildStepDots();
+      renderStep();
+      startLessonAutoSave();
+
+      // Update button text
+      if (state.currentStep === state.steps.length - 1) {
+        document.getElementById('btnNext').textContent = 'Finish Lesson ✓';
+      }
+    },
+    onStartOver: function() {
+      clearLessonCheckpoint();
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
 // SCREEN CONTROL
 // ══════════════════════════════════════════════════════
 function showScreen(id) {
@@ -665,6 +763,7 @@ async function beginLesson() {
 
   buildStepDots();
   renderStep();
+  startLessonAutoSave();
 }
 
 // ══════════════════════════════════════════════════════
@@ -1283,6 +1382,7 @@ function nextStep() {
     state.currentStep++;
     renderStep();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (ckptInterval) saveLessonCheckpoint();
   } else {
     finishLesson();
   }
@@ -1298,6 +1398,7 @@ function prevStep() {
     state.currentStep--;
     renderStep();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (ckptInterval) saveLessonCheckpoint();
     document.getElementById('btnNext').textContent = 'Continue →';
   }
 }
@@ -1336,6 +1437,7 @@ function updateTimerDisplay() {
 // FINISH LESSON
 // ══════════════════════════════════════════════════════
 async function finishLesson() {
+  clearLessonCheckpoint();
   clearInterval(state.timerInterval);
   if (recognition) { recognition.stop(); convRecording = false; }
 
@@ -1424,6 +1526,7 @@ function escHtml(str) {
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('lessonDate').value = new Date().toISOString().split('T')[0];
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  tryResumeLesson();
 });
 </script>
 <script src="video-call.js"></script>

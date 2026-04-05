@@ -4,6 +4,19 @@ All notable changes to the English Path platform are documented here.
 
 ---
 
+## [0.5.0] - 2026-04-05
+
+### Added — Progress Continuity & Recovery (Option E)
+- Created `src/checkpoint.js`, a generic save/load/clear API with a bilingual recovery modal
+- **Placement test recovery:** State auto-saved every 5 seconds once the test begins (current screen, all MCQ and text answers, play counts, task choice); on page reload, a modal offers "Resume" or "Start Over"
+- **Course lesson recovery:** State auto-saved every 5 seconds once the lesson begins (current step, all answers, AI-generated lesson content, elapsed timer); on page reload, a modal offers "Resume" or "Start Over"
+- **Immediate save on navigation:** Checkpoint also saved on every screen/step change for minimal data loss
+- **Automatic cleanup:** Checkpoint is cleared on test submission, test restart, and lesson completion
+- **Bilingual recovery modal:** Title, message, and buttons shown in English and Spanish with a time-ago indicator ("saved 5 min ago / hace 5 min")
+- Recovery modal matches the existing design system (cream/ink/rust, Playfair Display headings)
+
+---
+
 ## [0.4.0] - 2026-04-05
 
 ### Added — Onboarding & UX Simplification (Option D)
