@@ -4,6 +4,23 @@ All notable changes to the English Path platform are documented here.
 
 ---
 
+## [0.3.0] - 2026-04-05
+
+### Added — Mobile-First Enhancements (Option C)
+- Created `src/mobile.css`, a shared stylesheet for all student-facing pages
+- **iOS zoom prevention:** All inputs and textareas forced to 16px minimum font-size
+- **Touch targets:** MCQ options, buttons, and interactive cards enforce 48px minimum height (WCAG compliant)
+- **Sticky bottom navigation:** Lesson Continue/Back buttons anchor to the bottom of the viewport on mobile, always within thumb reach
+- **Full-width primary buttons** on mobile for easier tapping
+- **Larger spacing** between tappable MCQ options (12px gaps) to prevent mis-taps
+- **Slimmer topbar** on mobile (46px) with non-essential info hidden
+- **Small phone support** (380px breakpoint) with tighter sizing for iPhone SE and similar
+- **Desktop hover enhancements** gated behind `(hover: hover)` media query so touch devices are not affected
+- **Touch optimisations:** Eliminated 300ms tap delay and removed default tap highlight on all interactive elements
+- Included in `index.html`, `student-initial-test.html`, and `student-course.html`
+
+---
+
 ## [0.2.0] - 2026-04-05
 
 ### Added — Video Call Integration (Option B)

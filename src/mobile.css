@@ -1,0 +1,296 @@
+/* ═══════════════════════════════════════════════════════════════
+   English Path — Mobile Enhancements
+   ─────────────────────────────────────────────────────────────
+   Shared across all student-facing pages.
+   Include AFTER the page's own <style> block so cascade wins.
+   Uses CSS custom properties (--ink, --paper, --rust, etc.)
+   already defined by each page.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Global touch optimisations ────────────────────────────── */
+button, a, [onclick], .option-btn, .mcq-opt, .level-card, .vocab-item, .task-choice-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE STYLES  (max-width: 600px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+  /* ── Prevent iOS auto-zoom on input focus ─────────────────
+     iOS Safari zooms in when font-size < 16px on focus.
+     Force 16px minimum on all form controls.
+     ─────────────────────────────────────────────────────────── */
+  input,
+  textarea,
+  select,
+  .text-input-area,
+  .writing-area,
+  .field-group input,
+  .fg input,
+  .fg select {
+    font-size: 16px !important;
+  }
+
+  /* ── Touch targets — WCAG minimum 44px, we target 48px ──── */
+  .option-btn,
+  .mcq-opt {
+    min-height: 48px;
+    padding: 16px;
+    gap: 14px;
+    font-size: 15px;
+    border-radius: 4px;
+  }
+  .opt-letter {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    border-radius: 4px;
+  }
+
+  /* ── MCQ option spacing ───────────────────────────────────── */
+  .options-grid,
+  .mcq-options {
+    gap: 12px;
+  }
+
+  /* ── Sticky bottom navigation ─────────────────────────────
+     Keeps Continue/Next/Back buttons thumb-reachable at all
+     times. Uses sticky so the bar scrolls normally until it
+     reaches the bottom edge, then anchors there.
+     ─────────────────────────────────────────────────────────── */
+  .lesson-nav {
+    position: sticky;
+    bottom: 0;
+    background: var(--paper, #f5f0e8);
+    padding: 16px 20px;
+    border-top: 1px solid var(--rule, #c8bfa8);
+    box-shadow: 0 -4px 16px rgba(26, 18, 8, 0.08);
+    margin: 24px -20px 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* ── Primary action buttons — full width, large tap area ── */
+  .btn-next,
+  .btn-begin,
+  .btn-start,
+  .btn-enter,
+  .btn-cta,
+  .btn-nav.primary {
+    width: 100%;
+    padding: 18px 24px;
+    font-size: 17px;
+    min-height: 52px;
+    border-radius: 6px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* ── Secondary / back buttons ─────────────────────────────── */
+  .btn-back,
+  .btn-nav:not(.primary) {
+    padding: 14px 20px;
+    font-size: 14px;
+    min-height: 48px;
+    border-radius: 6px;
+  }
+
+  /* Lesson nav layout: back button shrinks, next button grows */
+  .lesson-nav .btn-back {
+    width: auto;
+    flex-shrink: 0;
+  }
+  .lesson-nav .btn-next {
+    flex: 1;
+  }
+
+  /* ── Textareas — larger writing areas ─────────────────────── */
+  textarea,
+  .text-input-area,
+  .writing-area {
+    min-height: 140px;
+    padding: 16px;
+    line-height: 1.8;
+    border-radius: 4px;
+  }
+
+  /* ── Form inputs — comfortable size ───────────────────────── */
+  input[type="text"],
+  input[type="date"],
+  input[type="email"] {
+    padding: 12px;
+    min-height: 48px;
+  }
+
+  /* ── Level selection cards ────────────────────────────────── */
+  .level-card {
+    padding: 18px 14px;
+    min-height: 72px;
+  }
+
+  /* ── Task choice buttons ──────────────────────────────────── */
+  .task-choice-btn {
+    min-height: 48px;
+    padding: 14px 16px;
+  }
+
+  /* ── Vocabulary cards ─────────────────────────────────────── */
+  .vocab-item {
+    padding: 16px;
+    min-height: 48px;
+  }
+
+  /* ── Record button — already 72px, but add ring for clarity  */
+  .record-btn {
+    box-shadow: 0 0 0 4px rgba(184, 71, 30, 0.15);
+  }
+
+  /* ── Confidence buttons ───────────────────────────────────── */
+  .conf-btn {
+    min-height: 48px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  /* ── Topbar — slimmer on mobile ───────────────────────────── */
+  .top-nav {
+    height: 46px;
+    padding: 0 12px !important;
+  }
+  .nav-title,
+  .nav-brand {
+    font-size: 13px;
+  }
+  .nav-section,
+  .nav-info {
+    display: none;
+  }
+  .nav-timer {
+    font-size: 13px !important;
+  }
+  .nav-day-badge {
+    font-size: 9px !important;
+    padding: 3px 8px !important;
+  }
+
+  /* ── Content padding — room for sticky nav ────────────────── */
+  .question-area,
+  .activity-card {
+    padding-bottom: 32px;
+  }
+
+  /* ── Progress dots — slightly larger ──────────────────────── */
+  .step-dot {
+    width: 10px;
+    height: 10px;
+  }
+  .step-dot.active {
+    transform: scale(1.4);
+  }
+
+  /* ── Sections overview on test cover ──────────────────────── */
+  .sections-overview,
+  .score-breakdown {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* ── Audio play button — larger tap target ─────────────────── */
+  .audio-box,
+  .play-btn {
+    min-height: 48px;
+    padding: 14px 20px;
+  }
+
+  /* ── Hub page: milestone cards ────────────────────────────── */
+  .milestone-card {
+    padding: 16px;
+  }
+  .milestone-title {
+    font-size: 18px;
+  }
+  .btn-cta {
+    display: block;
+    padding: 18px 24px;
+  }
+
+  /* ── Journey timeline — tighter left margin ───────────────── */
+  .journey {
+    padding-left: 36px;
+  }
+
+  /* ── Video call panel — adjust for mobile nav ─────────────── */
+  .vc-panel {
+    bottom: 12px !important;
+    right: 12px !important;
+  }
+  .vc-btn-join {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SMALL PHONES  (max-width: 380px)
+   Extra adjustments for narrow screens (iPhone SE, etc.)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+
+  .option-btn,
+  .mcq-opt {
+    padding: 14px 12px;
+    font-size: 14px;
+    gap: 10px;
+  }
+  .opt-letter {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .btn-next,
+  .btn-begin,
+  .btn-start,
+  .btn-enter,
+  .btn-cta,
+  .btn-nav.primary {
+    font-size: 16px;
+    padding: 16px 20px;
+  }
+
+  .level-card {
+    padding: 14px 10px;
+  }
+
+  .milestone-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLET & DESKTOP ENHANCEMENT  (min-width: 601px)
+   Subtle hover upgrades for mouse users.
+   ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 601px) and (hover: hover) {
+
+  .option-btn:hover:not(:disabled),
+  .mcq-opt:hover:not(:disabled) {
+    transform: translateX(3px);
+  }
+
+  .btn-next:hover,
+  .btn-begin:hover,
+  .btn-start:hover,
+  .btn-enter:hover,
+  .btn-cta:not(.secondary):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(26, 18, 8, 0.15);
+  }
+}
