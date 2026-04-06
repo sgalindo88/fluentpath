@@ -209,6 +209,83 @@ const I18n = (() => {
     'OK':                           'OK',
     'Good':                         'Bien',
     'Great!':                       '¡Excelente!',
+
+    /* ── Course UI (static strings) ─────────────────────── */
+    'Skip this question':           'Saltar esta pregunta',
+    'Skip this writing task':       'Saltar esta tarea de escritura',
+    'Type your answer here…':       'Escribe tu respuesta aquí…',
+    'Write your sentences here…':   'Escribe tus oraciones aquí…',
+    'Write your response here…':    'Escribe tu respuesta aquí…',
+    'Any notes for your teacher or yourself? What was hard? What was easy?':
+      '¿Notas para tu profesor o para ti? ¿Qué fue difícil? ¿Qué fue fácil?',
+    'Jot down a few ideas before speaking…':
+      'Anota algunas ideas antes de hablar…',
+    'WRITING TASK':                 'TAREA DE ESCRITURA',
+    'YOUR TASK':                    'TU TAREA',
+    'KEY TAKEAWAYS':                'PUNTOS CLAVE',
+    'HOW DID YOU FEEL?':            'CÓMO TE SENTISTE?',
+    'Step':                         'Paso',
+    'of':                           'de',
+
+    /* ── Step structure titles ──────────────────────────── */
+    'Let\'s Get Started':           'Comencemos',
+    'New Words Today':              'Palabras Nuevas de Hoy',
+    'Listen & Understand':          'Escucha y Comprende',
+    'PRONUNCIATION':                'PRONUNCIACIÓN',
+    'Speak & Be Understood':        'Habla y Hazte Entender',
+    'Put It All Together':          'Ponlo Todo Junto',
+    'Write It Down':                'Escríbelo',
+    'WRITING':                      'ESCRITURA',
+    'What Did You Learn?':          'Qué Aprendiste?',
+    'What You Learned Today':       'Lo Que Aprendiste Hoy',
+
+    /* ── Vocabulary practice ────────────────────────────── */
+    'Use them in sentences':        'Úsalas en oraciones',
+    'Choose any 2 of today\'s words and write your own sentence using each one.':
+      'Elige 2 de las palabras de hoy y escribe una oración con cada una.',
+
+    /* ── Listening ──────────────────────────────────────── */
+    '3 plays left':                 '3 reproducciones restantes',
+    'Playing…':                     'Reproduciendo…',
+    'Click to listen again':        'Haz clic para escuchar de nuevo',
+    'No more plays':                'No más reproducciones',
+    'No audio available.':          'No hay audio disponible.',
+
+    /* ── Speaking / recording ───────────────────────────── */
+    'FREE SPEAKING':                'CONVERSACIÓN LIBRE',
+    'Press to start speaking — aim for 30+ seconds':
+      'Presiona para empezar a hablar — intenta 30+ segundos',
+    'Recording… speak clearly':     'Grabando… habla con claridad',
+    'Recording saved. You can record again if you want.':
+      'Grabación guardada. Puedes grabar de nuevo si quieres.',
+    'Speech recognition requires Chrome browser.':
+      'El reconocimiento de voz requiere el navegador Chrome.',
+    '🎤 Record again':              '🎤 Grabar de nuevo',
+    '🎤 Try again':                 '🎤 Intentar de nuevo',
+    '🎤 Record yourself':           '🎤 Grábate',
+
+    /* ── Speaking feedback ──────────────────────────────── */
+    '✓ Great job! Your pronunciation was clear.':
+      '✓ ¡Excelente! Tu pronunciación fue clara.',
+    '💡 Keep practicing — try again and speak slowly.':
+      '💡 Sigue practicando — intenta de nuevo y habla despacio.',
+
+    /* ── Practice / comprehension ───────────────────────── */
+    'COMPREHENSION & PRACTICE':     'COMPRENSIÓN Y PRÁCTICA',
+
+    /* ── Writing word count ─────────────────────────────── */
+    'words':                        'palabras',
+    'aim for':                      'intenta escribir',
+
+    /* ── Review / completion ────────────────────────────── */
+    'LESSON REVIEW':                'REPASO DE LA LECCIÓN',
+    'How did today go?':            '¿Cómo te fue hoy?',
+    'Rate your confidence today and leave yourself a note.':
+      'Califica tu confianza hoy y déjate una nota.',
+    'Course Day':                   'Día del Curso',
+    'Saving your progress…':        'Guardando tu progreso…',
+    'Not rated':                    'Sin calificar',
+    'View Progress & Next Lesson →': 'Ver Progreso y Siguiente Lección →',
   };
 
   /* Build reverse dictionary (Spanish → English) for spanish-primary mode */
@@ -384,12 +461,13 @@ const I18n = (() => {
       }
     });
 
-    // Paragraphs and descriptions
+    // Paragraphs and descriptions (including dynamically rendered course content)
     const pSelectors = [
       '.welcome-header p', '.login-hint', '.milestone-desc',
       '.milestone-label', '.cta-section p', '.dash-subtitle',
       '.loading-center p', '.section-desc', '.section-intro p',
       '.intro-desc', '.screen p', '.activity-card > p', '.step-header + p',
+      '.ac-heading', '.ac-body', '.ai-status',
     ];
     document.querySelectorAll(pSelectors.join(',')).forEach(el => {
       if (el.dataset.i18nSwapped) return;
@@ -416,8 +494,8 @@ const I18n = (() => {
       }
     });
 
-    // Uppercase labels
-    document.querySelectorAll('.step-label, .activity-label, .section-label, .step-type').forEach(el => {
+    // Uppercase labels (including dynamically rendered course content)
+    document.querySelectorAll('.step-label, .activity-label, .section-label, .step-type, .ac-label, .ai-label').forEach(el => {
       if (el.dataset.i18nSwapped) return;
       const text = el.textContent.trim();
       const spanish = t(text);
@@ -426,6 +504,89 @@ const I18n = (() => {
         el.dataset.i18nOriginal = text;
         const hint = document.createElement('span');
         hint.className = 'i18n-hint i18n-hint-upper';
+        hint.textContent = text;
+        el.textContent = spanish;
+        el.appendChild(hint);
+      }
+    });
+
+    // Translate step counter pattern: "Step X of Y" → "Paso X de Y"
+    document.querySelectorAll('*').forEach(el => {
+      if (el.children.length > 0 || el.dataset.i18nSwapped) return;
+      var txt = el.textContent.trim();
+      var stepMatch = txt.match(/^Step (\d+) of (\d+)$/);
+      if (stepMatch) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = txt;
+        el.textContent = 'Paso ' + stepMatch[1] + ' de ' + stepMatch[2];
+        var hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = txt;
+        el.appendChild(hint);
+      }
+    });
+
+    // Translate nav/lesson label patterns containing level themes
+    ['navInfo', 'lessonLabel'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el || el.dataset.i18nSwapped) return;
+      var txt = el.textContent.trim();
+      var translated = txt;
+      // Replace known theme names
+      Object.keys(ES).forEach(function(en) {
+        if (txt.includes(en) && ES[en]) {
+          translated = translated.replace(en, ES[en]);
+        }
+      });
+      // Replace "Day" with "Día"
+      translated = translated.replace(/\bDay\b/g, 'Día');
+      if (translated !== txt) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = txt;
+        var hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = txt;
+        el.textContent = translated;
+        el.appendChild(hint);
+      }
+    });
+
+    // Translate dynamic content that has _es fields (bilingual AI lessons)
+    document.querySelectorAll('.ac-heading, .ac-body').forEach(function(el) {
+      if (el.dataset.i18nSwapped) return;
+      var text = el.textContent.trim();
+      var spanish = t(text);
+      // Check if a sibling or data attribute has Spanish
+      var esAttr = el.dataset.es;
+      if (esAttr) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = text;
+        var hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = text;
+        el.textContent = esAttr;
+        el.appendChild(hint);
+      } else if (spanish) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = text;
+        var hint = document.createElement('span');
+        hint.className = 'i18n-hint';
+        hint.textContent = text;
+        el.textContent = spanish;
+        el.appendChild(hint);
+      }
+    });
+
+    // Translate inline styled elements (prompts, instructions inside cards)
+    document.querySelectorAll('[style*="italic"], [style*="uppercase"]').forEach(function(el) {
+      if (el.dataset.i18nSwapped || el.children.length > 1) return;
+      var text = el.textContent.trim();
+      var spanish = t(text);
+      if (spanish) {
+        el.dataset.i18nSwapped = 'true';
+        el.dataset.i18nOriginal = text;
+        var hint = document.createElement('span');
+        hint.className = 'i18n-hint';
         hint.textContent = text;
         el.textContent = spanish;
         el.appendChild(hint);
@@ -452,6 +613,7 @@ const I18n = (() => {
       '.section-desc', '.section-intro p', '.intro-desc',
       '.screen p', '.activity-card > p',
       '.step-label', '.activity-label', '.section-label', '.step-type',
+      '.ac-label', '.ac-heading', '.ac-body', '.ai-label', '.ai-status',
     ];
 
     document.querySelectorAll(selectors.join(',')).forEach(el => {

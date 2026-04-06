@@ -4,7 +4,7 @@ A browser-based English language learning and assessment system by **Fluentora**
 
 Two audiences -- **students** taking tests and completing lessons, and **teachers** marking work and managing course progress. All interfaces share a cohesive visual identity (Playfair Display + Source Serif 4 typography, cream/ink/rust palette) and integrate with Google Sheets, the Claude API, and Jitsi Meet.
 
-**Live at:** [sgalindo88.github.io/english-course](https://sgalindo88.github.io/english-course/)
+**Live at:** [sgalindo88.github.io/fluentpath](https://sgalindo88.github.io/fluentpath/)
 
 ---
 
@@ -62,7 +62,7 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
 
 **Phase 1 -- Placement:** Student completes a four-skill proficiency test. The teacher marks it in the dashboard, assigns a CEFR level (A1--C2), and the student is placed into the right course tier. Students can skip the test if the teacher allows it.
 
-**Phase 2 -- Course:** Student works through a 20-day structured course with AI-generated daily lessons. The teacher approves lessons, marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries.
+**Phase 2 -- Course:** Student works through a 20-day structured course with built-in lessons (AI generation planned via Apps Script proxy). The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
 
 **All live sessions** require an embedded Jitsi Meet video call -- the "Begin" button is disabled until the student connects.
 
@@ -77,6 +77,7 @@ english-course/
 ├── README.md                      # This file
 ├── CHANGELOG.md                   # Version history
 ├── GOOGLE_SHEETS_SCHEMA.md        # Full database schema documentation
+├── apps-script.js                 # Google Apps Script source (paste into Code.gs)
 └── src/
     ├── student-initial-test.html  # Placement test (student)
     ├── student-course.html        # Daily lesson (student)
@@ -115,7 +116,9 @@ english-course/
 #### Key Features
 
 - **Progress tracking** via Google Sheets (`?action=get_progress`) with localStorage fallback
-- **Teacher settings check** fetches `allow_skip_test` to optionally show "Skip to Course" button
+- **Teacher settings check** fetches `allow_skip_test` and `allow_retake_test` from Google Sheets
+- **Skip or re-take** placement test options when teacher enables them
+- **Completed lessons list** showing day, topic, time spent, confidence, and date
 - **Auto-login** for returning students
 - **Context-aware CTA** that always shows the right next action
 - **Level-aware translation** via the shared i18n system
@@ -159,9 +162,14 @@ english-course/
 
 #### Key Features
 
-- **Required video call** -- Jitsi embeds inline on the cover screen; Begin button disabled until connected
+- **Name auto-filled** from hub, **date read-only** (auto-calculated)
+- **Required video call** -- Jitsi embeds inline with visible room name and shareable link; Begin button disabled until connected
+- **Listening stop button** with cumulative play-time tracking (main passage and dictation)
+- **Speech recording** on all speaking questions (Q21-Q24) with live transcript and pronunciation feedback
+- **Required + skip** -- all writing/speaking text fields are required, with "Skip this question" checkbox
 - **Session recovery** -- auto-saves every 5s; bilingual resume/start-over modal on page reload
 - **Tap-to-translate** -- default translation mode for the test (B1/B2 style)
+- **"Return to FluentPath"** button on results screen (re-take only via teacher-controlled hub setting)
 - **Real-time MCQ feedback**, word counter, browser TTS, dual submission (Formspree + Google Sheets)
 - **Mobile-optimised** with 48px touch targets, sticky nav, iOS zoom prevention
 
@@ -185,12 +193,19 @@ english-course/
 
 #### Key Features
 
+- **Name, date, and level auto-filled** from hub; level grid locked when assigned by teacher
+- **No approval workflow** -- lessons start immediately
 - **Required video call** -- embeds when student selects their level; Begin button disabled until connected
-- **Level-aware translation** -- mode adapts when student selects A1/A2/B1/B2/C1/C2
-- **Teacher approval workflow** -- polls Google Sheets every 10s until approved
-- **AI lesson generation** via Claude Sonnet with level-specific topic progressions
+- **Level-aware translation** -- A1/A2 gets bilingual AI content via `_es` keys; B1/B2 gets tap-to-translate
+- **41+ translated static strings** covering all UI text (step titles, buttons, status, feedback, labels)
+- **`tr()` runtime translation** for JS-set text at A1/A2 level
+- **Required + skip** -- all text questions required with "Skip this question" checkbox
+- **Listening stop button** with cumulative play-time tracking
+- **Pronunciation drills** use data-attributes (no inline apostrophe issues); improved error handling with mic permission alerts
+- **Built-in fallback lesson** (direct Claude API removed due to CORS; future Apps Script proxy planned)
 - **Session recovery** -- auto-saves lesson content and progress every 5s
-- **Speech recognition** for pronunciation drills with similarity scoring
+- **Course day tracking** -- uses `fp_last_lesson_day + 1`, not day of month
+- **Lesson complete** links back to hub with "View Progress & Next Lesson"
 - **90-minute countdown timer** with visual warning when <10 min remain
 
 ---
@@ -203,10 +218,9 @@ english-course/
 
 | # | Section | Panel | Description |
 |---|---------|-------|-------------|
-| -- | -- | **Setup** | Onboarding form (teacher name, student info, webhook URL) |
+| -- | -- | **Setup** | Onboarding form (teacher name, student info, CEFR level) |
 | 1 | Lessons | **Dashboard** | Stats grid, progress bars, activity feed, teacher notes |
-| 2 | Lessons | **Lesson Approvals** | Pending lesson queue with preview, approve/reject, difficulty adjustment |
-| 3 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked) |
+| 2 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked) |
 | 4 | Marking | **Mark Placement Test** | Load test from Google Sheets, auto-score reading/listening, manual sliders for writing/speaking, CEFR calculation, save to Sheets |
 | 5 | Marking | **Mark Writing & Speaking** | Daily lesson submission marking (Writing 25pts, Speaking 20pts) |
 | 6 | Marking | **Weekly Summaries** | 4-week skill assessments + AI-generated narrative summaries |
@@ -227,7 +241,11 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **Video call** -- floating Jitsi panel joins the same room as the student
 - **localStorage persistence** under `fluentpath_teacher` key with auto-save
 - **AI-powered weekly summaries** via Claude Sonnet API
-- **Google Sheets integration** for marks, approvals, and settings
+- **Webhook URL hardcoded** -- no user configuration needed
+- **No approval workflow** -- lessons start directly, approvals panel removed
+- **Auto-populate marking** -- placement test and lesson submissions auto-load when panels open
+- **Null-safe dashboard stats** -- prevents crashes when elements are missing
+- **Google Sheets integration** for marks and settings (via `safeAppendRow` for column-safe writes)
 - **Demo data** built in for testing without live data
 
 ---

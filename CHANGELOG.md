@@ -4,6 +4,57 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.8.0] - 2026-04-05
+
+### Changed — Placement Test Improvements
+- **Auto-fill name** from hub (localStorage) and make date read-only
+- **Listening stop button** with cumulative play-time tracking for both main passage and dictation
+- **Required + skip** on all writing questions (Q11-Q14, Q20) with "Skip this question" checkbox
+- **All speaking textareas required** (Q21-Q24)
+- **Speech recording** added to speaking section (Q21-Q24) using Web Speech API with live transcript
+- **Video call room name** now displayed with shareable link so teacher knows which room to join
+- **Translation activated** with `I18n.setLevel('test')` for tap-to-translate mode
+- **"Return to FluentPath"** button on results screen (removed "Take Test Again")
+- **Re-take test** option on hub when teacher enables `allow_retake_test`
+
+### Changed — Course Page Improvements
+- **Auto-fill name, date (read-only), and level** from localStorage
+- **Level grid locked** when CEFR level is assigned — greyed out with "Assigned by your teacher" note
+- **Approval workflow removed** — `startCourse()` goes straight to lesson generation
+- **Course day number** uses last completed + 1 (not day of month)
+- **Required + skip** on all text questions (warm-up, vocabulary practice, writing, review notes)
+- **Listening stop button** with play-time tracking
+- **Pronunciation drill fix** — replaced inline onclick string interpolation with data-attributes to prevent apostrophe SyntaxError
+- **Claude API call removed** (CORS blocked from browser) — uses built-in fallback lesson; placeholder for future Apps Script proxy
+- **Speech recognition error handling** improved with console logging and mic permission alerts
+- **Lesson complete** links back to hub with "View Progress & Next Lesson" button; shows "Course Day X / 20"
+- **Hub enhanced** with completed lessons list (day, topic, time, confidence, date)
+
+### Changed — Full Spanish Translation Coverage
+- **41 new translation strings** added to `i18n.js`: step titles, listening/speaking status, recording feedback, review section, completion screen, button text
+- **`tr()` runtime helper** added to course page for JS-set `.textContent` strings at A1/A2 level
+- **`biText()` applied** to all hardcoded template strings in render functions
+- **Course content selectors** added to i18n.js (`.ac-label`, `.ac-heading`, `.ac-body`, `.ai-label`, `.ai-status`)
+- **AI prompt modified** to generate `_es` suffix keys for bilingual A1/A2 lessons
+- **All render functions updated** to use `biText()` for dynamic AI content
+
+### Changed — Teacher Dashboard Fixes
+- **Webhook URL hardcoded** — removed from setup screen and profile form
+- **Lesson approvals removed** — sidebar link, panel HTML, pending badge, and all approval JS functions
+- **Auto-populate marking** — placement test and lesson marking auto-load when panel is opened
+- **Null-safe `updateDashboardStats`** — prevents TypeError when elements are missing
+- **Writing answers robust** — tries multiple field name formats, shows "(no response)" for empty
+- **CORS error handling** — graceful fallback to demo data with console warnings
+
+### Changed — Infrastructure
+- **Webhook URLs synced** across all files to new Apps Script deployment
+- **Google Apps Script rewritten** (`apps-script.js`) with `doGet` handler for 5 actions, `safeAppendRow` for column-safe writes, and proper CORS support
+- **DDEV local server** configured for development (no more push-to-test)
+- **Dead approval code removed** from course page (`requestApproval`, `startPolling`, `checkApproval`, `APPROVAL_CHECK_URL`)
+- **Skip placement test** option on hub when teacher allows via Google Sheets Settings
+
+---
+
 ## [0.7.1] - 2026-04-05
 
 ### Added — Skip Placement Test Option

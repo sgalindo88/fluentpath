@@ -334,6 +334,33 @@ function handleGetLatestSubmission(studentName) {
 // doPOST — handles all write requests
 // ══════════════════════════════════════════════════════
 
+/**
+ * Safely append a row to a sheet, matching params to the sheet's
+ * ACTUAL header row (not the HEADERS constant). This prevents
+ * column misalignment when sheets have old/different headers.
+ * If the sheet is empty, writes the expected headers first.
+ */
+function safeAppendRow(sheetName, expectedHeaders, params) {
+  var sheet = getOrCreateSheet(sheetName, expectedHeaders);
+
+  // If the sheet is empty, write the expected headers
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(expectedHeaders);
+  }
+
+  // Read the ACTUAL headers from row 1 of the sheet
+  var actualHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  actualHeaders = actualHeaders.map(function(h) { return String(h).trim(); });
+
+  // Build the row by matching params to actual column headers
+  var row = actualHeaders.map(function(header) {
+    return params[header] || '';
+  });
+
+  sheet.appendRow(row);
+}
+
+
 function doPost(e) {
   var params = e.parameter;
   var action = (params['action'] || '').trim();
@@ -341,39 +368,23 @@ function doPost(e) {
 
   try {
     if (action === 'save_progress') {
-      // Student completed a lesson → Course Progress
-      var headers = HEADERS['Course Progress'];
-      var sheet = getOrCreateSheet('Course Progress', headers);
-      if (sheet.getLastRow() === 0) sheet.appendRow(headers);
-      sheet.appendRow(headers.map(function(h) { return params[h] || ''; }));
+      safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
 
     } else if (action === 'save_marks') {
-      // Teacher graded a lesson → Lesson Marks
-      var headers = HEADERS['Lesson Marks'];
-      var sheet = getOrCreateSheet('Lesson Marks', headers);
-      if (sheet.getLastRow() === 0) sheet.appendRow(headers);
-      sheet.appendRow(headers.map(function(h) { return params[h] || ''; }));
+      safeAppendRow('Lesson Marks', HEADERS['Lesson Marks'], params);
 
     } else if (action === 'update_settings') {
-      // Teacher updated student settings → Settings (upsert)
       var data = {};
       HEADERS['Settings'].forEach(function(h) { data[h] = params[h] || ''; });
       data['updated_at'] = new Date().toLocaleString();
       upsertByStudent('Settings', HEADERS['Settings'], params['student_name'], data);
 
     } else if (sheetName === 'Examiner Results') {
-      // Teacher graded placement test → Examiner Results
-      var headers = HEADERS['Examiner Results'];
-      var sheet = getOrCreateSheet('Examiner Results', headers);
-      if (sheet.getLastRow() === 0) sheet.appendRow(headers);
-      sheet.appendRow(headers.map(function(h) { return params[h] || ''; }));
+      safeAppendRow('Examiner Results', HEADERS['Examiner Results'], params);
 
     } else {
       // Default: student submitted placement test → Initial Test Results
-      var headers = HEADERS['Initial Test Results'];
-      var sheet = getOrCreateSheet('Initial Test Results', headers);
-      if (sheet.getLastRow() === 0) sheet.appendRow(headers);
-      sheet.appendRow(headers.map(function(h) { return params[h] || ''; }));
+      safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
     }
 
     return ContentService

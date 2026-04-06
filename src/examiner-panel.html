@@ -1132,15 +1132,31 @@ async function loadPlacementTest() {
     document.getElementById('pt-load-status').textContent = '✓ Test data loaded for ' + escHtml(name) + '.';
   }
 
-  // Parse MCQ answers
-  const mcqStr = data.mcq_answers || '';
+  // Parse MCQ answers from the mcq_answers summary string
+  const mcqStr = String(data.mcq_answers || '');
+  console.log('[FluentPath] mcq_answers raw value:', JSON.stringify(mcqStr).substring(0, 500));
   const re = /Q(\d+):\s*([A-D])/gi;
   const mcqAnswers = {};
   let m;
   while ((m = re.exec(mcqStr)) !== null) mcqAnswers['q' + m[1]] = m[2].toUpperCase();
+
+  // Also check for individual answer fields (fallback if mcq_answers is empty)
+  for (var qi = 1; qi <= 18; qi++) {
+    var key = 'q' + qi;
+    if (!mcqAnswers[key] && data[key]) mcqAnswers[key] = String(data[key]).toUpperCase();
+    if (!mcqAnswers[key] && data[key + '_answer']) mcqAnswers[key] = String(data[key + '_answer']).toUpperCase();
+  }
+  console.log('[FluentPath] Parsed MCQ answers:', JSON.stringify(mcqAnswers));
+
   // Q19 multi-select
   const q19m = mcqStr.match(/Q19:\s*([A-D,\s]+)/i);
   const q19answers = q19m ? (q19m[1].match(/[A-D]/gi) || []).map(l => l.toUpperCase()) : [];
+  // Fallback for Q19
+  if (q19answers.length === 0 && data.q19) {
+    var q19raw = String(data.q19);
+    var q19parsed = q19raw.match(/[A-D]/gi);
+    if (q19parsed) q19parsed.forEach(function(l) { q19answers.push(l.toUpperCase()); });
+  }
 
   // Auto-score reading
   let readingHtml = '';
