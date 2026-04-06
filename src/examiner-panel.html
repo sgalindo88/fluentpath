@@ -1141,7 +1141,6 @@ async function loadPlacementTest() {
 
   // Parse MCQ answers from the mcq_answers summary string
   const mcqStr = String(data.mcq_answers || '');
-  console.log('[FluentPath] mcq_answers raw value:', JSON.stringify(mcqStr).substring(0, 500));
   const re = /Q(\d+):\s*([A-D])/gi;
   const mcqAnswers = {};
   let m;
@@ -1153,7 +1152,6 @@ async function loadPlacementTest() {
     if (!mcqAnswers[key] && data[key]) mcqAnswers[key] = String(data[key]).toUpperCase();
     if (!mcqAnswers[key] && data[key + '_answer']) mcqAnswers[key] = String(data[key + '_answer']).toUpperCase();
   }
-  console.log('[FluentPath] Parsed MCQ answers:', JSON.stringify(mcqAnswers));
 
   // Q19 multi-select
   const q19m = mcqStr.match(/Q19:\s*([A-D,\s]+)/i);
@@ -1206,9 +1204,6 @@ async function loadPlacementTest() {
   ['pt-reading-card','pt-listening-card','pt-writing-card','pt-speaking-card','pt-results-card'].forEach(id => {
     document.getElementById(id).style.display = 'block';
   });
-
-  // Log for debugging
-  console.log('[FluentPath] Placement test data loaded:', Object.keys(data));
 
   updatePTResults();
 
@@ -1439,7 +1434,6 @@ async function fetchDashboardData() {
     updateDashboardStats();
     updateLessonRecord();
     updateSkillsSnapshot();
-    console.log('[FluentPath] Dashboard data synced from Google Sheets.');
   } catch(e) {
     console.warn('[FluentPath] Could not fetch dashboard data from sheet:', e.message);
   }
@@ -1824,7 +1818,6 @@ function restoreMarksFromSheetData(data) {
   }
 
   saveMarksToLocalStorage();
-  console.log('[FluentPath] Existing marks restored from sheet.');
 }
 
 function saveMarksToLocalStorage() {
@@ -1875,7 +1868,6 @@ function restoreMarksFromLocalStorage() {
       var el = document.getElementById('overall-feedback');
       if (el) el.value = ms.feedback;
     }
-    console.log('[FluentPath] Marks restored from localStorage.');
   } catch(e) {}
 }
 
