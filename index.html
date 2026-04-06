@@ -267,50 +267,75 @@ document.getElementById('studentName').addEventListener('keydown', function(e) {
 
 /* ─────────────────────────────────────────────────────────────
    Fetch Progress from Google Sheet (with localStorage fallback)
+   ─────────────────────────────────────────────────────────────
+   Fetches progress + settings in parallel, caches the combined
+   result as a single JSON entry (fp_hub_cache). Falls back to
+   cached state, then individual localStorage keys set by other
+   pages (student-course, student-initial-test).
    ───────────────────────────────────────────────────────────── */
 async function fetchProgress(name) {
-  // Try Google Sheet first
-  try {
-    const url = WEBHOOK_URL + '?action=get_progress&student=' + encodeURIComponent(name);
-    const data = await FP.api.get(url);
-    if (data && data.found) {
-      progress = data;
-      // Cache to localStorage
-      if (data.test_completed)   localStorage.setItem('fp_test_completed', 'true');
-      if (data.test_date)        localStorage.setItem('fp_test_date', data.test_date);
-      if (data.cefr_level)       localStorage.setItem('fp_cefr_level', data.cefr_level);
-      if (data.total_score)      localStorage.setItem('fp_test_score', String(data.total_score));
-      if (data.lessons_completed) localStorage.setItem('fp_last_lesson_day', String(data.lessons_completed));
-      if (data.last_lesson_date) localStorage.setItem('fp_last_lesson_date', data.last_lesson_date);
-      renderDashboard();
-      return;
-    }
-  } catch (e) {
-    // Webhook not available — fall through to localStorage
+  var enc = encodeURIComponent(name);
+  var results = await Promise.all([
+    FP.api.get(WEBHOOK_URL + '?action=get_progress&student=' + enc).catch(function() { return null; }),
+    FP.api.get(WEBHOOK_URL + '?action=get_settings&student=' + enc).catch(function() { return null; }),
+  ]);
+
+  var progData = results[0];
+  var settData = results[1];
+
+  // Apply remote settings whenever available
+  if (settData && settData.found) {
+    settings.allow_skip_test = !!settData.allow_skip_test;
+    settings.allow_retake_test = !!settData.allow_retake_test;
   }
 
-  // Fallback: build progress from localStorage
-  progress = {
-    found: false,
-    test_completed:    localStorage.getItem('fp_test_completed') === 'true',
-    test_date:         localStorage.getItem('fp_test_date') || null,
-    cefr_level:        localStorage.getItem('fp_cefr_level') || null,
-    total_score:       localStorage.getItem('fp_test_score') ? Number(localStorage.getItem('fp_test_score')) : null,
-    lessons_completed: localStorage.getItem('fp_last_lesson_day') ? Number(localStorage.getItem('fp_last_lesson_day')) : 0,
-    last_lesson_date:  localStorage.getItem('fp_last_lesson_date') || null,
-  };
+  if (progData && progData.found) {
+    progress = progData;
+    // Cache combined state + sync individual keys for other pages
+    localStorage.setItem(FP.KEYS.HUB_CACHE, JSON.stringify({ progress: progress, settings: settings }));
+    syncIndividualKeys(progress);
+    renderDashboard();
+    return;
+  }
 
-  // Also try to fetch teacher settings (allow_skip_test, etc.)
-  try {
-    const settingsUrl = WEBHOOK_URL + '?action=get_settings&student=' + encodeURIComponent(name);
-    const settingsData = await FP.api.get(settingsUrl);
-    if (settingsData && settingsData.found) {
-      settings.allow_skip_test = !!settingsData.allow_skip_test;
-      settings.allow_retake_test = !!settingsData.allow_retake_test;
+  // Fallback: cached hub state → individual localStorage keys
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem(FP.KEYS.HUB_CACHE)); } catch (e) {}
+
+  if (cached && cached.progress) {
+    progress = cached.progress;
+    if (!settData && cached.settings) {
+      settings.allow_skip_test = !!cached.settings.allow_skip_test;
+      settings.allow_retake_test = !!cached.settings.allow_retake_test;
     }
-  } catch (e) { /* settings unavailable */ }
+  } else {
+    progress = buildDefaultProgress();
+  }
 
   renderDashboard();
+}
+
+/** Sync individual localStorage keys so other pages can read them. */
+function syncIndividualKeys(d) {
+  if (d.test_completed)    localStorage.setItem(FP.KEYS.TEST_COMPLETED, 'true');
+  if (d.test_date)         localStorage.setItem(FP.KEYS.TEST_DATE, d.test_date);
+  if (d.cefr_level)        localStorage.setItem(FP.KEYS.CEFR_LEVEL, d.cefr_level);
+  if (d.total_score)       localStorage.setItem(FP.KEYS.TEST_SCORE, String(d.total_score));
+  if (d.lessons_completed) localStorage.setItem(FP.KEYS.LAST_LESSON_DAY, String(d.lessons_completed));
+  if (d.last_lesson_date)  localStorage.setItem(FP.KEYS.LAST_LESSON_DATE, d.last_lesson_date);
+}
+
+/** Build progress object from individual localStorage keys (set by other pages). */
+function buildDefaultProgress() {
+  return {
+    found: false,
+    test_completed:    localStorage.getItem(FP.KEYS.TEST_COMPLETED) === 'true',
+    test_date:         localStorage.getItem(FP.KEYS.TEST_DATE) || null,
+    cefr_level:        localStorage.getItem(FP.KEYS.CEFR_LEVEL) || null,
+    total_score:       localStorage.getItem(FP.KEYS.TEST_SCORE) ? Number(localStorage.getItem(FP.KEYS.TEST_SCORE)) : null,
+    lessons_completed: localStorage.getItem(FP.KEYS.LAST_LESSON_DAY) ? Number(localStorage.getItem(FP.KEYS.LAST_LESSON_DAY)) : 0,
+    last_lesson_date:  localStorage.getItem(FP.KEYS.LAST_LESSON_DATE) || null,
+  };
 }
 
 /* ─────────────────────────────────────────────────────────────

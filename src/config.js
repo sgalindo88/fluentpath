@@ -30,6 +30,7 @@ FP.KEYS = {
   CEFR_LEVEL:       'fp_cefr_level',
   LAST_LESSON_DAY:  'fp_last_lesson_day',
   LAST_LESSON_DATE: 'fp_last_lesson_date',
+  HUB_CACHE:        'fp_hub_cache',
   TEACHER_STATE:    'fluentpath_teacher',
   LESSON_MARKS:     'fp_lesson_marks',
 };
