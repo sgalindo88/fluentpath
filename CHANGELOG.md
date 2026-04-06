@@ -20,6 +20,7 @@ All notable changes to the FluentPath platform are documented here.
 - **i18n DOM batching** — `addSectionIcons()` uses `data-i18n-icon` attribute instead of `querySelector` per element; step counter scan targets specific tag types instead of `querySelectorAll('*')`; `clearAll()` batched from 4 DOM passes to 2; teacher approval result cached after first fetch
 - **Video call re-init guard** — split `init()` (once-only, returns false on re-call) and new `updateRoom(studentName, date)` (re-callable); fixes potential race conditions from repeated `init()` calls on student-course.html
 - **Lesson history pagination** — hub shows last 5 completed lessons by default with a "View all X lessons" toggle; prevents long lists from pushing the CTA button off screen
+- **Removed dead comments and code** — deleted ~30 lines of comments referencing removed approval workflow, old webhook documentation block, deprecated `getDayNumber()` function, dead `loadSubmission()` wrapper, vestigial `check_approval` endpoint in Apps Script, and stale "transcript toggle removed" comment
 
 ---
 

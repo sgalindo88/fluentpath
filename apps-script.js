@@ -182,10 +182,6 @@ function doGet(e) {
     } else if (action === 'get_latest_submission') {
       result = handleGetLatestSubmission(student);
 
-    } else if (action === 'check_approval') {
-      // Approval workflow removed — always return approved
-      result = { approved: true };
-
     } else {
       result = { error: 'Unknown action: ' + action };
     }

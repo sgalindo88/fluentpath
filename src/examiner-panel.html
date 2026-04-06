@@ -1719,11 +1719,6 @@ async function autoLoadSubmission() {
   loadDemoSubmission();
 }
 
-function loadSubmission() {
-  // Legacy: manual JSON paste (kept for backwards compatibility)
-  autoLoadSubmission();
-}
-
 function loadDemoSubmission() {
   const demo = {
     student_name: ex.studentName || 'Maria Gonzalez',

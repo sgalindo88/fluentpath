@@ -205,22 +205,6 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
    Configuration
    ───────────────────────────────────────────────────────────── */
 
-// Google Apps Script webhook — same URL used across the platform.
-// The script needs a handler for:  ?action=get_progress&student=Name
-// Expected JSON response:
-// {
-//   found: true,
-//   test_completed: true,          // has the student submitted a placement test?
-//   test_date: "2026-04-01",       // when the test was taken
-//   cefr_level: "B1",              // assigned after examiner marks the test (null if pending)
-//   total_score: 42,               // placement test score out of 80 (null if pending)
-//   lessons_completed: 5,          // how many course lessons finished (0 if none)
-//   last_lesson_date: "2026-04-05",// date of most recent lesson (null if none)
-//   lessons: [                     // optional: completed lesson details for progress display
-//     { day: 1, topic: "Greetings", date: "2026-04-01", time_spent: 85, confidence: "Good" },
-//     { day: 2, topic: "At the Shop", date: "2026-04-02", time_spent: 78, confidence: "Great!" }
-//   ]
-// }
 const WEBHOOK_URL  = FP.WEBHOOK_URL;
 const LEVEL_INFO   = FP.LEVELS;
 

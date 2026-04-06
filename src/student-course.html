@@ -480,7 +480,6 @@ body {
 // CONFIG — teacher sets these
 // ══════════════════════════════════════════════════════
 const GOOGLE_SHEET_WEBHOOK = FP.WEBHOOK_URL;
-// APPROVAL_CHECK_URL removed — approval workflow no longer used
 
 // ══════════════════════════════════════════════════════
 // STATE
@@ -681,7 +680,7 @@ function lockLevelGrid(levelCode) {
 }
 
 // ══════════════════════════════════════════════════════
-// START COURSE — go straight to lesson (no approval)
+// START COURSE
 // ══════════════════════════════════════════════════════
 async function startCourse() {
   const name = document.getElementById('studentName').value.trim();
@@ -703,13 +702,6 @@ function getCourseDay() {
   var last = parseInt(localStorage.getItem('fp_last_lesson_day') || '0', 10);
   return Math.min(last + 1, 20);
 }
-
-function getDayNumber(dateStr) {
-  // Legacy fallback
-  return getCourseDay();
-}
-
-// (Approval workflow removed — startCourse() calls beginLesson() directly)
 
 // ══════════════════════════════════════════════════════
 // BEGIN LESSON — fetch AI content and render
@@ -852,7 +844,6 @@ Include "_es" keys for ALL user-facing strings in the JSON. The vocabulary words
     console.warn('[FluentPath] Lesson generation request failed or timed out:', e.message);
   }
 
-  // Use built-in fallback lesson (AI generation via Apps Script is a future enhancement)
   return getFallbackLesson();
 }
 
