@@ -4,6 +4,20 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.11.0] - 2026-04-06
+
+### Fixed — Placement Test Slider Persistence & Settings Panel
+- **Slider score displays now update reliably** — added `_ptRestoring` guard flag to prevent `savePTGradedState()` from overwriting graded data mid-restoration; `updatePTSlider` and `updatePTSubCriteria` skip saves during restore cycles
+- **Scores persist across page reloads** — sheet data and localStorage now layer correctly: sheet values load first, localStorage supplements any gaps; original localStorage snapshot preserved so intermediate saves can't corrupt it
+- **Q14 sub-criteria persist** — sub-criteria sliders (Task Achievement, Grammar, Vocabulary, Coherence) now restore from localStorage like other sliders
+- **Corrupted notes filtered** — restoration skips notes that are bare numbers (artefact of a prior save-during-restore bug that wrote slider values into notes fields)
+- **Added `onchange` fallback** on all placement test range inputs for browsers that don't fire `oninput` reliably during drag
+- **Added "Reset Grading Data" button** to the placement test panel — clears all slider scores, notes, and feedback from both DOM and localStorage
+- **Added 3 missing settings to teacher profile** — "Allow Spanish UI hints", "Allow skip placement test", and "Allow retake placement test" toggles with toggle-switch UI; syncs to Google Sheets via `update_settings` POST on save
+- **Settings state persisted** — `allowSpanish`, `allowSkipTest`, `allowRetakeTest` added to `ex` state, `saveToLocalStorage`, and `initApp` form population
+
+---
+
 ## [0.10.0] - 2026-04-06
 
 ### Changed — Shared Fetch Wrapper, Hub Data Flow & Checkpoint Auto-Resume

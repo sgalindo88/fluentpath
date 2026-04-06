@@ -233,7 +233,7 @@ english-course/
 | 6 | Marking | **Weekly Summaries** | 4-week skill assessments + AI-generated narrative summaries |
 | 7 | Course | **Adjust Difficulty** | 6 sliders (vocabulary, grammar, speaking, writing, listening, sentence complexity) + focus area tags |
 | 8 | Course | **Progress Tracker** | Lesson-by-lesson record table, skills snapshot with progress bars |
-| 9 | Student | **Student Profile** | Settings form (name, email, CEFR level, course month, webhook URL, notes) |
+| 9 | Student | **Student Profile** | Settings form (name, email, CEFR level, course month, notes) + permission toggles (allow Spanish, skip test, retake test) synced to Google Sheets |
 
 #### Placement Test Marking (Panel 4)
 
@@ -256,6 +256,8 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **Skills snapshot** -- vocabulary, speaking, writing, and listening progress bars derived from marks and weekly summary ratings
 - **Course day tracking** -- uses actual attendance/lesson count, not calendar day
 - **Google Sheets integration** for marks and settings (via `safeAppendRow` for column-safe writes; `upsertByStudent` for Examiner Results to avoid duplicates)
+- **Course permission toggles** -- allow Spanish UI, skip placement test, retake placement test; synced to Google Sheets Settings tab via `update_settings`
+- **Reset grading data** button on the placement test panel for clearing corrupted or stale scoring state
 - **Demo data** built in for testing without live data
 
 ---

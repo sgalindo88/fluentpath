@@ -260,6 +260,18 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 .pill.complete { background:var(--blue-bg); color:var(--blue); border:1px solid var(--blue); }
 .pill.absent { background:#fdecea; color:var(--rust); border:1px solid var(--rust); }
 
+/* ── TOGGLE SWITCH ── */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--rule); }
+.toggle-row:last-child { border-bottom:none; }
+.toggle-label { font-size:14px; color:var(--ink); }
+.toggle-desc { font-size:12px; color:var(--muted); margin-top:2px; }
+.toggle-switch { position:relative; width:44px; height:24px; flex-shrink:0; margin-left:16px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-switch .slider { position:absolute; inset:0; background:var(--rule); border-radius:12px; cursor:pointer; transition:background 0.2s; }
+.toggle-switch .slider::before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:white; border-radius:50%; transition:transform 0.2s; }
+.toggle-switch input:checked + .slider { background:var(--green); }
+.toggle-switch input:checked + .slider::before { transform:translateX(20px); }
+
 /* ── SETUP SCREEN ── */
 .setup-screen {
   min-height:100vh; display:flex; flex-direction:column;
@@ -791,6 +803,22 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           </div>
         </div>
 
+        <div class="card card-top rust">
+          <div class="card-label">COURSE PERMISSIONS</div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Allow Spanish UI hints</div><div class="toggle-desc">Show Spanish translations alongside English content</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-allow-spanish"><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Allow skip placement test</div><div class="toggle-desc">Student can enter the course without taking the test</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-allow-skip-test"><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Allow retake placement test</div><div class="toggle-desc">Student can retake the placement test after completing it</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-allow-retake-test"><span class="slider"></span></label>
+          </div>
+        </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
           <button class="btn-secondary" onclick="exportProfile()">Export Data</button>
@@ -810,7 +838,10 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         <div class="card card-top rust" style="margin-bottom:24px;">
           <div class="card-label">LOAD TEST DATA</div>
           <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Fetches the student's test submission from Google Sheets. Uses the student name from your profile settings.</p>
-          <button class="btn-primary" onclick="loadPlacementTest()">Load Test for <span id="pt-student-name-btn">Student</span></button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" onclick="loadPlacementTest()">Load Test for <span id="pt-student-name-btn">Student</span></button>
+            <button class="btn-secondary" onclick="resetPTGradingData()">Reset Grading Data</button>
+          </div>
           <div id="pt-load-status" style="margin-top:8px;font-size:13px;font-style:italic;color:var(--muted);"></div>
         </div>
 
@@ -830,7 +861,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div style="background:var(--cream);padding:12px 16px;margin-bottom:12px;font-style:italic;font-size:14px;color:var(--ink);" id="pt-rv-q20">—</div>
           <div class="mark-slider-row">
             <label>Q20 Score</label>
-            <input type="range" class="mark-slider" id="pt-slider-q20" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q20',5)">
+            <input type="range" class="mark-slider" id="pt-slider-q20" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q20',5)" onchange="updatePTSlider('q20',5)">
             <div class="mark-val" id="pt-disp-q20">0 <span>/ 5</span></div>
           </div>
         </div>
@@ -843,21 +874,21 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q11 · Passive Voice <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q11">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q11" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q11',5)"><div class="mark-val" id="pt-disp-q11">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q11" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q11',5)" onchange="updatePTSlider('q11',5)"><div class="mark-val" id="pt-disp-q11">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q11" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q12 · Combining Sentences <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q12">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q12" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q12',5)"><div class="mark-val" id="pt-disp-q12">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q12" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q12',5)" onchange="updatePTSlider('q12',5)"><div class="mark-val" id="pt-disp-q12">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q12" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q13 · Error Correction <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q13">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q13" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q13',5)"><div class="mark-val" id="pt-disp-q13">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q13" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q13',5)" onchange="updatePTSlider('q13',5)"><div class="mark-val" id="pt-disp-q13">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q13" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
@@ -865,10 +896,10 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
             <div style="font-weight:600;margin-bottom:4px;">Q14 · Short Writing Task <span style="color:var(--muted);font-weight:300;">(10 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;max-height:200px;overflow-y:auto;" id="pt-rv-q14">—</div>
             <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Score each sub-criterion (0–2.5 each, total 10):</p>
-            <div class="mark-slider-row"><label>Task Achievement</label><input type="range" class="mark-slider" id="pt-sc-task" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-task">0</div></div>
-            <div class="mark-slider-row"><label>Grammar & Accuracy</label><input type="range" class="mark-slider" id="pt-sc-grammar" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-grammar">0</div></div>
-            <div class="mark-slider-row"><label>Vocabulary Range</label><input type="range" class="mark-slider" id="pt-sc-vocab" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-vocab">0</div></div>
-            <div class="mark-slider-row"><label>Coherence & Structure</label><input type="range" class="mark-slider" id="pt-sc-coherence" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-coherence">0</div></div>
+            <div class="mark-slider-row"><label>Task Achievement</label><input type="range" class="mark-slider" id="pt-sc-task" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()" onchange="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-task">0</div></div>
+            <div class="mark-slider-row"><label>Grammar & Accuracy</label><input type="range" class="mark-slider" id="pt-sc-grammar" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()" onchange="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-grammar">0</div></div>
+            <div class="mark-slider-row"><label>Vocabulary Range</label><input type="range" class="mark-slider" id="pt-sc-vocab" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()" onchange="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-vocab">0</div></div>
+            <div class="mark-slider-row"><label>Coherence & Structure</label><input type="range" class="mark-slider" id="pt-sc-coherence" min="0" max="2.5" step="0.5" value="0" oninput="updatePTSubCriteria()" onchange="updatePTSubCriteria()"><div class="mark-val" id="pt-scv-coherence">0</div></div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--rule);"><div style="font-weight:600;font-size:13px;">Q14 Total</div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;" id="pt-sct-q14">0 / 10</div></div>
             <textarea class="mark-notes" id="pt-notes-q14" placeholder="Notes on writing task..." oninput="updatePTResults()"></textarea>
           </div>
@@ -882,28 +913,28 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q21 · Introduction (Part A) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q21">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q21" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q21',5)"><div class="mark-val" id="pt-disp-q21">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q21" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q21',5)" onchange="updatePTSlider('q21',5)"><div class="mark-val" id="pt-disp-q21">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q21" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q22 · Everyday Topics (Part A) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q22">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q22" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q22',5)"><div class="mark-val" id="pt-disp-q22">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q22" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q22',5)" onchange="updatePTSlider('q22',5)"><div class="mark-val" id="pt-disp-q22">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q22" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
           <div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--rule);">
             <div style="font-weight:600;margin-bottom:4px;">Q23 · Extended Speaking (Part B) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q23">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q23" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q23',5)"><div class="mark-val" id="pt-disp-q23">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q23" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q23',5)" onchange="updatePTSlider('q23',5)"><div class="mark-val" id="pt-disp-q23">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q23" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
 
           <div style="margin-bottom:20px;">
             <div style="font-weight:600;margin-bottom:4px;">Q24 · Discussion & Opinion (Part C) <span style="color:var(--muted);font-weight:300;">(5 marks)</span></div>
             <div style="background:var(--cream);padding:10px 14px;margin-bottom:8px;font-size:14px;font-style:italic;" id="pt-rv-q24">—</div>
-            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q24" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q24',5)"><div class="mark-val" id="pt-disp-q24">0 <span>/ 5</span></div></div>
+            <div class="mark-slider-row"><label>Score</label><input type="range" class="mark-slider" id="pt-slider-q24" min="0" max="5" step="1" value="0" oninput="updatePTSlider('q24',5)" onchange="updatePTSlider('q24',5)"><div class="mark-val" id="pt-disp-q24">0 <span>/ 5</span></div></div>
             <textarea class="mark-notes" id="pt-notes-q24" placeholder="Notes..." oninput="updatePTResults()"></textarea>
           </div>
         </div>
@@ -954,6 +985,9 @@ let ex = {
   studentMonth: 1,
   studentEmail: '',
   studentNotes: '',
+  allowSpanish: false,
+  allowSkipTest: false,
+  allowRetakeTest: false,
   webhook: '',
   attendance: {},       // { 'day-1': 'present'|'absent', ... }
   markingData: null,    // loaded submission
@@ -1031,6 +1065,7 @@ function ptComputeWriting()   { return (ptScores.q11||0)+(ptScores.q12||0)+(ptSc
 function ptComputeSpeaking()  { return (ptScores.q21||0)+(ptScores.q22||0)+(ptScores.q23||0)+(ptScores.q24||0); }
 
 var _ptSaveTimer = null;
+var _ptRestoring = false;
 function updatePTResults() {
   const r = ptComputeReading(), l = ptComputeListening(), w = ptComputeWriting(), s = ptComputeSpeaking();
   const total = r + l + w + s;
@@ -1051,12 +1086,46 @@ function updatePTResults() {
   _ptSaveTimer = setTimeout(function() { savePTGradedState(); }, 2000);
 }
 
+function resetPTGradingData() {
+  if (!confirm('Reset all placement test grading data? Slider scores, notes, and feedback will be cleared.')) return;
+  ex.ptGraded = null;
+  // Reset ptScores
+  ['q11','q12','q13','q14','q20','q21','q22','q23','q24'].forEach(function(q) { ptScores[q] = 0; });
+  // Reset sliders and displays
+  ['q11','q12','q13','q20','q21','q22','q23','q24'].forEach(function(q) {
+    var slider = document.getElementById('pt-slider-' + q);
+    var disp = document.getElementById('pt-disp-' + q);
+    if (slider) slider.value = 0;
+    if (disp) disp.innerHTML = '0 <span>/ ' + (slider ? slider.max : 5) + '</span>';
+  });
+  // Reset Q14 sub-criteria
+  ['task','grammar','vocab','coherence'].forEach(function(f) {
+    var el = document.getElementById('pt-sc-' + f);
+    if (el) el.value = 0;
+    var disp = document.getElementById('pt-scv-' + f);
+    if (disp) disp.textContent = '0';
+  });
+  // Reset notes and feedback
+  ['q11','q12','q13','q14','q21','q22','q23','q24'].forEach(function(q) {
+    var el = document.getElementById('pt-notes-' + q);
+    if (el) el.value = '';
+  });
+  var fb = document.getElementById('pt-overall-feedback');
+  if (fb) fb.value = '';
+  updatePTResults();
+  saveToLocalStorage();
+  document.getElementById('pt-load-status').textContent = 'Grading data has been reset.';
+}
+
 function updatePTSlider(q, max) {
-  const v = parseFloat(document.getElementById('pt-slider-' + q).value);
-  document.getElementById('pt-disp-' + q).innerHTML = v + ' <span>/ ' + max + '</span>';
+  var slider = document.getElementById('pt-slider-' + q);
+  var disp = document.getElementById('pt-disp-' + q);
+  if (!slider || !disp) return;
+  var v = parseFloat(slider.value);
+  disp.innerHTML = v + ' <span>/ ' + max + '</span>';
   ptScores[q] = v;
   updatePTResults();
-  savePTGradedState();
+  if (!_ptRestoring) savePTGradedState();
 }
 
 function updatePTSubCriteria() {
@@ -1070,7 +1139,7 @@ function updatePTSubCriteria() {
   document.getElementById('pt-sct-q14').textContent = total + ' / 10';
   ptScores.q14 = total;
   updatePTResults();
-  savePTGradedState();
+  if (!_ptRestoring) savePTGradedState();
 }
 
 function buildPTChip(qId, submitted, correct, marks) {
@@ -1195,17 +1264,16 @@ async function loadPlacementTest() {
 
   updatePTResults();
 
-  // Restore previously graded scores — prefer sheet data, then localStorage
-  var restored = false;
+  // Restore previously graded scores — sheet data first, then supplement from localStorage
+  var savedGraded = ex.ptGraded ? JSON.parse(JSON.stringify(ex.ptGraded)) : null;
   if (data.graded) {
-    restored = restorePTFromSheetData(data);
-    if (restored) {
-      document.getElementById('pt-load-status').textContent += ' Graded scores loaded from sheet.';
-    }
+    restorePTFromSheetData(data);
+    document.getElementById('pt-load-status').textContent += ' Graded scores loaded from sheet.';
   }
-  if (!restored && ex.ptGraded) {
+  if (savedGraded) {
+    ex.ptGraded = savedGraded;
     restorePTGradedState();
-    document.getElementById('pt-load-status').textContent += ' Previously graded scores restored from local save.';
+    document.getElementById('pt-load-status').textContent += ' Local grading data restored.';
   }
 }
 
@@ -1221,12 +1289,18 @@ function restorePTFromSheetData(data) {
   }
 
   // Restore individual question scores from sheet (score_q11, score_q12, etc.)
+  _ptRestoring = true;
   ['q11','q12','q13','q20','q21','q22','q23','q24'].forEach(function(q) {
     var val = parseScore(data['graded_' + q]);
     if (val != null) {
       ptScores[q] = val;
       var slider = document.getElementById('pt-slider-' + q);
-      if (slider) { slider.value = val; updatePTSlider(q, parseInt(slider.max)); }
+      var disp = document.getElementById('pt-disp-' + q);
+      if (slider) slider.value = val;
+      if (disp) {
+        var max = slider ? parseInt(slider.max) : 5;
+        disp.innerHTML = val + ' <span>/ ' + max + '</span>';
+      }
       anyRestored = true;
     }
   });
@@ -1262,6 +1336,7 @@ function restorePTFromSheetData(data) {
     anyRestored = true;
   }
 
+  _ptRestoring = false;
   if (anyRestored) {
     updatePTResults();
     savePTGradedState(); // sync to localStorage
@@ -1340,6 +1415,9 @@ function initApp() {
   document.getElementById('prof-level').value         = ex.studentLevel;
   document.getElementById('prof-month').value         = ex.studentMonth;
   document.getElementById('prof-notes').value         = ex.studentNotes;
+  document.getElementById('prof-allow-spanish').checked      = !!ex.allowSpanish;
+  document.getElementById('prof-allow-skip-test').checked    = !!ex.allowSkipTest;
+  document.getElementById('prof-allow-retake-test').checked  = !!ex.allowRetakeTest;
 
   buildAttendanceGrid();
   buildDifficultyGrid();
@@ -2176,18 +2254,38 @@ function saveProfile() {
   if (!student) { showStatus('profile-save-status', 'Student name is required.', true); return; }
   if (!level)   { showStatus('profile-save-status', 'Student level is required.', true); return; }
 
-  ex.teacherName  = teacher;
-  ex.studentName  = student;
-  ex.studentEmail = document.getElementById('prof-email').value;
-  ex.studentLevel = level;
-  ex.studentMonth = parseInt(document.getElementById('prof-month').value);
-  ex.studentNotes = document.getElementById('prof-notes').value;
+  ex.teacherName      = teacher;
+  ex.studentName      = student;
+  ex.studentEmail     = document.getElementById('prof-email').value;
+  ex.studentLevel     = level;
+  ex.studentMonth     = parseInt(document.getElementById('prof-month').value);
+  ex.studentNotes     = document.getElementById('prof-notes').value;
+  ex.allowSpanish     = document.getElementById('prof-allow-spanish').checked;
+  ex.allowSkipTest    = document.getElementById('prof-allow-skip-test').checked;
+  ex.allowRetakeTest  = document.getElementById('prof-allow-retake-test').checked;
 
   saveToLocalStorage();
   document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
   document.getElementById('sb-student-level').textContent = ex.studentLevel + ' · ' + getLevelTheme(ex.studentLevel);
   document.getElementById('dash-teacher-name').textContent = ex.teacherName || 'Teacher';
   showStatus('profile-save-status', '✓ Profile saved.', false);
+
+  // Sync settings to Google Sheet
+  if (WEBHOOK_URL && WEBHOOK_URL.startsWith('https://')) {
+    FP.api.postForm(WEBHOOK_URL, {
+      action: 'update_settings',
+      student_name: ex.studentName,
+      teacher_name: ex.teacherName,
+      cefr_level: ex.studentLevel,
+      allow_spanish: ex.allowSpanish,
+      allow_skip_test: ex.allowSkipTest,
+      allow_retake_test: ex.allowRetakeTest,
+      course_month: ex.studentMonth,
+      notes: ex.studentNotes,
+    }).catch(function() {
+      showStatus('profile-save-status', 'Saved locally. Could not sync to Google Sheet.', true);
+    });
+  }
 }
 
 function exportProfile() {
@@ -2212,7 +2310,9 @@ function saveToLocalStorage() {
       teacherName: ex.teacherName,
       studentName: ex.studentName, studentLevel: ex.studentLevel,
       studentMonth: ex.studentMonth, studentEmail: ex.studentEmail,
-      studentNotes: ex.studentNotes, webhook: WEBHOOK_URL,
+      studentNotes: ex.studentNotes,
+      allowSpanish: ex.allowSpanish, allowSkipTest: ex.allowSkipTest, allowRetakeTest: ex.allowRetakeTest,
+      webhook: WEBHOOK_URL,
       attendance: ex.attendance, weeklySummaries: ex.weeklySummaries,
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
@@ -2252,46 +2352,65 @@ function restorePTGradedState() {
   var g = ex.ptGraded;
   if (!g) return false;
 
+  _ptRestoring = true;
+
   // Restore ptScores
   if (g.ptScores) {
     Object.assign(ptScores, g.ptScores);
   }
 
-  // Restore manual sliders
+  // Restore manual sliders and their displays (only fill in values not already set by sheet)
   if (g.sliders) {
     Object.entries(g.sliders).forEach(function(entry) {
       var q = entry[0], val = entry[1];
-      var el = document.getElementById('pt-slider-' + q);
-      if (el) { el.value = val; updatePTSlider(q, parseInt(el.max)); }
+      var slider = document.getElementById('pt-slider-' + q);
+      var disp = document.getElementById('pt-disp-' + q);
+      var current = slider ? parseFloat(slider.value) : 0;
+      if (current === 0 && parseFloat(val) !== 0) {
+        if (slider) slider.value = val;
+        ptScores[q] = parseFloat(val);
+      }
+      if (disp) {
+        var score = ptScores[q] || parseFloat(val);
+        var max = slider ? parseInt(slider.max) : 5;
+        disp.innerHTML = score + ' <span>/ ' + max + '</span>';
+      }
     });
   }
 
-  // Restore Q14 sub-criteria
+  // Restore Q14 sub-criteria (only if not already set)
   if (g.subCriteria) {
+    var anySet = false;
     Object.entries(g.subCriteria).forEach(function(entry) {
       var f = entry[0], val = entry[1];
       var el = document.getElementById('pt-sc-' + f);
-      if (el) el.value = val;
+      if (el && parseFloat(el.value) === 0 && parseFloat(val) !== 0) {
+        el.value = val;
+        anySet = true;
+      }
     });
-    updatePTSubCriteria();
+    if (anySet) updatePTSubCriteria();
   }
 
-  // Restore notes
+  // Restore notes (only if the textarea is empty; skip corrupted numeric-only values)
   if (g.notes) {
     Object.entries(g.notes).forEach(function(entry) {
       var q = entry[0], val = entry[1];
+      if (!val || /^\d+(\.\d+)?$/.test(val.trim())) return; // skip empty or bare numbers
       var el = document.getElementById('pt-notes-' + q);
-      if (el) el.value = val;
+      if (el && !el.value) el.value = val;
     });
   }
 
-  // Restore overall feedback
+  // Restore overall feedback (only if empty)
   if (g.feedback) {
     var el = document.getElementById('pt-overall-feedback');
-    if (el) el.value = g.feedback;
+    if (el && !el.value) el.value = g.feedback;
   }
 
+  _ptRestoring = false;
   updatePTResults();
+  savePTGradedState();
   return true;
 }
 
