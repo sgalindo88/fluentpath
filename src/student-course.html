@@ -740,10 +740,19 @@ async function beginLesson() {
   document.getElementById('navTimer').style.display = 'block';
   document.getElementById('lessonLabel').textContent = `Day ${state.dayNumber} · ${state.level} · ${info.theme}`;
 
-  // Fetch AI lesson content
+  // Fetch AI lesson content with a 45-second safety timeout
   document.getElementById('activityWrap').innerHTML = '<div class="spinner"></div><p style="text-align:center;color:var(--muted);font-style:italic;margin-top:16px;">Loading your personalised lesson…</p>';
 
+  var lessonTimeout = setTimeout(function() {
+    document.getElementById('activityWrap').innerHTML =
+      '<div style="text-align:center;padding:40px;">' +
+      '<p style="color:var(--rust);font-weight:600;margin-bottom:12px;">Lesson is taking longer than expected.</p>' +
+      '<p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Using a built-in lesson instead.</p>' +
+      '</div>';
+  }, 45000);
+
   const lessonData = await generateLesson();
+  clearTimeout(lessonTimeout);
   state.lessonContent = lessonData;
   state.steps = buildSteps(lessonData);
   state.currentStep = 0;
@@ -850,14 +859,22 @@ Include "_es" keys for ALL user-facing strings in the JSON. The vocabulary words
       day_number: state.dayNumber
     }).map(function(pair) { return encodeURIComponent(pair[0]) + '=' + encodeURIComponent(String(pair[1]).substring(0, 5000)); }).join('&');
 
+    // Timeout after 30 seconds to prevent infinite spinner
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+
     var response = await fetch(GOOGLE_SHEET_WEBHOOK, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body
+      body: body,
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     // no-cors mode returns opaque response, can't read it — use fallback for now
-  } catch(e) {}
+  } catch(e) {
+    console.warn('[FluentPath] Lesson generation request failed or timed out:', e.message);
+  }
 
   // Use built-in fallback lesson (AI generation via Apps Script is a future enhancement)
   console.log('[FluentPath] Using built-in lesson content.');
@@ -1226,6 +1243,14 @@ let currentDrillId = null;
 let convRecording = false;
 
 function renderSpeaking(wrap, data) {
+  const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const browserWarning = hasSpeechAPI ? '' : `
+    <div style="background:#fff3e0;border:1px solid #e6a817;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7a5600;">
+      <strong>${biText('Browser not supported', 'Navegador no compatible')}</strong><br>
+      ${biText('Speech recording requires Chrome or Edge. You can still listen to the model pronunciation and practise aloud with your teacher on the video call.', 'La grabación de voz requiere Chrome o Edge. Aún puedes escuchar la pronunciación modelo y practicar en voz alta con tu profesor en la videollamada.')}
+    </div>`;
+  const recDisabled = hasSpeechAPI ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;background:var(--muted);"';
+
   const drills = (data.drills || []).map(d => `
     <div class="activity-card" style="margin-bottom:16px;">
       <div class="ac-label">DRILL · PRONUNCIATION</div>
@@ -1233,7 +1258,7 @@ function renderSpeaking(wrap, data) {
       <div style="background:#fff8e6;border-left:3px solid var(--gold);padding:10px 14px;font-size:13px;color:var(--muted);font-style:italic;margin-bottom:16px;">💡 ${biText(d.tip, d.tip_es)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button data-phrase="${escHtml(d.phrase)}" onclick="speakText(this.dataset.phrase)" style="background:var(--blue);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">${biText('🔊 Hear model', '🔊 Escuchar modelo')}</button>
-        <button data-id="${d.id}" data-phrase="${escHtml(d.phrase)}" onclick="startDrill(this.dataset.id, this.dataset.phrase)" id="drill-btn-${d.id}" style="background:var(--ink);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">${biText('🎤 Record yourself', '🎤 Grábate')}</button>
+        <button data-id="${d.id}" data-phrase="${escHtml(d.phrase)}" onclick="startDrill(this.dataset.id, this.dataset.phrase)" id="drill-btn-${d.id}" ${recDisabled || `style="background:var(--ink);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;"`}>${biText('🎤 Record yourself', '🎤 Grábate')}</button>
       </div>
       <div id="drill-transcript-${d.id}" class="record-transcript"></div>
       <div id="drill-feedback-${d.id}" class="record-feedback"></div>
@@ -1241,15 +1266,16 @@ function renderSpeaking(wrap, data) {
   `).join('');
 
   wrap.innerHTML = `
+    ${browserWarning}
     ${drills}
     <div class="activity-card">
       <div class="ac-label">FREE SPEAKING TASK</div>
       <div class="ac-heading">${biText(data.conversationPrompt || 'Speaking Practice', data.conversationPrompt_es)}</div>
       <div class="ac-body" style="margin-bottom:16px;">${biText(data.instruction || '', data.instruction_es)}</div>
       <div class="recorder-box" id="convRecorder">
-        <button class="record-btn" id="convBtn" onclick="toggleConvRecording()">🎤</button>
+        <button class="record-btn" id="convBtn" onclick="toggleConvRecording()" ${hasSpeechAPI ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>🎤</button>
         <div class="record-label">${biText('FREE SPEAKING', 'CONVERSACIÓN LIBRE')}</div>
-        <div class="record-status" id="convStatus">${biText('Press to start speaking — aim for 30+ seconds', 'Presiona para empezar a hablar — intenta 30+ segundos')}</div>
+        <div class="record-status" id="convStatus">${hasSpeechAPI ? biText('Press to start speaking — aim for 30+ seconds', 'Presiona para empezar a hablar — intenta 30+ segundos') : biText('Speech recording not available in this browser', 'Grabación de voz no disponible en este navegador')}</div>
       </div>
       <div id="conv-transcript" class="record-transcript"></div>
     </div>

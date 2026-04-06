@@ -4,6 +4,19 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.8.1] - 2026-04-05
+
+### Fixed — Bug Fixes & Hardening
+- **Placement test auto-score denominator** corrected from `/35` to `/30` (true auto-scored max: Reading 20 + Listening auto 10)
+- **Spanish accent marks** fixed in checkpoint.js recovery modal — "hace ms de un da" → "hace más de un día"
+- **AI weekly summary** replaced broken direct Anthropic API call (missing auth header + CORS blocked) with Apps Script proxy route and clear fallback message
+- **XSS hardening** in teacher dashboard — added `escHtml()` to unescaped Google Sheets data (level, day, date, status) in innerHTML assignments
+- **Speech recording browser check** — speaking step now detects unsupported browsers (non-Chrome/Edge), shows bilingual warning banner, and disables recording buttons instead of silently failing
+- **Student name validation** on hub — max 100 characters, letters/accents/hyphens/apostrophes only, with `maxlength` attribute and `aria-label` for accessibility
+- **Lesson generation timeout** — added 30-second `AbortController` on the Apps Script fetch and a 45-second safety timeout on the loading spinner to prevent infinite loading state
+
+---
+
 ## [0.8.0] - 2026-04-05
 
 ### Changed — Placement Test Improvements

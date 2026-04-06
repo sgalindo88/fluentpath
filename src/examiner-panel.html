@@ -1429,9 +1429,9 @@ function renderApprovalQueue() {
   container.innerHTML = ex.pendingLessons.map(l => `
     <div class="approval-item ${l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : ''}" id="ai-${l.id}">
       <div class="ai-info">
-        <div class="ai-name">${escHtml(l.studentName || ex.studentName)} · <span style="color:var(--gold);">${l.level}</span></div>
-        <div class="ai-meta">Day ${l.day} · ${l.date} · Topic: <em>${escHtml(l.topic || 'Not yet generated')}</em></div>
-        <div style="margin-top:4px;"><span class="pill ${l.status || 'pending'}">${l.status || 'pending'}</span></div>
+        <div class="ai-name">${escHtml(l.studentName || ex.studentName)} · <span style="color:var(--gold);">${escHtml(l.level)}</span></div>
+        <div class="ai-meta">Day ${escHtml(String(l.day))} · ${escHtml(l.date)} · Topic: <em>${escHtml(l.topic || 'Not yet generated')}</em></div>
+        <div style="margin-top:4px;"><span class="pill ${escHtml(l.status || 'pending')}">${escHtml(l.status || 'pending')}</span></div>
       </div>
       <div class="ai-actions">
         <button class="btn-preview" onclick="toggleLessonPreview('${l.id}')">👁 Preview</button>
@@ -1692,17 +1692,21 @@ Teacher notes: ${document.getElementById('today-notes')?.value || 'none'}
 Write a professional but warm 3-4 paragraph summary covering: what was achieved this week, key strengths observed, areas needing improvement, and a brief plan or encouragement for next week. Keep it practical and encouraging for an adult immigrant learner.`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}] })
+    // Route through Apps Script proxy to avoid CORS and keep API key server-side
+    const res = await fetch(WEBHOOK_URL + '?action=ai_summary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt })
     });
+    if (!res.ok) throw new Error('Proxy returned ' + res.status);
     const data = await res.json();
-    const text = data.content.map(b => b.text||'').join('');
+    const text = data.summary || data.text || '';
+    if (!text) throw new Error('Empty response from AI proxy');
     document.getElementById('week-summary-text').value = text;
     showStatus('weekly-save-status', '✓ AI draft generated — review and save.', false);
   } catch(e) {
-    showStatus('weekly-save-status', 'Could not generate — check API connection.', true);
+    console.warn('[FluentPath] AI summary generation failed:', e.message);
+    showStatus('weekly-save-status', 'AI summary unavailable — the Apps Script proxy needs an ai_summary action. Write the summary manually for now.', true);
   }
   btn.textContent = '✨ AI Draft Summary'; btn.disabled = false;
 }
@@ -1784,7 +1788,7 @@ function updateLessonRecord() {
       <tbody>
         ${ex.lessonRecords.map(r => `
           <tr style="border-bottom:1px solid var(--cream);">
-            <td style="padding:8px;font-weight:600;">Day ${r.day}</td>
+            <td style="padding:8px;font-weight:600;">Day ${escHtml(String(r.day))}</td>
             <td style="padding:8px;font-style:italic;color:var(--muted);">${escHtml(r.topic || '—')}</td>
             <td style="padding:8px;text-align:right;">${r.writingScore != null ? r.writingScore + '/25' : '—'}</td>
             <td style="padding:8px;text-align:right;">${r.speakingScore != null ? r.speakingScore + '/20' : '—'}</td>

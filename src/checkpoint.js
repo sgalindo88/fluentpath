@@ -51,7 +51,7 @@ const Checkpoint = (() => {
     if (mins < 60) return mins + ' min ago / hace ' + mins + ' min';
     const hrs = Math.round(mins / 60);
     if (hrs < 24) return hrs + 'h ago / hace ' + hrs + 'h';
-    return 'over a day ago / hace ms de un da';
+    return 'over a day ago / hace más de un día';
   }
 
   /* ── Inject modal CSS ───────────────────────────────────── */

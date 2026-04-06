@@ -133,7 +133,7 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 
     <div class="login-card">
       <label for="studentName">Your Name</label>
-      <input type="text" id="studentName" placeholder="Enter your full name" autocomplete="name">
+      <input type="text" id="studentName" placeholder="Enter your full name" autocomplete="name" maxlength="100" aria-label="Your full name">
       <p class="login-hint">Use the same name your teacher has on file.</p>
     </div>
 
@@ -259,8 +259,14 @@ function showScreen(id) {
    ───────────────────────────────────────────────────────────── */
 function enterHub() {
   const input = document.getElementById('studentName');
-  const name = input.value.trim();
+  const name = input.value.trim().substring(0, 100);
   if (!name) { input.focus(); return; }
+  if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(name)) {
+    input.setCustomValidity('Please use only letters, spaces, hyphens, and apostrophes.');
+    input.reportValidity();
+    return;
+  }
+  input.setCustomValidity('');
 
   studentName = name;
   localStorage.setItem('fp_student_name', name);

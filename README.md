@@ -120,6 +120,7 @@ english-course/
 - **Skip or re-take** placement test options when teacher enables them
 - **Completed lessons list** showing day, topic, time spent, confidence, and date
 - **Auto-login** for returning students
+- **Name validation** -- max 100 characters, letters/accents/hyphens/apostrophes only
 - **Context-aware CTA** that always shows the right next action
 - **Level-aware translation** via the shared i18n system
 
@@ -202,7 +203,9 @@ english-course/
 - **Required + skip** -- all text questions required with "Skip this question" checkbox
 - **Listening stop button** with cumulative play-time tracking
 - **Pronunciation drills** use data-attributes (no inline apostrophe issues); improved error handling with mic permission alerts
+- **Browser compatibility check** -- speaking step detects unsupported browsers, shows bilingual warning, and disables recording buttons
 - **Built-in fallback lesson** (direct Claude API removed due to CORS; future Apps Script proxy planned)
+- **Lesson generation timeout** -- 30-second fetch abort + 45-second spinner safety net prevents infinite loading
 - **Session recovery** -- auto-saves lesson content and progress every 5s
 - **Course day tracking** -- uses `fp_last_lesson_day + 1`, not day of month
 - **Lesson complete** links back to hub with "View Progress & Next Lesson"
@@ -240,7 +243,7 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 
 - **Video call** -- floating Jitsi panel joins the same room as the student
 - **localStorage persistence** under `fluentpath_teacher` key with auto-save
-- **AI-powered weekly summaries** via Claude Sonnet API
+- **AI-powered weekly summaries** via Apps Script proxy (server-side Claude API call)
 - **Webhook URL hardcoded** -- no user configuration needed
 - **No approval workflow** -- lessons start directly, approvals panel removed
 - **Auto-populate marking** -- placement test and lesson submissions auto-load when panels open
@@ -342,12 +345,12 @@ Print-inspired, academic, warm -- designed to feel calm and professional for adu
 
 Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
-### Claude API (Anthropic)
+### Claude API (Anthropic) -- via Apps Script Proxy
 
 | File | Model | Usage |
 |------|-------|-------|
-| `student-course.html` | claude-sonnet-4-20250514 | AI-generated daily lessons |
-| `examiner-panel.html` | claude-sonnet-4-20250514 | AI-drafted weekly summary narratives |
+| `student-course.html` | claude-sonnet-4-20250514 | AI-generated daily lessons (planned; uses built-in fallback for now) |
+| `examiner-panel.html` | claude-sonnet-4-20250514 | AI-drafted weekly summary narratives (routed through Apps Script `ai_summary` action) |
 
 ### Jitsi Meet (Video Calls)
 
