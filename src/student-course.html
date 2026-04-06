@@ -4,22 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FluentPath · Your Journey to Fluency</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
 <style>
-:root {
-  --ink: #1a1208;
-  --paper: #f5f0e8;
-  --cream: #ede8dc;
-  --rust: #b8471e;
-  --gold: #c9933a;
-  --rule: #c8bfa8;
-  --muted: #6b5f4e;
-  --green: #2e6e45;
-  --green-bg: #eaf3ec;
-  --blue: #1e4d8c;
-  --blue-bg: #eaf0fb;
-}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   background: var(--paper);
@@ -331,6 +317,8 @@ body {
 }
 </style>
 <link rel="stylesheet" href="mobile.css">
+<script src="config.js"></script>
+<script src="utils.js"></script>
 <script src="checkpoint.js"></script>
 </head>
 <body>
@@ -490,7 +478,7 @@ body {
 // ══════════════════════════════════════════════════════
 // CONFIG — teacher sets these
 // ══════════════════════════════════════════════════════
-const GOOGLE_SHEET_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
+const GOOGLE_SHEET_WEBHOOK = FP.WEBHOOK_URL;
 // APPROVAL_CHECK_URL removed — approval workflow no longer used
 
 // ══════════════════════════════════════════════════════
@@ -1656,13 +1644,6 @@ function speakText(text, onEnd) {
   window.speechSynthesis.speak(u);
 }
 
-// ══════════════════════════════════════════════════════
-// UTILS
-// ══════════════════════════════════════════════════════
-function escHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
 
 // ══════════════════════════════════════════════════════
 // INIT

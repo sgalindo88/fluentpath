@@ -83,6 +83,9 @@ english-course/
     ├── student-course.html        # Daily lesson (student)
     ├── examiner-panel.html        # Teacher dashboard (all-in-one)
     ├── examiner-marking.html      # Standalone marking (legacy)
+    ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys)
+    ├── utils.js                   # Shared utilities (escHtml)
+    ├── theme.css                  # Shared design tokens (CSS variables, font imports)
     ├── video-call.js              # Jitsi Meet required video panel
     ├── mobile.css                 # Mobile-first enhancements
     ├── i18n.js                    # Level-aware Spanish translation
@@ -263,6 +266,22 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 ---
 
 ## Shared Utilities
+
+### `config.js` -- Shared Configuration
+
+- **Webhook URL** -- single source of truth for the Google Apps Script endpoint (previously duplicated in 5 files)
+- **Formspree endpoint** -- email delivery endpoint
+- **CEFR level metadata** -- `FP.LEVELS` with name, theme, and colour for each level (A1--C2)
+- **localStorage keys** -- `FP.KEYS` with standardised key names
+
+### `utils.js` -- Shared Utilities
+
+- **`escHtml()`** -- HTML-escapes a string for safe `innerHTML` insertion (previously duplicated in 3 files)
+
+### `theme.css` -- Shared Design Tokens
+
+- **CSS custom properties** -- all colour variables (ink, paper, cream, rust, gold, etc.) defined once
+- **Google Fonts import** -- Playfair Display + Source Serif 4 loaded once instead of per-page
 
 ### `video-call.js` -- Required Video Calls
 

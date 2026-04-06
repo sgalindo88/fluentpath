@@ -4,19 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FluentPath · Your Journey to Fluency</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:wght@300;400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/theme.css">
 <style>
-/* ── Reset & Variables ─────────────────────────────────────── */
+/* ── Reset ─────────────────────────────────────── */
 *{margin:0;padding:0;box-sizing:border-box;}
-:root{
-  --ink:#1a1208;--paper:#f5f0e8;--cream:#ede8dc;
-  --rust:#b8471e;--gold:#c9933a;--rule:#c8bfa8;--muted:#6b5f4e;
-  --green:#2e6e45;--green-bg:#eaf3ec;
-  --blue:#1e4d8c;--blue-bg:#eaf0fb;
-  --purple:#5b3e8a;--purple-bg:#f0eaf8;
-}
 html{background:var(--paper);color:var(--ink);}
 body{font-family:'Source Serif 4',Georgia,serif;font-weight:300;line-height:1.7;min-height:100vh;}
 
@@ -206,6 +197,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
   </div>
 </div>
 
+<script src="src/config.js"></script>
+<script src="src/utils.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
    Configuration
@@ -227,16 +220,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 //     { day: 2, topic: "At the Shop", date: "2026-04-02", time_spent: 78, confidence: "Great!" }
 //   ]
 // }
-const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
-
-const LEVEL_INFO = {
-  A1: { name: 'Beginner',            theme: 'Everyday Survival',      colour: '#b8471e' },
-  A2: { name: 'Elementary',           theme: 'Community & Life',       colour: '#c9933a' },
-  B1: { name: 'Intermediate',         theme: 'The Workplace',          colour: '#2e6e45' },
-  B2: { name: 'Upper-Intermediate',   theme: 'Career & Society',       colour: '#1e4d8c' },
-  C1: { name: 'Advanced',             theme: 'Professional Mastery',   colour: '#5b3e8a' },
-  C2: { name: 'Proficiency',          theme: 'Full Fluency',           colour: '#1a1208' },
-};
+const WEBHOOK_URL  = FP.WEBHOOK_URL;
+const LEVEL_INFO   = FP.LEVELS;
 
 /* ─────────────────────────────────────────────────────────────
    State
@@ -506,11 +491,6 @@ function logout() {
 /* ─────────────────────────────────────────────────────────────
    Utilities
    ───────────────────────────────────────────────────────────── */
-function escHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
 
 function formatDate(dateStr) {
   try {

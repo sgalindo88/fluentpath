@@ -4,6 +4,16 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.9.0] - 2026-04-05
+
+### Changed — Shared Configuration, Utilities & Theme
+- **Created `src/config.js`** — single source of truth for webhook URL, Formspree endpoint, CEFR level metadata (`FP.LEVELS`), and localStorage key names (`FP.KEYS`); removed hardcoded URLs from 5 HTML files
+- **Created `src/utils.js`** — shared `escHtml()` function; removed 3 duplicate implementations (index.html, student-course.html, examiner-panel.html)
+- **Created `src/theme.css`** — shared CSS custom properties and Google Fonts import; removed duplicate `:root` blocks and font `<link>`/`@import` tags from 5 HTML files
+- **Standardised variable names** — all files now reference `FP.WEBHOOK_URL` via local aliases (`WEBHOOK_URL` or `GOOGLE_SHEET_WEBHOOK`)
+
+---
+
 ## [0.8.3] - 2026-04-05
 
 ### Fixed — Placement Test & Lesson Marking Score Persistence
