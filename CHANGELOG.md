@@ -6,7 +6,7 @@ All notable changes to the FluentPath platform are documented here.
 
 ## [0.10.0] - 2026-04-06
 
-### Changed — Shared Fetch Wrapper & Hub Data Flow
+### Changed — Shared Fetch Wrapper, Hub Data Flow & Checkpoint Auto-Resume
 - **Created `src/api.js`** — shared fetch wrapper (`FP.api`) with 30-second `AbortController` timeout, consistent error handling, and form-encoding utility; exposes `get()`, `postForm()`, and `postJson()` methods
 - **Migrated all 14 raw `fetch()` calls** across 6 files (index.html, student-initial-test.html, student-course.html, examiner-panel.html, examiner-marking.html, i18n.js) to use `FP.api`
 - **Removed manual `AbortController` boilerplate** from student-course.html lesson generation (now handled by the wrapper)
@@ -14,6 +14,9 @@ All notable changes to the FluentPath platform are documented here.
 - **Simplified hub data flow** — `fetchProgress()` now fetches progress + settings in parallel (`Promise.all`), caches the combined result as a single `fp_hub_cache` JSON entry, and falls back through cached state → individual localStorage keys
 - **Fixed settings never loaded on success** — teacher preferences (skip test, retake test) were previously only fetched when the progress request failed; now always fetched in parallel
 - **Added `FP.KEYS.HUB_CACHE`** to config.js; hub `syncIndividualKeys()` and `buildDefaultProgress()` now use `FP.KEYS` constants
+- **Checkpoint auto-resume** — recovery modal now shows a 60-second countdown with a shrinking progress bar; auto-resumes when the timer expires so reloaded sessions don't stay stuck on the modal
+- **ESC key dismisses modal** — pressing Escape resumes by default, matching the safest action
+- **Bilingual countdown text** — "Auto-resuming in Xs / Continuación automática en Xs"
 
 ---
 

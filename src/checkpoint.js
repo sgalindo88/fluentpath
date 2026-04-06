@@ -126,7 +126,25 @@ const Checkpoint = (() => {
       .ckpt-time {
         font-size: 12px;
         color: var(--muted, #6b5f4e);
-        margin-bottom: 24px;
+        margin-bottom: 12px;
+      }
+      .ckpt-countdown {
+        font-size: 12px;
+        color: var(--muted, #6b5f4e);
+        margin-bottom: 20px;
+      }
+      .ckpt-countdown-bar {
+        height: 3px;
+        background: var(--rule, #c8bfa8);
+        border-radius: 2px;
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .ckpt-countdown-fill {
+        height: 100%;
+        background: var(--ink, #1a1208);
+        border-radius: 2px;
+        transition: width 1s linear;
       }
       .ckpt-actions {
         display: flex;
@@ -176,6 +194,8 @@ const Checkpoint = (() => {
   }
 
   /* ── Recovery modal ─────────────────────────────────────── */
+  var AUTO_RESUME_SECS = 60;
+
   function showRecoveryModal(opts) {
     injectCSS();
 
@@ -191,6 +211,10 @@ const Checkpoint = (() => {
         <div class="ckpt-message">${esc(opts.message || 'You have unsaved progress.')}</div>
         <div class="ckpt-message-es">${esc(opts.messageEs || '')}</div>
         <div class="ckpt-time">${savedAt ? '⏱ Saved ' + timeAgo(savedAt) : ''}</div>
+        <div class="ckpt-countdown">
+          <span class="ckpt-countdown-text"></span>
+          <div class="ckpt-countdown-bar"><div class="ckpt-countdown-fill" style="width:100%"></div></div>
+        </div>
         <div class="ckpt-actions">
           <button class="ckpt-btn ckpt-btn-resume" id="ckptResume">
             Resume
@@ -206,12 +230,47 @@ const Checkpoint = (() => {
 
     document.body.appendChild(overlay);
 
-    document.getElementById('ckptResume').onclick = () => {
+    // ── Countdown auto-resume ──────────────────────────────
+    var remaining = AUTO_RESUME_SECS;
+    var textEl = overlay.querySelector('.ckpt-countdown-text');
+    var fillEl = overlay.querySelector('.ckpt-countdown-fill');
+
+    function updateCountdown() {
+      textEl.textContent = 'Auto-resuming in ' + remaining + 's / Continuación automática en ' + remaining + 's';
+      fillEl.style.width = ((remaining / AUTO_RESUME_SECS) * 100) + '%';
+    }
+    updateCountdown();
+
+    var interval = setInterval(function () {
+      remaining--;
+      if (remaining <= 0) {
+        doResume();
+        return;
+      }
+      updateCountdown();
+    }, 1000);
+
+    // ── ESC key dismisses (resumes) ────────────────────────
+    function onKeydown(e) {
+      if (e.key === 'Escape') doResume();
+    }
+    document.addEventListener('keydown', onKeydown);
+
+    // ── Cleanup + actions ──────────────────────────────────
+    function cleanup() {
+      clearInterval(interval);
+      document.removeEventListener('keydown', onKeydown);
       overlay.remove();
+    }
+
+    function doResume() {
+      cleanup();
       if (opts.onResume) opts.onResume();
-    };
-    document.getElementById('ckptRestart').onclick = () => {
-      overlay.remove();
+    }
+
+    document.getElementById('ckptResume').onclick = doResume;
+    document.getElementById('ckptRestart').onclick = function () {
+      cleanup();
       if (opts.onStartOver) opts.onStartOver();
     };
   }

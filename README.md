@@ -314,6 +314,8 @@ See [Level-Aware Translation System](#level-aware-translation-system) below.
 
 - **Auto-saves every 5 seconds** plus immediate save on screen/step navigation
 - **Bilingual recovery modal** (English + Spanish) with time-ago indicator on page reload
+- **60-second auto-resume countdown** with shrinking progress bar -- prevents sessions from staying stuck on the modal if student walks away
+- **ESC key dismisses** the modal (resumes by default)
 - **Placement test:** Saves screen, all MCQ and text answers, play counts, task choice
 - **Course lesson:** Saves step, answers, full AI-generated lesson content, elapsed timer
 - **Clears automatically** on successful submission or completion
