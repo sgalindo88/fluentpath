@@ -812,8 +812,6 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         <div class="send-status" id="profile-save-status"></div>
       </div>
 
-    </div><!-- /main-content -->
-
       <!-- ═══ PLACEMENT TEST MARKING PANEL ═══ -->
       <div class="panel" id="panel-placementtest">
         <div class="panel-header">
@@ -947,6 +945,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 
       </div><!-- /panel-placementtest -->
 
+    </div><!-- /main-content -->
   </div><!-- /layout -->
 </div><!-- /app -->
 
@@ -978,6 +977,7 @@ let ex = {
   aiInstructions: '',
   pendingLessons: [],
   currentWeek: 1,
+  ptGraded: null,       // saved placement test grading state (sliders, notes, scores)
 };
 
 const FOCUS_OPTIONS = [
@@ -1041,6 +1041,7 @@ function ptComputeListening() { return Math.min(['q15','q16','q17','q18','q19'].
 function ptComputeWriting()   { return (ptScores.q11||0)+(ptScores.q12||0)+(ptScores.q13||0)+(ptScores.q14||0); }
 function ptComputeSpeaking()  { return (ptScores.q21||0)+(ptScores.q22||0)+(ptScores.q23||0)+(ptScores.q24||0); }
 
+var _ptSaveTimer = null;
 function updatePTResults() {
   const r = ptComputeReading(), l = ptComputeListening(), w = ptComputeWriting(), s = ptComputeSpeaking();
   const total = r + l + w + s;
@@ -1055,6 +1056,10 @@ function updatePTResults() {
   document.getElementById('pt-res-writing').innerHTML = w + ' <span style="font-size:13px;color:var(--muted);">/ 25</span>';
   document.getElementById('pt-res-listening').innerHTML = l + ' <span style="font-size:13px;color:var(--muted);">/ 15</span>';
   document.getElementById('pt-res-speaking').innerHTML = s + ' <span style="font-size:13px;color:var(--muted);">/ 20</span>';
+
+  // Debounced save of graded state (notes trigger this on every keystroke)
+  clearTimeout(_ptSaveTimer);
+  _ptSaveTimer = setTimeout(function() { savePTGradedState(); }, 2000);
 }
 
 function updatePTSlider(q, max) {
@@ -1062,6 +1067,7 @@ function updatePTSlider(q, max) {
   document.getElementById('pt-disp-' + q).innerHTML = v + ' <span>/ ' + max + '</span>';
   ptScores[q] = v;
   updatePTResults();
+  savePTGradedState();
 }
 
 function updatePTSubCriteria() {
@@ -1075,6 +1081,7 @@ function updatePTSubCriteria() {
   document.getElementById('pt-sct-q14').textContent = total + ' / 10';
   ptScores.q14 = total;
   updatePTResults();
+  savePTGradedState();
 }
 
 function buildPTChip(qId, submitted, correct, marks) {
@@ -1204,6 +1211,79 @@ async function loadPlacementTest() {
   console.log('[FluentPath] Placement test data loaded:', Object.keys(data));
 
   updatePTResults();
+
+  // Restore previously graded scores — prefer sheet data, then localStorage
+  var restored = false;
+  if (data.graded) {
+    restored = restorePTFromSheetData(data);
+    if (restored) {
+      document.getElementById('pt-load-status').textContent += ' Graded scores loaded from sheet.';
+    }
+  }
+  if (!restored && ex.ptGraded) {
+    restorePTGradedState();
+    document.getElementById('pt-load-status').textContent += ' Previously graded scores restored from local save.';
+  }
+}
+
+/** Restore slider values from graded sheet data (section scores like "18 / 20") */
+function restorePTFromSheetData(data) {
+  var anyRestored = false;
+
+  // Helper: parse "X / Y" string to get X as number
+  function parseScore(str) {
+    if (!str) return null;
+    var m = String(str).match(/^(\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : null;
+  }
+
+  // Restore individual question scores from sheet (score_q11, score_q12, etc.)
+  ['q11','q12','q13','q20','q21','q22','q23','q24'].forEach(function(q) {
+    var val = parseScore(data['graded_' + q]);
+    if (val != null) {
+      ptScores[q] = val;
+      var slider = document.getElementById('pt-slider-' + q);
+      if (slider) { slider.value = val; updatePTSlider(q, parseInt(slider.max)); }
+      anyRestored = true;
+    }
+  });
+
+  // Restore Q14 sub-criteria from the total Q14 score (approximate: distribute evenly)
+  var q14Total = parseScore(data['graded_q14']);
+  if (q14Total != null) {
+    ptScores.q14 = q14Total;
+    // Distribute evenly across 4 sub-criteria (0-2.5 each)
+    var perCrit = Math.min(q14Total / 4, 2.5);
+    ['task','grammar','vocab','coherence'].forEach(function(f) {
+      var el = document.getElementById('pt-sc-' + f);
+      if (el) el.value = Math.round(perCrit * 2) / 2; // round to nearest 0.5
+    });
+    updatePTSubCriteria();
+    anyRestored = true;
+  }
+
+  // Restore notes
+  ['q11','q12','q13','q14','q21','q22','q23','q24'].forEach(function(q) {
+    var note = data['graded_notes_' + q];
+    if (note) {
+      var el = document.getElementById('pt-notes-' + q);
+      if (el) el.value = note;
+      anyRestored = true;
+    }
+  });
+
+  // Restore overall feedback
+  if (data.graded_feedback) {
+    var el = document.getElementById('pt-overall-feedback');
+    if (el) el.value = data.graded_feedback;
+    anyRestored = true;
+  }
+
+  if (anyRestored) {
+    updatePTResults();
+    savePTGradedState(); // sync to localStorage
+  }
+  return anyRestored;
 }
 
 async function savePlacementToSheets() {
@@ -1226,6 +1306,15 @@ async function savePlacementToSheets() {
     total_score: total + ' / 80',
     cefr_level: ptGetCEFR(total),
     examiner_feedback: document.getElementById('pt-overall-feedback').value || '',
+    score_q11: ptScores.q11 || 0,
+    score_q12: ptScores.q12 || 0,
+    score_q13: ptScores.q13 || 0,
+    score_q14: ptScores.q14 || 0,
+    score_q20: ptScores.q20 || 0,
+    score_q21: ptScores.q21 || 0,
+    score_q22: ptScores.q22 || 0,
+    score_q23: ptScores.q23 || 0,
+    score_q24: ptScores.q24 || 0,
     notes_q11: document.getElementById('pt-notes-q11').value || '',
     notes_q12: document.getElementById('pt-notes-q12').value || '',
     notes_q13: document.getElementById('pt-notes-q13').value || '',
@@ -1239,6 +1328,7 @@ async function savePlacementToSheets() {
   try {
     const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0,2000))).join('&');
     await fetch(WEBHOOK_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    savePTGradedState();
     document.getElementById('pt-save-status').textContent = '✓ Results saved to "Examiner Results" sheet.';
     document.getElementById('pt-save-status').style.color = 'var(--green)';
   } catch(e) {
@@ -1286,8 +1376,73 @@ function initApp() {
 
   document.getElementById('pt-student-name-btn').textContent = ex.studentName || 'Student';
   document.getElementById('mark-student-name-display').textContent = ex.studentName || 'your student';
+
+  // Restore profile email
+  if (ex.studentEmail) document.getElementById('prof-email').value = ex.studentEmail;
+  if (ex.studentEmail) document.getElementById('student-email').value = ex.studentEmail;
+
+  // Restore saved textarea values from localStorage
+  var noteFields = ['today_notes', 'absence_notes', 'writing_feedback', 'speaking_feedback', 'overall_feedback', 'ai_instructions'];
+  var noteElements = ['today-notes', 'absence-notes', 'writing-feedback', 'speaking-feedback', 'overall-feedback', 'ai-instructions'];
+  for (var i = 0; i < noteFields.length; i++) {
+    var saved = localStorage.getItem('fp_' + noteFields[i]);
+    if (saved) { var el = document.getElementById(noteElements[i]); if (el) el.value = saved; }
+  }
+
   // Auto-load latest submission for marking
   autoLoadSubmission();
+
+  // Fetch course progress from Google Sheets in background
+  fetchDashboardData();
+}
+
+async function fetchDashboardData() {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com') || !ex.studentName) return;
+  try {
+    var url = WEBHOOK_URL + '?action=get_progress&student=' + encodeURIComponent(ex.studentName);
+    var resp = await fetch(url, { method: 'GET', redirect: 'follow' });
+    if (!resp.ok) return;
+    var data = await resp.json();
+
+    // Merge lesson records from sheet with local records (sheet data takes precedence for new entries)
+    if (Array.isArray(data.lessons) && data.lessons.length > 0) {
+      data.lessons.forEach(function(l) {
+        var day = parseInt(l.day_number || l.day);
+        if (!day) return;
+        var existing = ex.lessonRecords.find(function(r) { return r.day === day; });
+        if (!existing) {
+          ex.lessonRecords.push({
+            day: day,
+            topic: l.topic || '',
+            writingScore: l.writing_score != null ? parseInt(l.writing_score) : null,
+            speakingScore: l.speaking_score != null ? parseInt(l.speaking_score) : null,
+            attended: true,
+            timeSpent: l.time_spent ? parseInt(l.time_spent) : null,
+          });
+        } else if (existing.writingScore == null && l.writing_score != null) {
+          existing.writingScore = parseInt(l.writing_score);
+          existing.speakingScore = l.speaking_score != null ? parseInt(l.speaking_score) : existing.speakingScore;
+          existing.timeSpent = l.time_spent ? parseInt(l.time_spent) : existing.timeSpent;
+        }
+      });
+      ex.lessonRecords.sort(function(a,b) { return a.day - b.day; });
+    }
+
+    // Update CEFR level if returned from sheet
+    if (data.cefr_level && data.cefr_level !== ex.studentLevel) {
+      ex.studentLevel = data.cefr_level;
+      document.getElementById('sb-student-level').textContent = ex.studentLevel + ' · ' + getLevelTheme(ex.studentLevel);
+      document.getElementById('prof-level').value = ex.studentLevel;
+    }
+
+    saveToLocalStorage();
+    updateDashboardStats();
+    updateLessonRecord();
+    updateSkillsSnapshot();
+    console.log('[FluentPath] Dashboard data synced from Google Sheets.');
+  } catch(e) {
+    console.warn('[FluentPath] Could not fetch dashboard data from sheet:', e.message);
+  }
 }
 
 function getLevelTheme(level) {
@@ -1296,7 +1451,11 @@ function getLevelTheme(level) {
 }
 
 function getCurrentDay() {
-  return Math.min(new Date().getDate(), 20);
+  // Use actual lesson progress: count days marked present, or fall back to lesson records count
+  const presentDays = Object.values(ex.attendance).filter(v => v === 'present').length;
+  if (presentDays > 0) return Math.min(presentDays, 20);
+  if (ex.lessonRecords.length > 0) return Math.min(ex.lessonRecords.length, 20);
+  return 1;
 }
 
 // ══════════════════════════════════════════════════════
@@ -1327,11 +1486,16 @@ function updateDashboardStats() {
   const markedCount = ex.lessonRecords.filter(r => r.writingScore != null).length;
   const markPct = done > 0 ? Math.round(markedCount/done*100) : 0;
 
+  // Avg lesson time from records (in minutes)
+  const timesMs = ex.lessonRecords.filter(r => r.timeSpent).map(r => r.timeSpent);
+  const avgTimeMin = timesMs.length > 0 ? Math.round(timesMs.reduce((a,b)=>a+b,0) / timesMs.length) : 0;
+
   // Helper: safe element setter (prevents null errors if HTML element is missing)
   function s(id, prop, val) { var el = document.getElementById(id); if (el) { if (prop === 'width') el.style.width = val; else el[prop] = val; } }
 
   s('stat-days-done',   'textContent', present);
   s('stat-attendance',  'textContent', done > 0 ? Math.round(present/done*100) + '%' : '—%');
+  s('stat-avg-time',    'textContent', avgTimeMin > 0 ? avgTimeMin + 'm' : '—m');
   s('stat-marked',      'textContent', markedCount);
   s('dash-day-num',     'textContent', dayNum);
   s('prog-overall',     'width',       pctOverall + '%');
@@ -1342,6 +1506,30 @@ function updateDashboardStats() {
   s('prog-writing-val', 'textContent', markPct + '%');
   s('prog-days',        'textContent', present);
   s('prog-attend-pct',  'textContent', done > 0 ? Math.round(present/done*100)+'%' : '—');
+
+  updateRecentActivity();
+}
+
+function updateRecentActivity() {
+  const container = document.getElementById('recent-activity');
+  if (!container) return;
+
+  // Combine lesson records and recent marking data
+  const items = ex.lessonRecords.slice().reverse().slice(0, 5);
+  if (items.length === 0) {
+    container.innerHTML = '<div style="font-size:14px;color:var(--muted);font-style:italic;">No submissions yet. They will appear here when your student completes a lesson.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(r => {
+    const score = r.writingScore != null ? (r.writingScore + (r.speakingScore || 0)) + '/45' : 'Ungraded';
+    const attended = r.attended ? '<span style="color:var(--green);font-weight:600;">Present</span>' : '<span style="color:var(--rust);">Absent</span>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--cream);">' +
+      '<div><strong>Day ' + escHtml(String(r.day)) + '</strong>' +
+      (r.topic ? ' <span style="color:var(--muted);font-size:13px;">· ' + escHtml(r.topic) + '</span>' : '') + '</div>' +
+      '<div style="display:flex;gap:12px;font-size:13px;">' + attended +
+      ' <span style="font-weight:600;">' + escHtml(score) + '</span></div></div>';
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1594,6 +1782,101 @@ function displaySubmission(data) {
 
   const confMap = ['Hard 😕', 'OK 😐', 'Good 🙂', 'Great! 😄'];
   document.getElementById('sum-confidence').textContent = data.confidence != null ? confMap[data.confidence] : '—';
+
+  // Restore existing marks if this submission was previously graded (from sheet)
+  if (data.has_marks) {
+    restoreMarksFromSheetData(data);
+  } else {
+    // Try restoring from localStorage
+    restoreMarksFromLocalStorage();
+  }
+}
+
+function restoreMarksFromSheetData(data) {
+  // Parse writing breakdown JSON: { task:X, grammar:X, vocab:X, coherence:X, total:X }
+  try {
+    var wb = data.marks_writing_breakdown ? JSON.parse(data.marks_writing_breakdown) : null;
+    if (wb) {
+      if (wb.task != null) document.getElementById('s-task').value = wb.task;
+      if (wb.grammar != null) document.getElementById('s-gram').value = wb.grammar;
+      if (wb.vocab != null) document.getElementById('s-vocab').value = wb.vocab;
+      if (wb.coherence != null) document.getElementById('s-cohe').value = wb.coherence;
+      updateWritingScore();
+    }
+  } catch(e) { console.warn('[FluentPath] Could not parse writing breakdown:', e.message); }
+
+  // Parse speaking breakdown JSON: { fluency:X, pron:X, vocab:X, comm:X, total:X }
+  try {
+    var sb = data.marks_speaking_breakdown ? JSON.parse(data.marks_speaking_breakdown) : null;
+    if (sb) {
+      if (sb.fluency != null) document.getElementById('sp-fluency').value = sb.fluency;
+      if (sb.pron != null) document.getElementById('sp-pron').value = sb.pron;
+      if (sb.vocab != null) document.getElementById('sp-vocab').value = sb.vocab;
+      if (sb.comm != null) document.getElementById('sp-comm').value = sb.comm;
+      updateSpeakingScore();
+    }
+  } catch(e) { console.warn('[FluentPath] Could not parse speaking breakdown:', e.message); }
+
+  // Restore overall feedback
+  if (data.marks_overall_feedback) {
+    var el = document.getElementById('overall-feedback');
+    if (el) el.value = data.marks_overall_feedback;
+  }
+
+  saveMarksToLocalStorage();
+  console.log('[FluentPath] Existing marks restored from sheet.');
+}
+
+function saveMarksToLocalStorage() {
+  try {
+    var markState = {
+      writingSliders: {
+        task: parseInt(document.getElementById('s-task').value) || 0,
+        grammar: parseInt(document.getElementById('s-gram').value) || 0,
+        vocab: parseInt(document.getElementById('s-vocab').value) || 0,
+        coherence: parseInt(document.getElementById('s-cohe').value) || 0,
+      },
+      speakingSliders: {
+        fluency: parseInt(document.getElementById('sp-fluency').value) || 0,
+        pron: parseInt(document.getElementById('sp-pron').value) || 0,
+        vocab: parseInt(document.getElementById('sp-vocab').value) || 0,
+        comm: parseInt(document.getElementById('sp-comm').value) || 0,
+      },
+      feedback: document.getElementById('overall-feedback')?.value || '',
+      dayNumber: ex.markingData?.day_number || null,
+    };
+    localStorage.setItem('fp_lesson_marks', JSON.stringify(markState));
+  } catch(e) {}
+}
+
+function restoreMarksFromLocalStorage() {
+  try {
+    var saved = localStorage.getItem('fp_lesson_marks');
+    if (!saved) return;
+    var ms = JSON.parse(saved);
+    // Only restore if it's for the same day
+    if (ms.dayNumber && ex.markingData && String(ms.dayNumber) !== String(ex.markingData.day_number)) return;
+
+    if (ms.writingSliders) {
+      if (ms.writingSliders.task != null) document.getElementById('s-task').value = ms.writingSliders.task;
+      if (ms.writingSliders.grammar != null) document.getElementById('s-gram').value = ms.writingSliders.grammar;
+      if (ms.writingSliders.vocab != null) document.getElementById('s-vocab').value = ms.writingSliders.vocab;
+      if (ms.writingSliders.coherence != null) document.getElementById('s-cohe').value = ms.writingSliders.coherence;
+      updateWritingScore();
+    }
+    if (ms.speakingSliders) {
+      if (ms.speakingSliders.fluency != null) document.getElementById('sp-fluency').value = ms.speakingSliders.fluency;
+      if (ms.speakingSliders.pron != null) document.getElementById('sp-pron').value = ms.speakingSliders.pron;
+      if (ms.speakingSliders.vocab != null) document.getElementById('sp-vocab').value = ms.speakingSliders.vocab;
+      if (ms.speakingSliders.comm != null) document.getElementById('sp-comm').value = ms.speakingSliders.comm;
+      updateSpeakingScore();
+    }
+    if (ms.feedback) {
+      var el = document.getElementById('overall-feedback');
+      if (el) el.value = ms.feedback;
+    }
+    console.log('[FluentPath] Marks restored from localStorage.');
+  } catch(e) {}
 }
 
 function updateWritingScore() {
@@ -1610,6 +1893,7 @@ function updateWritingScore() {
   document.getElementById('sum-writing').textContent = total + ' / 25';
   ex.writingScores = { task:t, grammar:g, vocab:v, coherence:c, total };
   updateSummaryTotal();
+  saveMarksToLocalStorage();
 }
 
 function updateSpeakingScore() {
@@ -1626,6 +1910,7 @@ function updateSpeakingScore() {
   document.getElementById('sum-speaking').textContent = total + ' / 20';
   ex.speakingScores = { fluency:f, pron:p, vocab:v, comm:c, total };
   updateSummaryTotal();
+  saveMarksToLocalStorage();
 }
 
 function updateSummaryTotal() {
@@ -1802,15 +2087,36 @@ function updateSkillsSnapshot() {
   const records = ex.lessonRecords.filter(r => r.writingScore != null);
   if (records.length === 0) return;
   const avgW = Math.round(records.reduce((a,r) => a+r.writingScore, 0) / records.length);
-  const avgS = Math.round(records.filter(r=>r.speakingScore!=null).reduce((a,r)=>a+r.speakingScore,0) / (records.filter(r=>r.speakingScore!=null).length||1));
+  const speakRecords = records.filter(r => r.speakingScore != null);
+  const avgS = speakRecords.length > 0 ? Math.round(speakRecords.reduce((a,r) => a+r.speakingScore, 0) / speakRecords.length) : 0;
   const wPct = Math.round(avgW/25*100);
   const sPct = Math.round(avgS/20*100);
-  document.getElementById('skill-vocab').style.width = wPct + '%';
-  document.getElementById('skill-vocab-val').textContent = avgW + '/25 avg';
+
+  // Estimate listening from weekly summary data (Excellent=90%, Good=70%, Needs Work=45%, Struggling=20%)
+  var listenPct = 0;
+  var listenCount = 0;
+  var ratingMap = { 'Excellent': 90, 'Good': 70, 'Needs Work': 45, 'Struggling': 20 };
+  Object.values(ex.weeklySummaries).forEach(function(wk) {
+    if (wk.listening) { listenPct += (ratingMap[wk.listening] || 50); listenCount++; }
+  });
+  listenPct = listenCount > 0 ? Math.round(listenPct / listenCount) : 0;
+
+  // Estimate vocabulary from weekly summary data
+  var vocabPct = 0;
+  var vocabCount = 0;
+  Object.values(ex.weeklySummaries).forEach(function(wk) {
+    if (wk.vocab) { vocabPct += (ratingMap[wk.vocab] || 50); vocabCount++; }
+  });
+  vocabPct = vocabCount > 0 ? Math.round(vocabPct / vocabCount) : wPct;
+
+  document.getElementById('skill-vocab').style.width = vocabPct + '%';
+  document.getElementById('skill-vocab-val').textContent = vocabPct + '%';
   document.getElementById('skill-speak').style.width = sPct + '%';
   document.getElementById('skill-speak-val').textContent = avgS + '/20 avg';
   document.getElementById('skill-write').style.width = wPct + '%';
   document.getElementById('skill-write-val').textContent = avgW + '/25 avg';
+  document.getElementById('skill-listen').style.width = listenPct + '%';
+  document.getElementById('skill-listen-val').textContent = listenPct > 0 ? listenPct + '%' : '—';
   document.getElementById('prog-avg-write').textContent = avgW;
   document.getElementById('prog-avg-speak').textContent = avgS;
 }
@@ -1949,9 +2255,83 @@ function saveToLocalStorage() {
       attendance: ex.attendance, weeklySummaries: ex.weeklySummaries,
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
+      ptGraded: ex.ptGraded || null,
     };
     localStorage.setItem('fluentpath_teacher', JSON.stringify(toSave));
   } catch(e) {}
+}
+
+function savePTGradedState() {
+  ex.ptGraded = {
+    ptScores: JSON.parse(JSON.stringify(ptScores)),
+    sliders: {},
+    subCriteria: {},
+    notes: {},
+    feedback: document.getElementById('pt-overall-feedback')?.value || '',
+  };
+  // Save manual slider values (Q11-Q13, Q20-Q24)
+  ['q11','q12','q13','q20','q21','q22','q23','q24'].forEach(function(q) {
+    var el = document.getElementById('pt-slider-' + q);
+    if (el) ex.ptGraded.sliders[q] = parseFloat(el.value);
+  });
+  // Save Q14 sub-criteria
+  ['task','grammar','vocab','coherence'].forEach(function(f) {
+    var el = document.getElementById('pt-sc-' + f);
+    if (el) ex.ptGraded.subCriteria[f] = parseFloat(el.value);
+  });
+  // Save notes
+  ['q11','q12','q13','q14','q21','q22','q23','q24'].forEach(function(q) {
+    var el = document.getElementById('pt-notes-' + q);
+    if (el) ex.ptGraded.notes[q] = el.value;
+  });
+  saveToLocalStorage();
+}
+
+function restorePTGradedState() {
+  var g = ex.ptGraded;
+  if (!g) return false;
+
+  // Restore ptScores
+  if (g.ptScores) {
+    Object.assign(ptScores, g.ptScores);
+  }
+
+  // Restore manual sliders
+  if (g.sliders) {
+    Object.entries(g.sliders).forEach(function(entry) {
+      var q = entry[0], val = entry[1];
+      var el = document.getElementById('pt-slider-' + q);
+      if (el) { el.value = val; updatePTSlider(q, parseInt(el.max)); }
+    });
+  }
+
+  // Restore Q14 sub-criteria
+  if (g.subCriteria) {
+    Object.entries(g.subCriteria).forEach(function(entry) {
+      var f = entry[0], val = entry[1];
+      var el = document.getElementById('pt-sc-' + f);
+      if (el) el.value = val;
+    });
+    updatePTSubCriteria();
+  }
+
+  // Restore notes
+  if (g.notes) {
+    Object.entries(g.notes).forEach(function(entry) {
+      var q = entry[0], val = entry[1];
+      var el = document.getElementById('pt-notes-' + q);
+      if (el) el.value = val;
+    });
+  }
+
+  // Restore overall feedback
+  if (g.feedback) {
+    var el = document.getElementById('pt-overall-feedback');
+    if (el) el.value = g.feedback;
+  }
+
+  updatePTResults();
+  return true;
 }
 
 function loadFromLocalStorage() {

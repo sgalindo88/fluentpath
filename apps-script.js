@@ -134,6 +134,8 @@ var HEADERS = {
     'reading_score', 'writing_score', 'listening_score', 'speaking_score',
     'total_score', 'cefr_level',
     'examiner_feedback',
+    'score_q11', 'score_q12', 'score_q13', 'score_q14', 'score_q20',
+    'score_q21', 'score_q22', 'score_q23', 'score_q24',
     'notes_q11', 'notes_q12', 'notes_q13', 'notes_q14',
     'notes_q21', 'notes_q22', 'notes_q23', 'notes_q24'
   ],
@@ -279,7 +281,7 @@ function handleGetSettings(studentName) {
 
 
 // ── GET: get_test_results ──────────────────────────────
-// Returns the student's placement test submission
+// Returns the student's placement test submission AND any existing graded results
 function handleGetTestResults(studentName) {
   if (!studentName) return { found: false };
 
@@ -287,12 +289,46 @@ function handleGetTestResults(studentName) {
   if (!row) return { found: false };
 
   row['found'] = true;
+
+  // Also check if the test has already been graded (Examiner Results)
+  var graded = findLastByStudent('Examiner Results', HEADERS['Examiner Results'], studentName);
+  if (graded) {
+    row['graded'] = true;
+    row['graded_reading_score'] = graded['reading_score'] || '';
+    row['graded_writing_score'] = graded['writing_score'] || '';
+    row['graded_listening_score'] = graded['listening_score'] || '';
+    row['graded_speaking_score'] = graded['speaking_score'] || '';
+    row['graded_total_score'] = graded['total_score'] || '';
+    row['graded_cefr_level'] = graded['cefr_level'] || '';
+    row['graded_feedback'] = graded['examiner_feedback'] || '';
+    // Individual question notes
+    row['graded_notes_q11'] = graded['notes_q11'] || '';
+    row['graded_notes_q12'] = graded['notes_q12'] || '';
+    row['graded_notes_q13'] = graded['notes_q13'] || '';
+    row['graded_notes_q14'] = graded['notes_q14'] || '';
+    row['graded_notes_q21'] = graded['notes_q21'] || '';
+    row['graded_notes_q22'] = graded['notes_q22'] || '';
+    row['graded_notes_q23'] = graded['notes_q23'] || '';
+    row['graded_notes_q24'] = graded['notes_q24'] || '';
+    // Individual question scores (if saved)
+    row['graded_q11'] = graded['score_q11'] || '';
+    row['graded_q12'] = graded['score_q12'] || '';
+    row['graded_q13'] = graded['score_q13'] || '';
+    row['graded_q14'] = graded['score_q14'] || '';
+    row['graded_q20'] = graded['score_q20'] || '';
+    row['graded_q21'] = graded['score_q21'] || '';
+    row['graded_q22'] = graded['score_q22'] || '';
+    row['graded_q23'] = graded['score_q23'] || '';
+    row['graded_q24'] = graded['score_q24'] || '';
+  }
+
   return row;
 }
 
 
 // ── GET: get_latest_submission ─────────────────────────
-// Returns the most recent ungraded lesson submission
+// Returns the most recent lesson submission (prefers ungraded; falls back to latest graded)
+// Also includes existing marks if the submission has been graded
 function handleGetLatestSubmission(studentName) {
   if (!studentName) return { found: false };
 
@@ -301,31 +337,49 @@ function handleGetLatestSubmission(studentName) {
   var progressRows = sheetToObjects(progressSheet);
   var target = String(studentName).toLowerCase().trim();
 
-  // Get all graded days for this student
+  // Get all graded days for this student (with their marks data)
   var marksSheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
   var marksRows = sheetToObjects(marksSheet);
   var gradedDays = {};
   for (var j = 0; j < marksRows.length; j++) {
     if (String(marksRows[j]['student_name'] || '').toLowerCase().trim() === target) {
-      gradedDays[String(marksRows[j]['day_number'])] = true;
+      gradedDays[String(marksRows[j]['day_number'])] = marksRows[j];
     }
   }
 
-  // Find the latest ungraded submission
-  var latest = null;
+  // Find the latest ungraded submission; track latest overall as fallback
+  var latestUngraded = null;
+  var latestOverall = null;
   for (var i = 0; i < progressRows.length; i++) {
     var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
     if (name === target) {
+      latestOverall = progressRows[i];
       var dayNum = String(progressRows[i]['day_number'] || '');
       if (!gradedDays[dayNum]) {
-        latest = progressRows[i];
+        latestUngraded = progressRows[i];
       }
     }
   }
 
+  // Prefer ungraded; fall back to latest submission
+  var latest = latestUngraded || latestOverall;
   if (!latest) return { found: false };
 
   latest['found'] = true;
+
+  // Attach existing marks if this day has been graded
+  var dayKey = String(latest['day_number'] || '');
+  var marks = gradedDays[dayKey];
+  if (marks) {
+    latest['has_marks'] = true;
+    latest['marks_writing_score'] = marks['writing_score'] || '';
+    latest['marks_speaking_score'] = marks['speaking_score'] || '';
+    latest['marks_total_score'] = marks['total_score'] || '';
+    latest['marks_writing_breakdown'] = marks['writing_breakdown'] || '';
+    latest['marks_speaking_breakdown'] = marks['speaking_breakdown'] || '';
+    latest['marks_overall_feedback'] = marks['overall_feedback'] || '';
+  }
+
   return latest;
 }
 
@@ -380,7 +434,9 @@ function doPost(e) {
       upsertByStudent('Settings', HEADERS['Settings'], params['student_name'], data);
 
     } else if (sheetName === 'Examiner Results') {
-      safeAppendRow('Examiner Results', HEADERS['Examiner Results'], params);
+      var examData = {};
+      HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
+      upsertByStudent('Examiner Results', HEADERS['Examiner Results'], params['candidate_name'], examData);
 
     } else {
       // Default: student submitted placement test → Initial Test Results

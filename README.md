@@ -242,13 +242,16 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 #### Key Features
 
 - **Video call** -- floating Jitsi panel joins the same room as the student
-- **localStorage persistence** under `fluentpath_teacher` key with auto-save
+- **localStorage persistence** under `fluentpath_teacher` key with auto-save; textarea values (notes, feedback) also restored on reload
 - **AI-powered weekly summaries** via Apps Script proxy (server-side Claude API call)
 - **Webhook URL hardcoded** -- no user configuration needed
 - **No approval workflow** -- lessons start directly, approvals panel removed
-- **Auto-populate marking** -- placement test and lesson submissions auto-load when panels open
-- **Null-safe dashboard stats** -- prevents crashes when elements are missing
-- **Google Sheets integration** for marks and settings (via `safeAppendRow` for column-safe writes)
+- **Auto-populate marking** -- placement test and lesson submissions auto-load when panels open; previously graded scores restored from Google Sheets (individual question scores, breakdowns, notes) with localStorage fallback
+- **Dashboard stats** -- days completed, attendance %, avg lesson time, lessons marked; recent activity feed with last 5 lessons
+- **Google Sheets sync** -- fetches course progress on init, merges with localStorage, syncs CEFR level changes
+- **Skills snapshot** -- vocabulary, speaking, writing, and listening progress bars derived from marks and weekly summary ratings
+- **Course day tracking** -- uses actual attendance/lesson count, not calendar day
+- **Google Sheets integration** for marks and settings (via `safeAppendRow` for column-safe writes; `upsertByStudent` for Examiner Results to avoid duplicates)
 - **Demo data** built in for testing without live data
 
 ---
@@ -396,7 +399,7 @@ The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHE
 | Tab | Purpose |
 |-----|---------|
 | **Initial Test Results** | Raw student test submissions |
-| **Examiner Results** | Graded test results with CEFR levels |
+| **Examiner Results** | Graded test results with CEFR levels, individual question scores (`score_q11`--`score_q24`), and per-question notes |
 | **Course Progress** | Completed daily lesson records |
 | **Settings** | Teacher preferences per student (allow_spanish, allow_skip_test, etc.) |
 | **Lesson Approvals** | Approval workflow between student and teacher |

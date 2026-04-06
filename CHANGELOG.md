@@ -4,6 +4,32 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.8.3] - 2026-04-05
+
+### Fixed — Placement Test & Lesson Marking Score Persistence
+- **Placement test graded scores now load** — Apps Script `get_test_results` returns previously graded data from "Examiner Results" sheet (individual question scores, notes, feedback, CEFR level)
+- **Lesson marking grades now load** — Apps Script `get_latest_submission` returns existing marks from "Lesson Marks" sheet (writing/speaking breakdowns, feedback)
+- **Individual question scores saved** — `savePlacementToSheets()` now writes `score_q11`–`score_q24` to the Examiner Results sheet, not just section totals
+- **Examiner Results uses upsert** — changed from `safeAppendRow` (duplicate rows on re-grade) to `upsertByStudent` (updates existing row)
+- **Placement test sliders persist** — graded slider values, Q14 sub-criteria, and per-question notes saved to localStorage via `savePTGradedState()`; restored on reload from sheet data first, localStorage fallback
+- **Lesson marking sliders persist** — writing and speaking slider values saved to localStorage via `saveMarksToLocalStorage()`; restored from sheet breakdown JSON first, localStorage fallback
+- **Debounced auto-save** — placement test notes trigger a 2-second debounced save; sliders save immediately
+
+---
+
+## [0.8.2] - 2026-04-05
+
+### Fixed — Teacher Dashboard Data Display
+- **Placement test panel layout** — moved panel inside `.main-content` div; was rendering outside the sidebar layout (broken positioning)
+- **Dashboard stats populated** — "Avg. Lesson Time" stat now calculates from lesson records; "Recent Lesson Activity" section now shows last 5 lessons with scores and attendance
+- **`getCurrentDay()` fixed** — now uses actual course progress (attendance/lesson count) instead of calendar day of month (e.g. April 5 ≠ Day 5)
+- **Textarea values restored on reload** — teacher notes, absence notes, writing/speaking feedback, overall feedback, and AI instructions now persist across page reloads via localStorage
+- **Profile email restored** — student email now populates both the profile form and the marking send-results form on reload
+- **Skills snapshot listening bar** — listening progress bar now calculates from weekly summary ratings instead of always showing 0%; vocabulary bar also uses weekly summary data when available
+- **Google Sheets dashboard sync** — `fetchDashboardData()` now fetches course progress from Google Sheets on init, merges lesson records with localStorage, and syncs CEFR level changes
+
+---
+
 ## [0.8.1] - 2026-04-05
 
 ### Fixed — Bug Fixes & Hardening
