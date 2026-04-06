@@ -318,6 +318,7 @@ body {
 </style>
 <link rel="stylesheet" href="mobile.css">
 <script src="config.js"></script>
+<script src="api.js"></script>
 <script src="utils.js"></script>
 <script src="checkpoint.js"></script>
 </head>
@@ -839,26 +840,13 @@ Include "_es" keys for ALL user-facing strings in the JSON. The vocabulary words
 
   // Try generating via Google Apps Script proxy (avoids CORS issues with direct API calls)
   try {
-    var body = Object.entries({
+    await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, {
       action: 'generate_lesson',
       prompt: prompt,
       student_name: state.studentName,
       level: state.level,
       day_number: state.dayNumber
-    }).map(function(pair) { return encodeURIComponent(pair[0]) + '=' + encodeURIComponent(String(pair[1]).substring(0, 5000)); }).join('&');
-
-    // Timeout after 30 seconds to prevent infinite spinner
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, 30000);
-
-    var response = await fetch(GOOGLE_SHEET_WEBHOOK, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body,
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+    }, { maxValueLength: 5000 });
     // no-cors mode returns opaque response, can't read it — use fallback for now
   } catch(e) {
     console.warn('[FluentPath] Lesson generation request failed or timed out:', e.message);
@@ -1626,8 +1614,7 @@ async function saveProgress(endTime) {
   };
 
   try {
-    const body = Object.entries(payload).map(([k,v]) => encodeURIComponent(k)+'='+encodeURIComponent(String(v))).join('&');
-    await fetch(GOOGLE_SHEET_WEBHOOK, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+    await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload);
     return true;
   } catch(e) { return false; }
 }

@@ -686,6 +686,7 @@ body {
 </div>
 
 <script src="config.js"></script>
+<script src="api.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // CONFIGURATION — paste your Google Apps Script URL here
@@ -1093,15 +1094,7 @@ async function saveToSheets() {
   showSheetsStatus('Saving…', false);
 
   try {
-    const formBody = Object.entries(payload)
-      .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0, 2000)))
-      .join('&');
-    await fetch(webhookUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formBody,
-    });
+    await FP.api.postForm(webhookUrl, payload);
     showSheetsStatus('✓ Results saved to the "Examiner Results" sheet.', false);
   } catch (err) {
     showSheetsStatus('⚠ Could not reach the webhook. Check the URL and try again.', true);

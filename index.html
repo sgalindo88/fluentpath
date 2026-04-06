@@ -198,6 +198,7 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 </div>
 
 <script src="src/config.js"></script>
+<script src="src/api.js"></script>
 <script src="src/utils.js"></script>
 <script>
 /* ─────────────────────────────────────────────────────────────
@@ -271,8 +272,7 @@ async function fetchProgress(name) {
   // Try Google Sheet first
   try {
     const url = WEBHOOK_URL + '?action=get_progress&student=' + encodeURIComponent(name);
-    const resp = await fetch(url, { method: 'GET' });
-    const data = await resp.json();
+    const data = await FP.api.get(url);
     if (data && data.found) {
       progress = data;
       // Cache to localStorage
@@ -303,8 +303,7 @@ async function fetchProgress(name) {
   // Also try to fetch teacher settings (allow_skip_test, etc.)
   try {
     const settingsUrl = WEBHOOK_URL + '?action=get_settings&student=' + encodeURIComponent(name);
-    const settingsResp = await fetch(settingsUrl, { method: 'GET' });
-    const settingsData = await settingsResp.json();
+    const settingsData = await FP.api.get(settingsUrl);
     if (settingsData && settingsData.found) {
       settings.allow_skip_test = !!settingsData.allow_skip_test;
       settings.allow_retake_test = !!settingsData.allow_retake_test;

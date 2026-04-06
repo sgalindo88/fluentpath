@@ -783,6 +783,7 @@ textarea.text-input-area { min-height: 160px; }
 </style>
 <link rel="stylesheet" href="mobile.css">
 <script src="config.js"></script>
+<script src="api.js"></script>
 <script src="checkpoint.js"></script>
 </head>
 <body>
@@ -1932,27 +1933,15 @@ async function submitResults() {
   // ── Formspree (email) ──
   if (!missingFormspree) {
     try {
-      const res = await fetch(FORMSPREE_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      results.email = res.ok ? 'ok' : 'error';
+      await FP.api.postJson(FORMSPREE_ENDPOINT, payload);
+      results.email = 'ok';
     } catch { results.email = 'error'; }
   }
 
   // ── Google Sheet (form-encoded + no-cors — required for Apps Script) ──
   if (!missingSheet) {
     try {
-      const formBody = Object.entries(payload)
-        .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v).substring(0, 2000)))
-        .join('&');
-      await fetch(GOOGLE_SHEET_WEBHOOK, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody,
-      });
+      await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload);
       results.sheet = 'ok';
     } catch { results.sheet = 'error'; }
   }

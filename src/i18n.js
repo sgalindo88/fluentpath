@@ -700,8 +700,7 @@ const I18n = (() => {
     if (!webhook || webhook.includes('YOUR_')) return;
     try {
       const url = webhook + '?action=get_settings&student=' + encodeURIComponent(name);
-      const resp = await fetch(url, { method: 'GET' });
-      const data = await resp.json();
+      const data = await FP.api.get(url);
       if (data && data.found && data.allow_spanish) {
         teacherApproved = true;
         // Rebuild the toggle

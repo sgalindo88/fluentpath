@@ -84,6 +84,7 @@ english-course/
     ├── examiner-panel.html        # Teacher dashboard (all-in-one)
     ├── examiner-marking.html      # Standalone marking (legacy)
     ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys)
+    ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding)
     ├── utils.js                   # Shared utilities (escHtml)
     ├── theme.css                  # Shared design tokens (CSS variables, font imports)
     ├── video-call.js              # Jitsi Meet required video panel
@@ -273,6 +274,13 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **Formspree endpoint** -- email delivery endpoint
 - **CEFR level metadata** -- `FP.LEVELS` with name, theme, and colour for each level (A1--C2)
 - **localStorage keys** -- `FP.KEYS` with standardised key names
+
+### `api.js` -- Shared Fetch Wrapper
+
+- **`FP.api.get(url, options)`** -- GET request with 30-second timeout, returns parsed JSON; throws on non-OK response
+- **`FP.api.postForm(url, payload, options)`** -- POST form-urlencoded in `no-cors` mode for Google Apps Script webhooks; auto-encodes payload with optional value length limit (`maxValueLength`, default 2 000)
+- **`FP.api.postJson(url, payload, options)`** -- POST JSON with readable response (Formspree, Apps Script proxy); returns parsed JSON
+- All methods use `AbortController` with a configurable timeout (default 30 seconds)
 
 ### `utils.js` -- Shared Utilities
 

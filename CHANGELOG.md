@@ -4,6 +4,16 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.10.0] - 2026-04-06
+
+### Changed — Shared Fetch Wrapper
+- **Created `src/api.js`** — shared fetch wrapper (`FP.api`) with 30-second `AbortController` timeout, consistent error handling, and form-encoding utility; exposes `get()`, `postForm()`, and `postJson()` methods
+- **Migrated all 14 raw `fetch()` calls** across 6 files (index.html, student-initial-test.html, student-course.html, examiner-panel.html, examiner-marking.html, i18n.js) to use `FP.api`
+- **Removed manual `AbortController` boilerplate** from student-course.html lesson generation (now handled by the wrapper)
+- **Removed manual form-encoding boilerplate** from all `no-cors` POST calls (now handled by `FP.api.postForm()`)
+
+---
+
 ## [0.9.0] - 2026-04-05
 
 ### Changed — Shared Configuration, Utilities & Theme
