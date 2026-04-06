@@ -1349,11 +1349,10 @@ function initApp() {
 
   // Launch video call panel so the teacher can join the student's call
   if (typeof VideoCall !== 'undefined' && ex.studentName) {
-    VideoCall.init({
-      studentName: ex.studentName,
-      date: new Date().toISOString().split('T')[0],
-      role: 'teacher'
-    });
+    var vcDate = new Date().toISOString().split('T')[0];
+    if (!VideoCall.init({ studentName: ex.studentName, date: vcDate, role: 'teacher' })) {
+      VideoCall.updateRoom(ex.studentName, vcDate);
+    }
   }
 
   document.getElementById('pt-student-name-btn').textContent = ex.studentName || 'Student';

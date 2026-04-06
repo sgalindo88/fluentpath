@@ -431,14 +431,15 @@ function renderDashboard() {
     msCourseDesc.textContent = 'You have completed ' + courseDays + ' of 20 lessons. Next up: Day ' + nextDay + '.';
     msCourseCard.style.display = 'block';
 
-    // Build lesson history table from progress data
+    // Build lesson history (show last 5, toggle to view all)
     var historyHtml = '';
     if (d.lessons && d.lessons.length > 0) {
-      historyHtml = '<div style="margin-top:16px;border-top:1px solid var(--rule);padding-top:12px;">' +
-        '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">Completed Lessons</div>' +
-        '<div style="display:flex;flex-direction:column;gap:6px;">';
-      d.lessons.forEach(function(lesson) {
-        historyHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--cream);border-radius:4px;font-size:13px;">' +
+      var lessons = d.lessons;
+      var total = lessons.length;
+      var MAX_VISIBLE = 5;
+
+      function lessonRowHtml(lesson) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--cream);border-radius:4px;font-size:13px;">' +
           '<div><strong>Day ' + escHtml(String(lesson.day)) + '</strong>' +
           (lesson.topic ? ' <span style="color:var(--muted);">· ' + escHtml(lesson.topic) + '</span>' : '') + '</div>' +
           '<div style="display:flex;gap:12px;align-items:center;">' +
@@ -446,8 +447,31 @@ function renderDashboard() {
           (lesson.confidence ? '<span style="font-size:11px;">' + escHtml(lesson.confidence) + '</span>' : '') +
           (lesson.date ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(lesson.date) + '</span>' : '') +
           '</div></div>';
-      });
-      historyHtml += '</div></div>';
+      }
+
+      historyHtml = '<div style="margin-top:16px;border-top:1px solid var(--rule);padding-top:12px;">' +
+        '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">Completed Lessons</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;">';
+
+      // Show last N lessons (most recent at top)
+      var visible = total <= MAX_VISIBLE ? lessons : lessons.slice(-MAX_VISIBLE);
+      visible.forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
+
+      // Hidden overflow with toggle
+      if (total > MAX_VISIBLE) {
+        historyHtml += '</div>' +
+          '<div id="lesson-history-all" style="display:none;flex-direction:column;gap:6px;margin-top:6px;">';
+        lessons.slice(0, -MAX_VISIBLE).forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
+        historyHtml += '</div>' +
+          '<a href="#" id="lesson-history-toggle" onclick="' +
+            "var el=document.getElementById('lesson-history-all');var lnk=document.getElementById('lesson-history-toggle');" +
+            "if(el.style.display==='none'){el.style.display='flex';lnk.textContent='Show less';}else{el.style.display='none';lnk.textContent='View all " + total + " lessons';}" +
+            "return false;" +
+          '" style="display:block;text-align:center;margin-top:10px;font-size:13px;color:var(--rust);text-decoration:none;font-style:italic;">View all ' + total + ' lessons</a>';
+      } else {
+        historyHtml += '</div>';
+      }
+      historyHtml += '</div>';
     }
 
     msCourseCard.innerHTML =

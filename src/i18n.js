@@ -26,6 +26,7 @@ const I18n = (() => {
   let mode = null;         // set by setLevel()
   let level = null;
   let teacherApproved = false;  // for C1 gated mode
+  let teacherApprovalChecked = false; // skip re-fetch after first check
   let initialized = false;
 
   /* ── Visual cues — section icons ────────────────────────── */
@@ -511,7 +512,8 @@ const I18n = (() => {
     });
 
     // Translate step counter pattern: "Step X of Y" → "Paso X de Y"
-    document.querySelectorAll('*').forEach(el => {
+    // Target common leaf text elements instead of scanning every DOM node
+    document.querySelectorAll('span, div, p, strong, em, small, b, i, a, label, td, li').forEach(el => {
       if (el.children.length > 0 || el.dataset.i18nSwapped) return;
       var txt = el.textContent.trim();
       var stepMatch = txt.match(/^Step (\d+) of (\d+)$/);
@@ -690,8 +692,10 @@ const I18n = (() => {
     addSectionIcons();
   }
 
-  /** Check teacher approval from Google Sheets */
+  /** Check teacher approval from Google Sheets (cached after first fetch) */
   async function checkTeacherApproval() {
+    if (teacherApprovalChecked) return;
+    teacherApprovalChecked = true;
     const name = localStorage.getItem('fp_student_name') || '';
     if (!name) return;
     const webhook = (typeof WEBHOOK_URL !== 'undefined' && WEBHOOK_URL)
@@ -716,10 +720,11 @@ const I18n = (() => {
      ═════════════════════════════════════════════════════════ */
   function addSectionIcons() {
     document.querySelectorAll('h1, h2, h3, .step-title, .section-title').forEach(el => {
-      if (el.querySelector('.i18n-icon')) return;
+      if (el.dataset.i18nIcon) return; // attribute check instead of querySelector
       const text = getDirectText(el).trim();
       for (const [keyword, icon] of Object.entries(SECTION_ICONS)) {
         if (text.includes(keyword)) {
+          el.dataset.i18nIcon = 'true';
           const span = document.createElement('span');
           span.className = 'i18n-icon';
           span.textContent = icon;
@@ -732,34 +737,33 @@ const I18n = (() => {
   }
 
   function clearAll() {
-    // Remove hints, icons, tooltips
+    // Pass 1: remove all injected elements
     document.querySelectorAll('.i18n-hint, .i18n-icon, .i18n-tooltip').forEach(el => el.remove());
-    // Restore swapped text (spanish-primary mode)
-    document.querySelectorAll('[data-i18n-swapped]').forEach(el => {
-      const original = el.dataset.i18nOriginal;
-      if (original) {
-        // Remove the hint first
-        const hint = el.querySelector('.i18n-hint');
-        if (hint) hint.remove();
-        // Restore text
-        el.childNodes.forEach(node => {
-          if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-            node.textContent = original;
-          }
-        });
+    // Pass 2: restore all i18n state in a single query
+    document.querySelectorAll('[data-i18n-swapped], [data-i18n-tap], [data-i18n-original-ph], [data-i18n-icon]').forEach(el => {
+      if (el.dataset.i18nSwapped) {
+        const original = el.dataset.i18nOriginal;
+        if (original) {
+          el.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+              node.textContent = original;
+            }
+          });
+        }
+        delete el.dataset.i18nSwapped;
+        delete el.dataset.i18nOriginal;
       }
-      delete el.dataset.i18nSwapped;
-      delete el.dataset.i18nOriginal;
-    });
-    // Restore placeholders
-    document.querySelectorAll('[data-i18n-original-ph]').forEach(el => {
-      el.placeholder = el.dataset.i18nOriginalPh;
-      delete el.dataset.i18nOriginalPh;
-    });
-    // Remove tappable markers
-    document.querySelectorAll('[data-i18n-tap]').forEach(el => {
-      el.classList.remove('i18n-tappable');
-      delete el.dataset.i18nTap;
+      if (el.dataset.i18nOriginalPh) {
+        el.placeholder = el.dataset.i18nOriginalPh;
+        delete el.dataset.i18nOriginalPh;
+      }
+      if (el.dataset.i18nTap) {
+        el.classList.remove('i18n-tappable');
+        delete el.dataset.i18nTap;
+      }
+      if (el.dataset.i18nIcon) {
+        delete el.dataset.i18nIcon;
+      }
     });
   }
 

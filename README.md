@@ -297,6 +297,7 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **Optional mode:** Floating panel for the teacher dashboard (collapsed button, expandable iframe)
 - **Deterministic room names:** `FluentPath-{name}-{YYYYMMDD}` -- teacher and student auto-join the same room
 - **Controls:** Copy link, pop-out to new tab, minimise, end call
+- **Re-init guard:** `init()` runs once and returns `false` on subsequent calls; use `updateRoom(studentName, date)` to change the room without full re-initialization
 
 ### `mobile.css` -- Mobile-First Enhancements
 

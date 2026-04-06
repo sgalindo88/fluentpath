@@ -601,9 +601,9 @@ function tryResumeLesson() {
       state.timeElapsed = data.timeElapsed || 0;
       updateTimerDisplay();
 
-      // Launch video call
+      // Show video call (already initialized in required mode on cover screen)
       if (typeof VideoCall !== 'undefined') {
-        VideoCall.init({ studentName: state.studentName, date: state.lessonDate, role: 'student' });
+        VideoCall.show();
       }
 
       buildStepDots();

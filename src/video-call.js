@@ -5,11 +5,12 @@
    Usage:
      <script src="video-call.js"></script>
      <script>
-       VideoCall.init({
+       VideoCall.init({              // once only — returns false on re-call
          studentName: 'John Doe',
-         date: '2026-04-05',       // optional, defaults to today
-         role: 'student'           // 'student' or 'teacher'
+         date: '2026-04-05',        // optional, defaults to today
+         role: 'student'            // 'student' or 'teacher'
        });
+       VideoCall.updateRoom('Jane', '2026-04-06'); // re-callable room update
      </script>
 
    Both teacher and student get the same room name (derived from
@@ -496,17 +497,9 @@ const VideoCall = (() => {
     return getRoomUrl();
   }
 
-  /* ── Init ──────────────────────────────────────────────────── */
+  /* ── Init (once only) ───────────────────────────────────────── */
   function init(opts) {
-    if (initialized) {
-      // Update room if re-init with new params
-      displayName = opts.studentName || displayName;
-      role = opts.role || role;
-      roomName = generateRoom(opts.studentName, opts.date);
-      if (!requiredMode && panelState === 'collapsed') buildCollapsed();
-      show();
-      return;
-    }
+    if (initialized) return false;
 
     displayName = opts.studentName || 'Participant';
     role = opts.role || 'student';
@@ -531,6 +524,20 @@ const VideoCall = (() => {
     }
 
     initialized = true;
+    return true;
+  }
+
+  /* ── Update room (re-callable after init) ─────────────────── */
+  function updateRoom(studentName, date) {
+    if (!initialized) return;
+    displayName = studentName || displayName;
+    roomName = generateRoom(studentName, date);
+    // Rebuild the floating panel with the new room name
+    if (!requiredMode) {
+      if (panelState === 'expanded') buildExpanded();
+      else buildCollapsed();
+    }
+    show();
   }
 
   function isConnected() {
@@ -538,5 +545,5 @@ const VideoCall = (() => {
   }
 
   /* ── Public API ────────────────────────────────────────────── */
-  return { init, show, hide, expand, collapse, popout, getRoom, getUrl, isConnected };
+  return { init, updateRoom, show, hide, expand, collapse, popout, getRoom, getUrl, isConnected };
 })();
