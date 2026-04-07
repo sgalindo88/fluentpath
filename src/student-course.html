@@ -397,9 +397,7 @@ body {
       </div>
     </div>
 
-    <div id="videoCallContainer"></div>
-    <button class="btn-begin" id="btnBeginLesson" onclick="startCourse()" disabled style="opacity:0.35;cursor:not-allowed;">Begin Today's Lesson →</button>
-    <p id="vcHint" style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;">Join the video call above to begin.</p>
+    <button class="btn-begin" id="btnBeginLesson" onclick="startCourse()">Begin Today's Lesson →</button>
     <p style="font-size:11px;color:var(--rule);margin-top:12px;font-style:italic;">Your lesson must be approved by your teacher before it starts.</p>
   </div>
 </div>
@@ -640,24 +638,14 @@ function selectLevel(card) {
   // Update translation mode for the selected level
   if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
 
-  // Init video call in required mode when level is selected
+  // Init video call as optional floating button when level is selected
   var name = document.getElementById('studentName').value.trim();
   if (name && !vcInitDone && typeof VideoCall !== 'undefined') {
     vcInitDone = true;
     VideoCall.init({
       studentName: name,
       date: document.getElementById('lessonDate').value || new Date().toISOString().split('T')[0],
-      role: 'student',
-      required: true,
-      targetEl: document.getElementById('videoCallContainer'),
-      onConnect: function() {
-        var btn = document.getElementById('btnBeginLesson');
-        btn.disabled = false;
-        btn.style.opacity = '';
-        btn.style.cursor = '';
-        var hint = document.getElementById('vcHint');
-        if (hint) hint.style.display = 'none';
-      }
+      role: 'student'
     });
   }
 }

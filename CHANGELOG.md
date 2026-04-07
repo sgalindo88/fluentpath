@@ -4,6 +4,15 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.12.0] - 2026-04-07
+
+### Changed — Optional Video Calls for Students
+- **Video call no longer required to begin** — removed the mandatory Jitsi connection gate from both `student-initial-test.html` and `student-course.html`; "Begin Test" and "Begin Today's Lesson" buttons are now enabled immediately
+- **Floating "Join Video Call" button** — students now see the same optional floating panel (bottom-right corner) that teachers already have, instead of the inline required embed
+- **Removed inline video call container** — the `#videoCallContainer` div, connection status bar, and "Join the video call above to begin" hint text removed from both student cover screens
+
+---
+
 ## [0.11.0] - 2026-04-06
 
 ### Fixed — Placement Test Slider Persistence & Settings Panel

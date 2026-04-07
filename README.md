@@ -64,7 +64,7 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
 
 **Phase 2 -- Course:** Student works through a 20-day structured course with built-in lessons (AI generation planned via Apps Script proxy). The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
 
-**All live sessions** require an embedded Jitsi Meet video call -- the "Begin" button is disabled until the student connects.
+**Live video calls** are available on all student pages via an optional floating "Join Video Call" button (same as the teacher dashboard).
 
 ---
 
@@ -87,7 +87,7 @@ english-course/
     ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding)
     ├── utils.js                   # Shared utilities (escHtml)
     ├── theme.css                  # Shared design tokens (CSS variables, font imports)
-    ├── video-call.js              # Jitsi Meet required video panel
+    ├── video-call.js              # Jitsi Meet optional video panel
     ├── mobile.css                 # Mobile-first enhancements
     ├── i18n.js                    # Level-aware Spanish translation
     └── checkpoint.js              # Session recovery / auto-save
@@ -147,7 +147,7 @@ english-course/
 
 | # | Screen | Description |
 |---|--------|-------------|
-| 1 | **Cover** | Name, date, embedded Jitsi video call (must connect before "Begin" activates) |
+| 1 | **Cover** | Name, date, optional floating video call button |
 | 2--3 | **Reading** | Intro + 10 MCQs on reading passages |
 | 4--5 | **Writing** | Intro + 4 tasks (passive voice, sentence combining, error correction, short writing) |
 | 6--7 | **Listening** | Intro + 4 MCQs, 1 multi-select, 1 dictation (browser TTS audio, 3-play limit) |
@@ -168,7 +168,7 @@ english-course/
 #### Key Features
 
 - **Name auto-filled** from hub, **date read-only** (auto-calculated)
-- **Required video call** -- Jitsi embeds inline with visible room name and shareable link; Begin button disabled until connected
+- **Optional video call** -- floating "Join Video Call" button available for live sessions with teacher; test can begin without connecting
 - **Listening stop button** with cumulative play-time tracking (main passage and dictation)
 - **Speech recording** on all speaking questions (Q21-Q24) with live transcript and pronunciation feedback
 - **Required + skip** -- all writing/speaking text fields are required, with "Skip this question" checkbox
@@ -200,7 +200,7 @@ english-course/
 
 - **Name, date, and level auto-filled** from hub; level grid locked when assigned by teacher
 - **No approval workflow** -- lessons start immediately
-- **Required video call** -- embeds when student selects their level; Begin button disabled until connected
+- **Optional video call** -- floating "Join Video Call" button available for live sessions with teacher; lesson can begin without connecting
 - **Level-aware translation** -- A1/A2 gets bilingual AI content via `_es` keys; B1/B2 gets tap-to-translate
 - **41+ translated static strings** covering all UI text (step titles, buttons, status, feedback, labels)
 - **`tr()` runtime translation** for JS-set text at A1/A2 level
@@ -293,10 +293,10 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **CSS custom properties** -- all colour variables (ink, paper, cream, rust, gold, etc.) defined once
 - **Google Fonts import** -- Playfair Display + Source Serif 4 loaded once instead of per-page
 
-### `video-call.js` -- Required Video Calls
+### `video-call.js` -- Video Calls
 
-- **Required mode:** Embeds Jitsi Meet inline on the cover/landing screen; "Begin" button disabled until connected; connection status bar shows progress
-- **Optional mode:** Floating panel for the teacher dashboard (collapsed button, expandable iframe)
+- **Optional mode:** Floating panel (collapsed button, expandable iframe) used by all student pages and the teacher dashboard
+- **Required mode:** (Available but unused) Embeds Jitsi Meet inline; "Begin" button disabled until connected; connection status bar shows progress
 - **Deterministic room names:** `FluentPath-{name}-{YYYYMMDD}` -- teacher and student auto-join the same room
 - **Controls:** Copy link, pop-out to new tab, minimise, end call
 - **Re-init guard:** `init()` runs once and returns `false` on subsequent calls; use `updateRoom(studentName, date)` to change the room without full re-initialization
@@ -391,8 +391,8 @@ Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
 | File | Mode | Room Name |
 |------|------|-----------|
-| `student-initial-test.html` | Required (inline, must connect before Begin) | `FluentPath-{name}-{YYYYMMDD}` |
-| `student-course.html` | Required (inline, must connect before Begin) | `FluentPath-{name}-{YYYYMMDD}` |
+| `student-initial-test.html` | Optional (floating panel) | `FluentPath-{name}-{YYYYMMDD}` |
+| `student-course.html` | Optional (floating panel) | `FluentPath-{name}-{YYYYMMDD}` |
 | `examiner-panel.html` | Optional (floating panel) | `FluentPath-{name}-{YYYYMMDD}` |
 
 ### Web Speech API (Browser)

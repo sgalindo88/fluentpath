@@ -821,9 +821,7 @@ textarea.text-input-area { min-height: 160px; }
       <div class="overview-card listening"><div class="oc-label">Part 03</div><div class="oc-title">Listening</div><div class="oc-marks">15 marks</div></div>
       <div class="overview-card speaking"><div class="oc-label">Part 04</div><div class="oc-title">Speaking</div><div class="oc-marks">20 marks</div></div>
     </div>
-    <div id="videoCallContainer"></div>
-    <button class="btn-start" id="btnStartTest" onclick="startTest()" disabled style="opacity:0.35;cursor:not-allowed;">Begin Test →</button>
-    <p id="vcHint" style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;font-style:italic;">Join the video call above to begin.</p>
+    <button class="btn-start" id="btnStartTest" onclick="startTest()">Begin Test →</button>
   </div>
 </div>
 
@@ -2036,9 +2034,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   tryResumeTest();
 
-  // Init video call in required mode when student enters their name
+  // Init video call as optional floating button when student enters their name
   var vcInitDone = false;
-  function initRequiredVideoCall() {
+  function initVideoCall() {
     var name = nameField.value.trim();
     if (!name || vcInitDone) return;
     vcInitDone = true;
@@ -2046,26 +2044,16 @@ window.addEventListener('DOMContentLoaded', () => {
       VideoCall.init({
         studentName: name,
         date: document.getElementById('candidateDate').value,
-        role: 'student',
-        required: true,
-        targetEl: document.getElementById('videoCallContainer'),
-        onConnect: function() {
-          var btn = document.getElementById('btnStartTest');
-          btn.disabled = false;
-          btn.style.opacity = '';
-          btn.style.cursor = '';
-          var hint = document.getElementById('vcHint');
-          if (hint) hint.style.display = 'none';
-        }
+        role: 'student'
       });
     }
   }
-  nameField.addEventListener('blur', initRequiredVideoCall);
+  nameField.addEventListener('blur', initVideoCall);
   nameField.addEventListener('keydown', function(e) {
-    if (e.key === 'Tab' || e.key === 'Enter') setTimeout(initRequiredVideoCall, 100);
+    if (e.key === 'Tab' || e.key === 'Enter') setTimeout(initVideoCall, 100);
   });
   // If name was pre-filled from hub, auto-init video call
-  if (savedName) setTimeout(initRequiredVideoCall, 200);
+  if (savedName) setTimeout(initVideoCall, 200);
 });
 </script>
 <script src="video-call.js"></script>
