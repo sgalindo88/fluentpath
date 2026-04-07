@@ -308,26 +308,14 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 <div id="setup-screen" class="setup-screen">
   <div style="font-size:10px;letter-spacing:0.45em;text-transform:uppercase;color:var(--rust);font-weight:600;margin-bottom:20px;">FLUENTPATH</div>
   <h1>Teacher <em>Dashboard</em></h1>
-  <p class="setup-sub">One-on-one teaching dashboard. Set up your student profile and Google Sheet webhook to get started.</p>
+  <p class="setup-sub">Enter a student name to open the dashboard. You can also select a student from the <a href="../teacher.html" style="color:var(--rust);text-decoration:none;">Teacher Portal</a>.</p>
   <div class="setup-rule"></div>
 
   <div class="setup-box">
-    <div class="pf"><label>Your Name (Teacher/Examiner) <span style="color:var(--rust)">*</span></label><input type="text" id="setup-teacher" placeholder="e.g. Sarah Mitchell"></div>
     <div class="pf"><label>Student Name <span style="color:var(--rust)">*</span></label><input type="text" id="setup-student" placeholder="e.g. Maria Gonzalez"></div>
-    <div class="pf"><label>Student CEFR Level <span style="color:var(--rust)">*</span></label>
-      <select id="setup-level">
-        <option value="A1">A1 — Beginner · Everyday Survival</option>
-        <option value="A2">A2 — Elementary · Community & Life</option>
-        <option value="B1" selected>B1 — Intermediate · The Workplace</option>
-        <option value="B2">B2 — Upper-Intermediate · Career & Society</option>
-        <option value="C1">C1 — Advanced · Professional Mastery</option>
-        <option value="C2">C2 — Proficiency · Full Fluency</option>
-      </select>
-    </div>
   </div>
 
   <button class="btn-primary" onclick="setupExaminer()">Open Teacher Dashboard →</button>
-  <p style="font-size:11px;color:var(--rule);margin-top:16px;font-style:italic;">You can update these settings later in the Student Profile tab.</p>
 </div>
 
 <!-- ══════════════════ APP ══════════════════ -->
@@ -766,9 +754,9 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         </div>
 
         <div class="card card-top blue">
-          <div class="card-label">TEACHER & CONNECTION</div>
+          <div class="card-label">TEACHER</div>
           <div class="profile-form">
-            <div class="pf pf-full"><label>Teacher Name <span style="color:var(--rust)">*</span></label><input type="text" id="prof-teacher" placeholder="Your name"></div>
+            <div class="pf pf-full"><label>Teacher Name</label><input type="text" id="prof-teacher" value="Sebastian Galindo" readonly style="background:var(--cream);cursor:default;"></div>
           </div>
         </div>
 
@@ -979,7 +967,7 @@ const WEBHOOK_URL = FP.WEBHOOK_URL;
 // STATE
 // ══════════════════════════════════════════════════════
 let ex = {
-  teacherName: '',
+  teacherName: 'Sebastian Galindo',
   studentName: '',
   studentLevel: 'B1',
   studentMonth: 1,
@@ -1023,18 +1011,10 @@ const DIFF_AREAS = [
 // SETUP
 // ══════════════════════════════════════════════════════
 function setupExaminer() {
-  const teacher = document.getElementById('setup-teacher').value.trim();
-  const student = document.getElementById('setup-student').value.trim();
-  const level   = document.getElementById('setup-level').value;
-
-  if (!teacher) { alert('Please enter your name.'); return; }
+  var student = document.getElementById('setup-student').value.trim();
   if (!student) { alert('Please enter the student\'s name.'); return; }
-  if (!level)   { alert('Please select the student\'s level.'); return; }
 
-  ex.teacherName  = teacher;
   ex.studentName  = student;
-  ex.studentLevel = level;
-
   saveToLocalStorage();
   initApp();
 }
@@ -1404,13 +1384,12 @@ function initApp() {
   document.getElementById('sb-student-day').textContent = `Month ${ex.studentMonth} · Day ${getCurrentDay()}`;
 
   // Populate dashboard
-  document.getElementById('dash-teacher-name').textContent = ex.teacherName || 'Teacher';
+  document.getElementById('dash-teacher-name').textContent = ex.teacherName;
   document.getElementById('dash-student-summary').textContent = ex.studentName
     ? `Tracking ${ex.studentName}'s progress through the ${ex.studentLevel} course.`
     : 'Set up a student profile to start tracking.';
 
   // Profile form
-  document.getElementById('prof-teacher').value       = ex.teacherName;
   document.getElementById('prof-student-name').value  = ex.studentName;
   document.getElementById('prof-level').value         = ex.studentLevel;
   document.getElementById('prof-month').value         = ex.studentMonth;
@@ -2247,14 +2226,11 @@ function saveTeacherNotes() {
 // PROFILE
 // ══════════════════════════════════════════════════════
 function saveProfile() {
-  const teacher = document.getElementById('prof-teacher').value.trim();
   const student = document.getElementById('prof-student-name').value.trim();
   const level   = document.getElementById('prof-level').value;
-  if (!teacher) { showStatus('profile-save-status', 'Teacher name is required.', true); return; }
   if (!student) { showStatus('profile-save-status', 'Student name is required.', true); return; }
   if (!level)   { showStatus('profile-save-status', 'Student level is required.', true); return; }
 
-  ex.teacherName      = teacher;
   ex.studentName      = student;
   ex.studentEmail     = document.getElementById('prof-email').value;
   ex.studentLevel     = level;
@@ -2267,7 +2243,6 @@ function saveProfile() {
   saveToLocalStorage();
   document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
   document.getElementById('sb-student-level').textContent = ex.studentLevel + ' · ' + getLevelTheme(ex.studentLevel);
-  document.getElementById('dash-teacher-name').textContent = ex.teacherName || 'Teacher';
   showStatus('profile-save-status', '✓ Profile saved.', false);
 
   // Sync settings to Google Sheet
@@ -2443,13 +2418,25 @@ function showStatus(id, msg, isError) {
 // ══════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   const hasSaved = loadFromLocalStorage();
-  if (hasSaved && ex.teacherName && ex.studentName) {
+
+  // Always use hardcoded teacher name
+  ex.teacherName = 'Sebastian Galindo';
+
+  // Check URL param for student name (from teacher.html student picker)
+  var urlParams = new URLSearchParams(window.location.search);
+  var urlStudent = (urlParams.get('student') || '').trim();
+
+  if (urlStudent) {
+    // Student selected from teacher portal — go straight to dashboard
+    ex.studentName = urlStudent;
+    saveToLocalStorage();
+    initApp();
+  } else if (hasSaved && ex.studentName) {
+    // Returning visit with saved student data
     initApp();
   }
-  // Pre-fill setup screen if partial data
-  if (ex.teacherName) document.getElementById('setup-teacher').value = ex.teacherName;
+  // Otherwise the setup screen stays visible (fallback)
   if (ex.studentName) document.getElementById('setup-student').value = ex.studentName;
-  if (ex.studentLevel) document.getElementById('setup-level').value = ex.studentLevel;
 });
 </script>
 <script src="video-call.js"></script>

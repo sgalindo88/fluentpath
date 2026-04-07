@@ -4,6 +4,18 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.13.0] - 2026-04-07
+
+### Changed — Teacher Student Picker & Auto-Registration
+- **Student picker on teacher portal** — `teacher.html` now fetches registered students from Google Sheets and displays them as selectable cards; selecting a student navigates directly to the dashboard with that student loaded
+- **Auto-registration** — new students are automatically added to the "Students" tab (with name and join date) when they first visit the student hub and `get_progress` is called
+- **`get_students` endpoint** — new Apps Script GET action returns the full student list from the "Students" sheet
+- **Removed setup screen gate** — `examiner-panel.html` no longer requires teacher name, student name, and CEFR level to be entered manually; student name comes from URL parameter (or localStorage for returning visits), CEFR level is fetched from Google Sheets automatically
+- **Hardcoded teacher name** — teacher name set to "Sebastian Galindo" everywhere (state, profile, emails, Google Sheets sync); teacher name field in Student Profile panel is now read-only
+- **Setup screen simplified** — reduced to a single student name input as a fallback; links back to teacher portal for the recommended flow
+
+---
+
 ## [0.12.0] - 2026-04-07
 
 ### Changed — Optional Video Calls for Students

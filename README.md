@@ -132,10 +132,11 @@ english-course/
 
 ### 2. `teacher.html` -- Teacher Portal
 
-**Purpose:** Separate landing page for teachers. Single card linking to the all-in-one Teacher Dashboard.
+**Purpose:** Separate landing page for teachers. Fetches registered students from Google Sheets and displays them as selectable cards.
 
 - Branded Fluentora header with "Instructor Access" badge
-- Links to `src/examiner-panel.html` (Teacher Dashboard)
+- **Student picker** -- loads registered student names from the "Students" tab via `get_students` endpoint
+- Selecting a student navigates to `src/examiner-panel.html?student={name}`, bypassing the setup screen
 
 ---
 
@@ -225,7 +226,7 @@ english-course/
 
 | # | Section | Panel | Description |
 |---|---------|-------|-------------|
-| -- | -- | **Setup** | Onboarding form (teacher name, student info, CEFR level) |
+| -- | -- | **Setup** | Fallback student name entry (normally bypassed via teacher portal student picker) |
 | 1 | Lessons | **Dashboard** | Stats grid, progress bars, activity feed, teacher notes |
 | 2 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked) |
 | 4 | Marking | **Mark Placement Test** | Load test from Google Sheets, auto-score reading/listening, manual sliders for writing/speaking, CEFR calculation, save to Sheets |
@@ -373,10 +374,11 @@ Print-inspired, academic, warm -- designed to feel calm and professional for adu
 
 | File | Direction | Data |
 |------|-----------|------|
-| `index.html` | Receives | Student progress + teacher settings (allow_skip_test) |
+| `index.html` | Sends / Receives | Student progress + teacher settings; auto-registers new students in Students tab |
+| `teacher.html` | Receives | Student list from Students tab (via `get_students`) |
 | `student-initial-test.html` | Sends | Test answers, scores, timing |
 | `student-course.html` | Sends / Receives | Lesson requests, approval polling, completion data |
-| `examiner-panel.html` | Sends / Receives | Marks, approvals, settings, test results fetch |
+| `examiner-panel.html` | Sends / Receives | Marks, approvals, settings, test results fetch, CEFR level |
 
 Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
@@ -436,6 +438,7 @@ The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHE
 | **Settings** | Teacher preferences per student (allow_spanish, allow_skip_test, etc.) |
 | **Lesson Approvals** | Approval workflow between student and teacher |
 | **Lesson Marks** | Graded daily lesson scores |
+| **Students** | Registered student names and join dates (auto-populated on first hub visit) |
 
 ---
 

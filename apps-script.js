@@ -156,6 +156,9 @@ var HEADERS = {
     'lesson_date', 'day_number', 'level',
     'writing_score', 'speaking_score', 'total_score',
     'writing_breakdown', 'speaking_breakdown', 'overall_feedback'
+  ],
+  'Students': [
+    'student_name', 'date_joined'
   ]
 };
 
@@ -181,6 +184,9 @@ function doGet(e) {
 
     } else if (action === 'get_latest_submission') {
       result = handleGetLatestSubmission(student);
+
+    } else if (action === 'get_students') {
+      result = handleGetStudents();
 
     } else {
       result = { error: 'Unknown action: ' + action };
@@ -253,7 +259,44 @@ function handleGetProgress(studentName) {
     result.last_lesson_date = lessons[lessons.length - 1].date;
   }
 
+  // Auto-register student in Students tab if not already present
+  var studentsSheet = getOrCreateSheet('Students', HEADERS['Students']);
+  var studentsRows = sheetToObjects(studentsSheet);
+  var alreadyRegistered = false;
+  for (var s = 0; s < studentsRows.length; s++) {
+    var sName = studentsRows[s]['student_name'] || studentsRows[s]['Student Name'] || '';
+    if (String(sName).toLowerCase().trim() === target) {
+      alreadyRegistered = true;
+      break;
+    }
+  }
+  if (!alreadyRegistered) {
+    studentsSheet.appendRow([studentName, new Date().toISOString().split('T')[0]]);
+  }
+
   return result;
+}
+
+
+// ── GET: get_students ─────────────────────────────────
+// Returns list of all registered students
+function handleGetStudents() {
+  var sheet = getOrCreateSheet('Students', HEADERS['Students']);
+  var rows = sheetToObjects(sheet);
+  var students = [];
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var name = row['student_name'] || row['Student Name'] || '';
+    var joined = row['date_joined'] || row['Date joined'] || '';
+    // Format Date objects to YYYY-MM-DD string
+    if (joined instanceof Date) {
+      joined = joined.toISOString().split('T')[0];
+    }
+    if (name) {
+      students.push({ name: String(name), date_joined: String(joined) });
+    }
+  }
+  return { found: true, students: students };
 }
 
 

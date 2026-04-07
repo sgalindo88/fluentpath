@@ -30,23 +30,25 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
 
 .card-grid{display:flex;flex-direction:column;gap:16px;margin-bottom:32px;}
 
-.portal-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:28px 24px;text-align:left;text-decoration:none;color:var(--ink);display:block;transition:all 0.2s;}
-.portal-card:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 4px 16px rgba(26,18,8,0.1);}
-.portal-card .card-icon{font-size:28px;margin-bottom:10px;}
-.portal-card .card-title{font-family:'Playfair Display',Georgia,serif;font-size:19px;font-weight:700;margin-bottom:4px;}
-.portal-card .card-desc{font-size:14px;color:var(--muted);line-height:1.5;}
-.portal-card .card-arrow{float:right;color:var(--rust);font-size:18px;margin-top:-20px;transition:transform 0.2s;}
-.portal-card:hover .card-arrow{transform:translateX(4px);}
+.student-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;text-align:left;}
+.student-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:18px 22px;text-decoration:none;color:var(--ink);display:flex;align-items:center;justify-content:space-between;transition:all 0.2s;cursor:pointer;}
+.student-card:hover{border-color:var(--ink);transform:translateY(-2px);box-shadow:0 4px 16px rgba(26,18,8,0.1);}
+.student-name{font-family:'Playfair Display',Georgia,serif;font-size:17px;font-weight:700;}
+.student-date{font-size:12px;color:var(--muted);font-style:italic;margin-top:2px;}
+.student-arrow{color:var(--rust);font-size:18px;transition:transform 0.2s;flex-shrink:0;}
+.student-card:hover .student-arrow{transform:translateX(4px);}
 
-.portal-card.primary{border-top:3px solid var(--rust);}
-.portal-card.secondary{border-top:3px solid var(--gold);}
+.loading-msg{text-align:center;color:var(--muted);font-style:italic;padding:40px 0;font-size:15px;}
+.empty-msg{text-align:center;color:var(--muted);font-style:italic;padding:30px 0;font-size:14px;line-height:1.6;}
+
+.section-label{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;font-weight:600;color:var(--gold);margin-bottom:14px;text-align:left;}
 
 .footer{font-size:12px;color:var(--muted);}
 .footer a{color:var(--rust);text-decoration:none;}
 
 @media(max-width:600px){
   body{padding:24px 16px;align-items:flex-start;padding-top:40px;}
-  .portal-card{padding:22px 18px;}
+  .student-card{padding:16px 18px;}
 }
 </style>
 </head>
@@ -60,21 +62,54 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
     <div class="role-badge">Instructor Access</div>
   </div>
 
-  <div class="card-grid">
-
-    <a class="portal-card primary" href="src/examiner-panel.html">
-      <div class="card-icon">📊</div>
-      <div class="card-title">Teacher Dashboard</div>
-      <div class="card-desc">Your all-in-one workspace: mark the placement test, approve daily lessons, grade writing and speaking, track attendance, adjust difficulty, and review progress.</div>
-      <span class="card-arrow">→</span>
-    </a>
-
+  <div class="section-label">SELECT A STUDENT</div>
+  <div id="studentList" class="student-list">
+    <div class="loading-msg">Loading students&hellip;</div>
   </div>
 
   <div class="footer">
     <p>A <a href="#">Fluentora</a> programme</p>
   </div>
 </div>
+
+<script src="src/config.js"></script>
+<script src="src/api.js"></script>
+<script>
+(function() {
+  var WEBHOOK_URL = FP.WEBHOOK_URL;
+  var listEl = document.getElementById('studentList');
+
+  async function loadStudents() {
+    try {
+      var data = await FP.api.get(WEBHOOK_URL + '?action=get_students');
+      if (!data || !data.students || data.students.length === 0) {
+        listEl.innerHTML = '<div class="empty-msg">No students registered yet.<br>Students appear here after they visit the hub for the first time.</div>';
+        return;
+      }
+      listEl.innerHTML = '';
+      data.students.forEach(function(s) {
+        var card = document.createElement('a');
+        card.className = 'student-card';
+        card.href = 'src/examiner-panel.html?student=' + encodeURIComponent(s.name);
+        card.innerHTML =
+          '<div class="student-name">' + escHtml(s.name) + '</div>' +
+          '<span class="student-arrow">&rarr;</span>';
+        listEl.appendChild(card);
+      });
+    } catch(e) {
+      listEl.innerHTML = '<div class="empty-msg">Could not load students.<br>Check your connection and try again.</div>';
+    }
+  }
+
+  function escHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  loadStudents();
+})();
+</script>
 
 </body>
 </html>
