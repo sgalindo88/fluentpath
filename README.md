@@ -62,7 +62,7 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
 
 **Phase 1 -- Placement:** Student completes a four-skill proficiency test. The teacher marks it in the dashboard, assigns a CEFR level (A1--C2), and the student is placed into the right course tier. Students can skip the test if the teacher allows it.
 
-**Phase 2 -- Course:** Student works through a 20-day structured course with built-in lessons (AI generation planned via Apps Script proxy). The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
+**Phase 2 -- Course:** Student works through a 20-day structured course with AI-generated lessons. Each day's lesson is generated fresh by the Claude API (via the Apps Script proxy) and cached per student/day in localStorage. If the API is unavailable, a 5-lesson offline fallback library cycles by day and a banner notifies the student. The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
 
 **Live video calls** are available on all student pages via an optional floating "Join Video Call" button (same as the teacher dashboard).
 
@@ -209,8 +209,9 @@ english-course/
 - **Listening stop button** with cumulative play-time tracking
 - **Pronunciation drills** use data-attributes (no inline apostrophe issues); improved error handling with mic permission alerts
 - **Browser compatibility check** -- speaking step detects unsupported browsers, shows bilingual warning, and disables recording buttons
-- **Built-in fallback lesson** (direct Claude API removed due to CORS; future Apps Script proxy planned)
-- **Lesson generation timeout** -- 30-second fetch abort + 45-second spinner safety net prevents infinite loading
+- **AI lesson generation via Apps Script → Claude API** -- each day's lesson is generated fresh by `claude-haiku-4-5` for the student's level, day, and topic; cached in localStorage by `fp_lesson_<level>_d<day>` so reloads don't re-bill the API
+- **Offline fallback library** -- 5 distinct lesson templates (appointments, shopping, workplace, health, family/community) cycled by `(day - 1) % 5`; an "offline" banner appears when the API is unavailable so the teacher notices
+- **Lesson generation timeout** -- 60-second `FP.api.get` abort prevents infinite loading; falls through to the offline library on error
 - **Session recovery** -- auto-saves lesson content and progress every 5s
 - **Course day tracking** -- uses `fp_last_lesson_day + 1`, not day of month
 - **Lesson complete** links back to hub with "View Progress & Next Lesson"
@@ -386,8 +387,10 @@ Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
 | File | Model | Usage |
 |------|-------|-------|
-| `student-course.html` | claude-sonnet-4-20250514 | AI-generated daily lessons (planned; uses built-in fallback for now) |
-| `examiner-panel.html` | claude-sonnet-4-20250514 | AI-drafted weekly summary narratives (routed through Apps Script `ai_summary` action) |
+| `student-course.html` | `claude-haiku-4-5` (default; configurable via `CLAUDE_MODEL` Script Property) | AI-generated daily lessons via the `generate_lesson` GET action; cached per (level, day) in localStorage |
+| `examiner-panel.html` | `claude-sonnet-4-20250514` | AI-drafted weekly summary narratives (routed through Apps Script `ai_summary` action) |
+
+**Setup:** the Apps Script project requires `CLAUDE_API_KEY` in **Script Properties** (Project Settings → Script Properties → Add). Optionally override the default model with a `CLAUDE_MODEL` property (e.g. `claude-sonnet-4-6` for higher quality at ~3× cost). See the header comment in `apps-script.js` for full deployment steps.
 
 ### Jitsi Meet (Video Calls)
 

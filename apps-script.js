@@ -4,13 +4,27 @@
    Deployment:
      1. Open script.google.com → create or edit project
      2. Paste this entire file into Code.gs
-     3. Deploy → New deployment → Web app
+     3. Set the Claude API key in Script Properties:
+        Project Settings (gear icon) → Script Properties → Add:
+          Property: CLAUDE_API_KEY
+          Value:    sk-ant-... (your key)
+        Optional override:
+          Property: CLAUDE_MODEL
+          Value:    claude-haiku-4-5  (default; or claude-sonnet-4-6 for higher quality)
+     4. Deploy → New deployment → Web app
         - Execute as: Me
         - Who has access: Anyone
-     4. Copy the deployment URL and use it in the platform
+     5. Copy the deployment URL and use it in the platform
 
-   Handles all GET (reads) and POST (writes) for FluentPath.
+   Handles all GET (reads + AI lesson generation) and POST (writes) for FluentPath.
    ═══════════════════════════════════════════════════════════════ */
+
+// ══════════════════════════════════════════════════════
+// CLAUDE API CONFIG
+// ══════════════════════════════════════════════════════
+var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
+var CLAUDE_DEFAULT_MODEL = 'claude-haiku-4-5';
+var CLAUDE_MAX_TOKENS = 4096;
 
 // ══════════════════════════════════════════════════════
 // HELPERS
@@ -72,40 +86,61 @@ function findLastByStudent(sheetName, headers, studentName) {
   return match;
 }
 
-/** Upsert a row: update if student exists, insert if not */
+/**
+ * Ensure the sheet's header row contains every column in `expectedHeaders`.
+ * Missing columns are appended on the right (existing columns and data are
+ * left in place). Returns the actual header row after extension.
+ */
+function ensureSheetHeaders(sheet, expectedHeaders) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(expectedHeaders);
+    sheet.getRange(1, 1, 1, expectedHeaders.length).setFontWeight('bold');
+    return expectedHeaders.slice();
+  }
+  var actual = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var missing = expectedHeaders.filter(function(h) { return actual.indexOf(h) < 0; });
+  if (missing.length === 0) return actual;
+
+  var startCol = actual.length + 1;
+  sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+  sheet.getRange(1, startCol, 1, missing.length).setFontWeight('bold');
+  return actual.concat(missing);
+}
+
+/** Upsert a row: update if student exists, insert if not.
+ *  Matches data fields against the sheet's ACTUAL header row (not the
+ *  HEADERS constant) so adding new columns to HEADERS doesn't misalign
+ *  rows in existing sheets. Auto-extends the sheet with any missing columns. */
 function upsertByStudent(sheetName, headers, studentName, data) {
   var sheet = getOrCreateSheet(sheetName, headers);
-  var allData = sheet.getDataRange().getValues();
-  if (allData.length === 0) {
-    sheet.appendRow(headers);
-    allData = [headers];
-  }
-  var headerRow = allData[0];
+  var actualHeaders = ensureSheetHeaders(sheet, headers);
+
   var nameColIndex = -1;
   var nameColumns = ['student_name', 'candidate_name', 'name'];
   for (var k = 0; k < nameColumns.length; k++) {
-    for (var j = 0; j < headerRow.length; j++) {
-      if (String(headerRow[j]).trim() === nameColumns[k]) {
-        nameColIndex = j;
-        break;
-      }
-    }
+    nameColIndex = actualHeaders.indexOf(nameColumns[k]);
     if (nameColIndex >= 0) break;
   }
 
   var target = String(studentName).toLowerCase().trim();
   var existingRow = -1;
 
-  if (nameColIndex >= 0) {
-    for (var i = 1; i < allData.length; i++) {
-      if (String(allData[i][nameColIndex]).toLowerCase().trim() === target) {
-        existingRow = i + 1; // 1-based row number
+  if (nameColIndex >= 0 && sheet.getLastRow() > 1) {
+    var nameValues = sheet.getRange(2, nameColIndex + 1, sheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < nameValues.length; i++) {
+      if (String(nameValues[i][0]).toLowerCase().trim() === target) {
+        existingRow = i + 2; // 1-based, skipping header row
         break;
       }
     }
   }
 
-  var rowData = headers.map(function(h) { return data[h] !== undefined ? data[h] : ''; });
+  // Build the row using ACTUAL sheet headers — preserves alignment if the
+  // sheet has extra columns or a different order than the constant.
+  var rowData = actualHeaders.map(function(h) {
+    return data[h] !== undefined ? data[h] : '';
+  });
 
   if (existingRow > 0) {
     sheet.getRange(existingRow, 1, 1, rowData.length).setValues([rowData]);
@@ -149,7 +184,8 @@ var HEADERS = {
   'Settings': [
     'student_name', 'teacher_name', 'cefr_level',
     'allow_spanish', 'allow_skip_test', 'allow_retake_test',
-    'course_month', 'updated_at', 'notes'
+    'course_month', 'updated_at', 'notes',
+    'difficulty_json'
   ],
   'Lesson Marks': [
     'graded_at', 'teacher_name', 'student_name',
@@ -187,6 +223,15 @@ function doGet(e) {
 
     } else if (action === 'get_students') {
       result = handleGetStudents();
+
+    } else if (action === 'generate_lesson') {
+      result = handleGenerateLesson(
+        e.parameter.level,
+        parseInt(e.parameter.day, 10),
+        e.parameter.topic,
+        String(e.parameter.spanish || '').toLowerCase() === 'true',
+        student
+      );
 
     } else {
       result = { error: 'Unknown action: ' + action };
@@ -423,6 +468,263 @@ function handleGetLatestSubmission(studentName) {
 }
 
 
+// ── GET: generate_lesson ───────────────────────────────
+// Calls Claude API to generate a fresh lesson plan for the given level/day/topic.
+// If a student name is provided, looks up their teacher-set difficulty profile,
+// focus areas, and AI instructions from the Settings sheet and folds them into
+// the prompt so each lesson reflects the teacher's customisation.
+// Returns { found: true, lesson: {...} } on success, { error: '...' } on failure.
+function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
+  if (!level || !day || !topic) {
+    return { error: 'Missing required parameter (level, day, topic)' };
+  }
+
+  var props = PropertiesService.getScriptProperties();
+  var apiKey = props.getProperty('CLAUDE_API_KEY');
+  if (!apiKey) {
+    return { error: 'CLAUDE_API_KEY not set in Script Properties' };
+  }
+  var model = props.getProperty('CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL;
+
+  // Look up teacher's difficulty customisation for this student (if any)
+  var difficulty = null;
+  if (studentName) {
+    var settingsRow = findLastByStudent('Settings', HEADERS['Settings'], studentName);
+    if (settingsRow && settingsRow['difficulty_json']) {
+      try {
+        difficulty = JSON.parse(String(settingsRow['difficulty_json']));
+      } catch (parseErr) {
+        // Malformed JSON in the sheet — log and continue without difficulty
+        console.warn('Could not parse difficulty_json for ' + studentName + ': ' + parseErr.message);
+      }
+    }
+  }
+
+  var prompt = buildLessonPrompt(level, day, topic, allowSpanish, difficulty);
+
+  try {
+    var resp = UrlFetchApp.fetch(CLAUDE_API_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      payload: JSON.stringify({
+        model: model,
+        max_tokens: CLAUDE_MAX_TOKENS,
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      muteHttpExceptions: true
+    });
+
+    var code = resp.getResponseCode();
+    var body = JSON.parse(resp.getContentText());
+
+    if (code >= 400) {
+      var msg = (body && body.error && body.error.message) || ('HTTP ' + code);
+      return { error: 'Claude API error: ' + msg };
+    }
+
+    if (!body.content || !body.content.length || body.content[0].type !== 'text') {
+      return { error: 'Claude API returned no text content' };
+    }
+
+    // Strip markdown code fences if Claude wrapped the JSON despite instructions
+    var text = body.content[0].text
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+
+    var lesson;
+    try {
+      lesson = JSON.parse(text);
+    } catch (parseErr) {
+      return { error: 'Could not parse lesson JSON: ' + parseErr.message };
+    }
+
+    return { found: true, lesson: lesson };
+  } catch (err) {
+    return { error: 'Lesson generation failed: ' + err.message };
+  }
+}
+
+/** Build the lesson prompt sent to Claude. Mirrors the structure expected by student-course.html. */
+function buildLessonPrompt(level, day, topic, allowSpanish, difficulty) {
+  var levelInfo = {
+    'A1': { name: 'Beginner',           theme: 'Everyday Survival' },
+    'A2': { name: 'Elementary',         theme: 'Community & Life' },
+    'B1': { name: 'Intermediate',       theme: 'The Workplace' },
+    'B2': { name: 'Upper-Intermediate', theme: 'Career & Society' },
+    'C1': { name: 'Advanced',           theme: 'Professional Mastery' },
+    'C2': { name: 'Proficiency',        theme: 'Full Fluency' }
+  };
+  var info = levelInfo[level] || levelInfo['B1'];
+  var minWordsMap = { A1: 20, A2: 40, B1: 80, B2: 120, C1: 180, C2: 250 };
+  var minWords = minWordsMap[level] || 80;
+
+  var prompt =
+    'You are an expert English language teacher designing a lesson for an adult immigrant learner.\n\n' +
+    'LEVEL: ' + level + ' (' + info.name + ') — Theme: ' + info.theme + '\n' +
+    'DAY: ' + day + ' of 20\n' +
+    'FOCUS: vocabulary, pronunciation, speaking (also include listening and writing tasks)\n' +
+    "TODAY'S TOPIC: " + topic + '\n\n' +
+    'Generate a complete 90-minute lesson plan in JSON format. Return ONLY valid JSON, no markdown, no explanation.\n\n' +
+    'JSON structure:\n' +
+    '{\n' +
+    '  "topic": "lesson topic title",\n' +
+    '  "objective": "one sentence: what the student will be able to do after this lesson",\n' +
+    '  "warmup": {\n' +
+    '    "title": "warm-up title",\n' +
+    '    "instruction": "instruction for student",\n' +
+    '    "prompt": "a simple question or task to get them thinking"\n' +
+    '  },\n' +
+    '  "vocabulary": {\n' +
+    '    "title": "vocabulary set title",\n' +
+    '    "instruction": "how to use these words",\n' +
+    '    "words": [\n' +
+    '      { "word": "", "pronunciation": "/phonetic/", "partOfSpeech": "", "definition": "", "exampleSentence": "" }\n' +
+    '    ]\n' +
+    '  },\n' +
+    '  "listening": {\n' +
+    '    "title": "listening title",\n' +
+    '    "instruction": "instruction",\n' +
+    '    "audioText": "a paragraph (3-5 sentences) to be read aloud — realistic dialogue or monologue",\n' +
+    '    "questions": [\n' +
+    '      { "id": "l1", "question": "", "options": ["A","B","C","D"], "correct": 0 },\n' +
+    '      { "id": "l2", "question": "", "options": ["A","B","C","D"], "correct": 1 }\n' +
+    '    ]\n' +
+    '  },\n' +
+    '  "speaking": {\n' +
+    '    "title": "speaking/pronunciation title",\n' +
+    '    "instruction": "instruction",\n' +
+    '    "drills": [\n' +
+    '      { "id": "s1", "phrase": "phrase to practice", "tip": "pronunciation tip" },\n' +
+    '      { "id": "s2", "phrase": "phrase to practice", "tip": "pronunciation tip" }\n' +
+    '    ],\n' +
+    '    "conversationPrompt": "an open-ended speaking prompt for the student to respond to"\n' +
+    '  },\n' +
+    '  "practice": {\n' +
+    '    "title": "practice activity title",\n' +
+    '    "instruction": "instruction",\n' +
+    '    "questions": [\n' +
+    '      { "id": "p1", "question": "", "options": ["A","B","C","D"], "correct": 0 },\n' +
+    '      { "id": "p2", "question": "", "options": ["A","B","C","D"], "correct": 2 },\n' +
+    '      { "id": "p3", "question": "", "options": ["A","B","C","D"], "correct": 1 }\n' +
+    '    ]\n' +
+    '  },\n' +
+    '  "writing": {\n' +
+    '    "title": "writing title",\n' +
+    '    "instruction": "instruction",\n' +
+    '    "prompt": "writing prompt",\n' +
+    '    "minWords": ' + minWords + '\n' +
+    '  },\n' +
+    '  "review": {\n' +
+    '    "title": "review title",\n' +
+    '    "keyTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"]\n' +
+    '  }\n' +
+    '}\n\n' +
+    'Include 4-6 vocabulary words, 2 listening questions, 2 speaking drills, and 3 practice questions. ' +
+    'Make the content REALISTIC and USEFUL for someone who works full time. Use everyday situations: work, shopping, ' +
+    'health, family, neighbours, renting, public transport, etc. Level ' + level + ' appropriately. ' +
+    "Each day's lesson must be NEW and DIFFERENT — do not reuse words, phrases, or scenarios from a generic template.";
+
+  // Fold in teacher-set difficulty profile, focus areas, and free-form instructions
+  var guidance = buildTeacherGuidanceBlock(difficulty, level, minWords);
+  if (guidance) {
+    prompt += '\n\n' + guidance;
+  }
+
+  if (allowSpanish && (level === 'A1' || level === 'A2')) {
+    prompt += '\n\nIMPORTANT: This student speaks Spanish. For EVERY text field (title, instruction, prompt, ' +
+      'question, conversationPrompt, tip, definition, exampleSentence, keyTakeaways), add a Spanish translation ' +
+      'using an "_es" suffix key. For example:\n' +
+      '  "title": "Think About Your Day",\n' +
+      '  "title_es": "Piensa en Tu Día",\n' +
+      '  "definition": "a meeting arranged in advance",\n' +
+      '  "definition_es": "una reunión organizada con anticipación"\n' +
+      'Include "_es" keys for ALL user-facing strings. Vocabulary words themselves stay in English ' +
+      '(they are learning English), but definitions and example sentences need "_es" translations.';
+  }
+
+  return prompt;
+}
+
+/** Translate the teacher's 1-5 difficulty sliders, focus tags, and free-form
+ *  AI instructions into a TEACHER GUIDANCE block appended to the lesson prompt.
+ *  Returns null if there's nothing to add. */
+function buildTeacherGuidanceBlock(difficulty, level, defaultMinWords) {
+  if (!difficulty || typeof difficulty !== 'object') return null;
+
+  var profile = difficulty.difficultyProfile || {};
+  var focusTags = difficulty.focusTags || [];
+  var instructions = (difficulty.aiInstructions || '').trim();
+
+  var hasProfile = Object.keys(profile).length > 0;
+  var hasFocus = focusTags && focusTags.length > 0;
+  var hasInstructions = instructions.length > 0;
+  if (!hasProfile && !hasFocus && !hasInstructions) return null;
+
+  // Map a 1-5 slider to a short qualitative descriptor
+  function describe(val, axis) {
+    var n = parseInt(val, 10);
+    if (!n || n < 1 || n > 5) return null;
+    var scale = {
+      1: 'much lower than ' + level + ' standard',
+      2: 'slightly lower than ' + level + ' standard',
+      3: 'standard for ' + level,
+      4: 'slightly higher than ' + level + ' standard',
+      5: 'much higher than ' + level + ' standard'
+    };
+    return axis + ': ' + scale[n] + ' (level ' + n + '/5)';
+  }
+
+  var lines = [];
+
+  if (hasProfile) {
+    var labels = {
+      vocabulary_density:  'Vocabulary density (number of new words)',
+      sentence_complexity: 'Sentence complexity in examples',
+      speaking_duration:   'Speaking task length',
+      writing_length:      'Writing task minimum length',
+      listening_speed:     'Listening passage pacing',
+      grammar_complexity:  'Grammar structures introduced'
+    };
+    Object.keys(labels).forEach(function(key) {
+      if (profile[key] != null) {
+        var line = describe(profile[key], labels[key]);
+        if (line) lines.push('- ' + line);
+      }
+    });
+
+    // Concrete numeric overrides where they apply
+    if (profile.vocabulary_density) {
+      var vd = parseInt(profile.vocabulary_density, 10);
+      var vocabCount = { 1: 3, 2: 4, 3: 5, 4: 6, 5: 8 }[vd];
+      if (vocabCount) lines.push('- Use exactly ' + vocabCount + ' vocabulary words.');
+    }
+    if (profile.writing_length) {
+      var wl = parseInt(profile.writing_length, 10);
+      var ratio = { 1: 0.6, 2: 0.8, 3: 1.0, 4: 1.3, 5: 1.6 }[wl];
+      if (ratio) {
+        var adjusted = Math.round(defaultMinWords * ratio);
+        lines.push('- Set writing.minWords to ' + adjusted + '.');
+      }
+    }
+  }
+
+  if (hasFocus) {
+    lines.push('- Focus areas to emphasise this lesson: ' + focusTags.join(', ') + '.');
+  }
+
+  if (hasInstructions) {
+    lines.push('- Additional teacher instructions: ' + instructions);
+  }
+
+  return 'TEACHER GUIDANCE (override defaults above where they conflict):\n' + lines.join('\n');
+}
+
+
 // ══════════════════════════════════════════════════════
 // doPOST — handles all write requests
 // ══════════════════════════════════════════════════════
@@ -431,19 +733,11 @@ function handleGetLatestSubmission(studentName) {
  * Safely append a row to a sheet, matching params to the sheet's
  * ACTUAL header row (not the HEADERS constant). This prevents
  * column misalignment when sheets have old/different headers.
- * If the sheet is empty, writes the expected headers first.
+ * Auto-extends the sheet with any missing columns from expectedHeaders.
  */
 function safeAppendRow(sheetName, expectedHeaders, params) {
   var sheet = getOrCreateSheet(sheetName, expectedHeaders);
-
-  // If the sheet is empty, write the expected headers
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(expectedHeaders);
-  }
-
-  // Read the ACTUAL headers from row 1 of the sheet
-  var actualHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  actualHeaders = actualHeaders.map(function(h) { return String(h).trim(); });
+  var actualHeaders = ensureSheetHeaders(sheet, expectedHeaders);
 
   // Build the row by matching params to actual column headers
   var row = actualHeaders.map(function(header) {
@@ -467,8 +761,13 @@ function doPost(e) {
       safeAppendRow('Lesson Marks', HEADERS['Lesson Marks'], params);
 
     } else if (action === 'update_settings') {
+      // Merge with existing row so partial updates (e.g. just difficulty)
+      // don't wipe unrelated fields like teacher_name or cefr_level.
+      var existing = findLastByStudent('Settings', HEADERS['Settings'], params['student_name']) || {};
       var data = {};
-      HEADERS['Settings'].forEach(function(h) { data[h] = params[h] || ''; });
+      HEADERS['Settings'].forEach(function(h) {
+        data[h] = (params[h] !== undefined) ? params[h] : (existing[h] || '');
+      });
       data['updated_at'] = new Date().toLocaleString();
       upsertByStudent('Settings', HEADERS['Settings'], params['student_name'], data);
 
@@ -477,9 +776,15 @@ function doPost(e) {
       HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
       upsertByStudent('Examiner Results', HEADERS['Examiner Results'], params['candidate_name'], examData);
 
-    } else {
-      // Default: student submitted placement test → Initial Test Results
+    } else if (!action) {
+      // No action specified → student submitted placement test → Initial Test Results
       safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
+
+    } else {
+      // Unknown action — refuse instead of polluting Initial Test Results
+      return ContentService
+        .createTextOutput(JSON.stringify({ result: 'error', message: 'Unknown action: ' + action }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     return ContentService

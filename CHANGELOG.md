@@ -4,6 +4,32 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.14.0] - 2026-04-09
+
+### Fixed — AI Lesson Generation Now Actually Works
+- **Wired up Claude API in `apps-script.js`** — added `handleGenerateLesson(level, day, topic, allowSpanish, studentName)` that calls the Claude Messages API via `UrlFetchApp.fetch` (model: `claude-haiku-4-5` by default, configurable via `CLAUDE_MODEL` Script Property); strips markdown code fences and parses the JSON before returning
+- **`generate_lesson` GET action** added to `doGet` so the response is CORS-readable (the previous client used `postForm` with `mode: 'no-cors'`, which made the response opaque and unreadable)
+- **Rewrote `generateLesson()` in `student-course.html`** — now calls `FP.api.get(...?action=generate_lesson&level=&day=&topic=&spanish=&student=)`, caches the returned lesson in localStorage by `fp_lesson_<level>_d<day>` so reloads don't re-bill the API, and falls back gracefully on error
+- **Replaced single hardcoded `getFallbackLesson()` with 5-lesson library** — distinct topics (appointments, shopping, workplace, health, family/community) cycled by `(day - 1) % 5`; each is a complete lesson template with vocab, listening, speaking, practice, and writing
+- **Offline banner** — when AI generation fails and the fallback fires, a yellow banner appears at the top of the lesson screen so the teacher knows to fix the API key
+- **Hardened `doPost` fallthrough** — unknown POST `action` values previously fell through to `safeAppendRow('Initial Test Results', ...)`, silently writing empty rows into the test results sheet every time the broken `generate_lesson` POST ran; now the default branch only fires when `action` is empty (placement test submission), and unknown actions return an error response
+
+### Added — Teacher Difficulty Profile Influences AI Lessons
+- **`difficulty_json` column on Settings sheet** — single new column holds the teacher's difficulty profile, focus tags, and AI instructions as JSON; auto-added to existing sheets on first sync (no manual schema change needed)
+- **`saveDifficulty()` and `saveFocusAreas()` now sync to Sheets** — previously these only wrote to the teacher's localStorage, so the student's lesson generator could never see them; new `syncDifficultyToSheet()` helper POSTs `update_settings` with just `student_name` and `difficulty_json`
+- **`update_settings` is now a partial-update merge** — apps-script reads the existing Settings row first, only overwriting fields explicitly present in the request; previously, sending a partial update would have wiped unrelated fields (teacher_name, cefr_level, allow_spanish, etc.)
+- **`handleGenerateLesson` reads the student's difficulty profile** from the Settings sheet, parses `difficulty_json`, and folds it into the Claude prompt via a new `buildTeacherGuidanceBlock()` helper that translates 1–5 sliders into qualitative descriptors and concrete numeric overrides (e.g. vocabulary count, writing minWords)
+- **Caching note**: lesson cache is per `(level, day)` and is *not* invalidated on profile changes, matching the existing UI promise that *"Changes apply to the next generated lesson"* — i.e. unopened days reflect the new profile, already-generated days do not
+
+### Hardened — Sheet Schema Safety
+- **`upsertByStudent` now uses actual sheet headers** instead of the `HEADERS` constant — previously, extending a `HEADERS` entry would have misaligned rows in any pre-existing sheet; new `ensureSheetHeaders()` helper appends missing columns to the sheet on the right and is shared by both `safeAppendRow` and `upsertByStudent`
+- **`upsertByStudent` student-row lookup is now O(rows) instead of O(rows × cols)** — uses `getRange` on just the name column rather than reading the whole sheet via `getDataRange`
+
+### Setup
+Requires adding `CLAUDE_API_KEY` to the Apps Script project's Script Properties — see header comment in `apps-script.js`. The `difficulty_json` column is added to the Settings sheet automatically the first time the teacher saves a profile or difficulty change.
+
+---
+
 ## [0.13.0] - 2026-04-07
 
 ### Changed — Teacher Student Picker & Auto-Registration

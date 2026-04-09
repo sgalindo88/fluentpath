@@ -2041,13 +2041,47 @@ function updateDiff(key, val) {
 
 function saveDifficulty() {
   saveToLocalStorage();
-  showStatus('diff-save-status', '✓ Difficulty profile saved. Applies to next lesson.', false);
+  syncDifficultyToSheet('diff-save-status', '✓ Difficulty profile saved. Applies to next lesson.');
 }
 
 function resetDifficulty() {
   ex.difficultyProfile = {};
   buildDifficultyGrid();
-  showStatus('diff-save-status', '✓ Reset to defaults.', false);
+  saveToLocalStorage();
+  syncDifficultyToSheet('diff-save-status', '✓ Reset to defaults.');
+}
+
+/** Build the difficulty payload that ships to the Settings sheet
+ *  and is later read by apps-script when generating each lesson. */
+function buildDifficultyJson() {
+  return JSON.stringify({
+    difficultyProfile: ex.difficultyProfile || {},
+    focusTags: [...(ex.focusTags || [])],
+    aiInstructions: ex.aiInstructions || ''
+  });
+}
+
+/** POST the difficulty JSON to the Settings sheet via update_settings.
+ *  apps-script merges this with the existing row, so unrelated fields
+ *  (teacher_name, cefr_level, allow_spanish, …) are preserved. */
+function syncDifficultyToSheet(statusId, successMsg) {
+  if (!ex.studentName) {
+    showStatus(statusId, successMsg + ' (not synced — no student selected)', false);
+    return;
+  }
+  if (!WEBHOOK_URL || !WEBHOOK_URL.startsWith('https://')) {
+    showStatus(statusId, successMsg + ' (saved locally only)', false);
+    return;
+  }
+  FP.api.postForm(WEBHOOK_URL, {
+    action: 'update_settings',
+    student_name: ex.studentName,
+    difficulty_json: buildDifficultyJson()
+  }).then(function() {
+    showStatus(statusId, successMsg, false);
+  }).catch(function() {
+    showStatus(statusId, successMsg + ' (saved locally; sheet sync failed)', true);
+  });
 }
 
 function buildFocusTags() {
@@ -2065,7 +2099,7 @@ function toggleFocusTag(tag, btn) {
 function saveFocusAreas() {
   ex.aiInstructions = document.getElementById('ai-instructions').value;
   saveToLocalStorage();
-  showStatus('focus-save-status', '✓ Focus areas saved. Applied to next AI lesson.', false);
+  syncDifficultyToSheet('focus-save-status', '✓ Focus areas saved. Applied to next AI lesson.');
 }
 
 // ══════════════════════════════════════════════════════
@@ -2257,6 +2291,7 @@ function saveProfile() {
       allow_retake_test: ex.allowRetakeTest,
       course_month: ex.studentMonth,
       notes: ex.studentNotes,
+      difficulty_json: buildDifficultyJson(),
     }).catch(function() {
       showStatus('profile-save-status', 'Saved locally. Could not sync to Google Sheet.', true);
     });

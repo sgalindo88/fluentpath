@@ -733,106 +733,73 @@ async function beginLesson() {
 
 // ══════════════════════════════════════════════════════
 // AI LESSON GENERATION
+// Calls the Apps Script proxy (which calls Claude) to generate a fresh lesson
+// per (level, day). Cached in localStorage so reloads don't waste API calls.
+// Falls back to a varied offline library if anything goes wrong.
 // ══════════════════════════════════════════════════════
 async function generateLesson() {
-  const info = LEVEL_THEMES[state.level];
   const topicHints = getTopicForDay(state.level, state.dayNumber);
+  const cacheKey = 'fp_lesson_' + state.level + '_d' + state.dayNumber;
+  const isSpanishLevel = (state.level === 'A1' || state.level === 'A2');
 
-  const prompt = `You are an expert English language teacher designing a lesson for an adult immigrant learner.
+  // 1. Cache check — never re-generate the same day twice
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.topic) {
+        console.log('[FluentPath] Using cached lesson for', cacheKey);
+        return parsed;
+      }
+    }
+  } catch (_) { /* ignore parse errors */ }
 
-LEVEL: ${state.level} (${info.name}) — Theme: ${info.theme}
-DAY: ${state.dayNumber} of 20
-FOCUS: vocabulary, pronunciation, speaking (also include listening and writing tasks)
-TODAY'S TOPIC: ${topicHints.topic}
+  // 2. Call Apps Script → Claude
+  // Passing the student name lets apps-script fold the teacher's
+  // difficulty profile, focus areas, and AI instructions into the prompt.
+  try {
+    const url = GOOGLE_SHEET_WEBHOOK + '?' + [
+      'action=generate_lesson',
+      'level=' + encodeURIComponent(state.level),
+      'day=' + encodeURIComponent(state.dayNumber),
+      'topic=' + encodeURIComponent(topicHints.topic),
+      'spanish=' + (isSpanishLevel ? 'true' : 'false'),
+      'student=' + encodeURIComponent(state.studentName || '')
+    ].join('&');
 
-Generate a complete 90-minute lesson plan in JSON format. Return ONLY valid JSON, no markdown, no explanation.
+    const data = await FP.api.get(url, { timeout: 60000 });
 
-JSON structure:
-{
-  "topic": "lesson topic title",
-  "objective": "one sentence: what the student will be able to do after this lesson",
-  "warmup": {
-    "title": "warm-up title",
-    "instruction": "instruction for student",
-    "prompt": "a simple question or task to get them thinking"
-  },
-  "vocabulary": {
-    "title": "vocabulary set title",
-    "instruction": "how to use these words",
-    "words": [
-      { "word": "", "pronunciation": "/phonetic/", "partOfSpeech": "", "definition": "", "exampleSentence": "" }
-    ]
-  },
-  "listening": {
-    "title": "listening title",
-    "instruction": "instruction",
-    "audioText": "a paragraph (3-5 sentences) to be read aloud — realistic dialogue or monologue",
-    "questions": [
-      { "id": "l1", "question": "", "options": ["A","B","C","D"], "correct": 0 },
-      { "id": "l2", "question": "", "options": ["A","B","C","D"], "correct": 1 }
-    ]
-  },
-  "speaking": {
-    "title": "speaking/pronunciation title",
-    "instruction": "instruction",
-    "drills": [
-      { "id": "s1", "phrase": "phrase to practice", "tip": "pronunciation tip" },
-      { "id": "s2", "phrase": "phrase to practice", "tip": "pronunciation tip" }
-    ],
-    "conversationPrompt": "an open-ended speaking prompt for the student to respond to"
-  },
-  "practice": {
-    "title": "practice activity title",
-    "instruction": "instruction",
-    "questions": [
-      { "id": "p1", "question": "", "options": ["A","B","C","D"], "correct": 0 },
-      { "id": "p2", "question": "", "options": ["A","B","C","D"], "correct": 2 },
-      { "id": "p3", "question": "", "options": ["A","B","C","D"], "correct": 1 }
-    ]
-  },
-  "writing": {
-    "title": "writing title",
-    "instruction": "instruction",
-    "prompt": "writing prompt",
-    "minWords": ${state.level === 'A1' ? 20 : state.level === 'A2' ? 40 : state.level === 'B1' ? 80 : state.level === 'B2' ? 120 : state.level === 'C1' ? 180 : 250}
-  },
-  "review": {
-    "title": "review title",
-    "keyTakeaways": ["takeaway 1", "takeaway 2", "takeaway 3"]
+    if (data && data.found && data.lesson && data.lesson.topic) {
+      try { localStorage.setItem(cacheKey, JSON.stringify(data.lesson)); } catch (_) {}
+      return data.lesson;
+    }
+
+    if (data && data.error) {
+      console.warn('[FluentPath] Lesson generation error:', data.error);
+    } else {
+      console.warn('[FluentPath] Lesson generation returned no lesson');
+    }
+  } catch (e) {
+    console.warn('[FluentPath] Lesson generation request failed:', e.message);
   }
+
+  // 3. Fallback — varied library, with a banner so the teacher notices AI is offline
+  showFallbackBanner();
+  return getFallbackLesson(state.level, state.dayNumber);
 }
 
-Make the content REALISTIC and USEFUL for someone who works full time. Use everyday situations: work, shopping, health, family, neighbours, renting, public transport, etc. Level ${state.level} appropriately.${(state.level === 'A1' || state.level === 'A2') ? `
-
-IMPORTANT: This student speaks Spanish. For EVERY text field (title, instruction, prompt, question, conversationPrompt, tip, definition, exampleSentence, keyTakeaways), add a Spanish translation using an "_es" suffix key. For example:
-  "title": "Think About Your Day",
-  "title_es": "Piensa en Tu Día",
-  "instruction": "Take a moment to think...",
-  "instruction_es": "Tómate un momento para pensar...",
-  "prompt": "What did you do this morning?",
-  "prompt_es": "¿Qué hiciste esta mañana?",
-  "question": "What is the speaker's job?",
-  "question_es": "¿Cuál es el trabajo del hablante?",
-  "definition": "a meeting arranged in advance",
-  "definition_es": "una reunión organizada con anticipación"
-
-Include "_es" keys for ALL user-facing strings in the JSON. The vocabulary words themselves should stay in English (they are learning English), but definitions and example sentences need "_es" translations.` : ''}`;
-
-  // Try generating via Google Apps Script proxy (avoids CORS issues with direct API calls)
-  try {
-    await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, {
-      action: 'generate_lesson',
-      prompt: prompt,
-      student_name: state.studentName,
-      level: state.level,
-      day_number: state.dayNumber
-    }, { maxValueLength: 5000 });
-    // no-cors mode returns opaque response, can't read it — use fallback for now
-  } catch(e) {
-    console.warn('[FluentPath] Lesson generation request failed or timed out:', e.message);
-  }
-
-  return getFallbackLesson();
+/** Show a small banner so the student/teacher knows the AI generator is offline. */
+function showFallbackBanner() {
+  if (document.getElementById('fp-fallback-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'fp-fallback-banner';
+  banner.style.cssText =
+    'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:198;' +
+    'background:#fff8e1;border:1px solid #c9933a;color:#5a3e0a;' +
+    'padding:8px 16px;font-size:12px;font-family:"Source Serif 4",serif;' +
+    'box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:90%;text-align:center;';
+  banner.innerHTML = '⚠ Offline lesson — please tell your teacher the lesson generator is unavailable.';
+  document.body.appendChild(banner);
 }
 
 function getTopicForDay(level, day) {
@@ -848,29 +815,34 @@ function getTopicForDay(level, day) {
   return { topic: list[Math.min(day - 1, list.length - 1)] };
 }
 
-function getFallbackLesson() {
-  return {
-    topic: 'Daily Communication',
-    objective: 'Practice useful phrases for everyday situations.',
+// Five hand-curated fallback lessons that cycle by (day - 1) % 5.
+// Only used when AI generation fails — student sees the offline banner so the
+// teacher knows to fix the API key. Each lesson is a complete, distinct scenario
+// for an adult immigrant learner.
+const FALLBACK_LESSONS = [
+  // ── 0: Appointments & phone calls ──
+  {
+    topic: 'Making an Appointment',
+    objective: 'Make and confirm an appointment over the phone.',
     warmup: {
       title: 'Think About Your Day',
       instruction: 'Take a moment to think and answer in English.',
-      prompt: 'What did you do this morning? Try to describe it in 2-3 sentences.',
+      prompt: 'When was the last time you had an appointment? Describe it in 2-3 sentences.',
     },
     vocabulary: {
-      title: 'Useful Everyday Words',
+      title: 'Phone & Appointment Words',
       instruction: 'Click each word to see its meaning. Then try to use it in a sentence.',
       words: [
-        { word: 'appointment', pronunciation: '/əˈpɔɪntmənt/', partOfSpeech: 'noun', definition: 'A meeting arranged for a specific time', exampleSentence: 'I have a doctor\'s appointment at 3pm.' },
+        { word: 'appointment', pronunciation: '/əˈpɔɪntmənt/', partOfSpeech: 'noun', definition: 'A meeting arranged for a specific time', exampleSentence: "I have a doctor's appointment at 3pm." },
         { word: 'available', pronunciation: '/əˈveɪləbəl/', partOfSpeech: 'adjective', definition: 'Free to use or accessible', exampleSentence: 'Is this seat available?' },
         { word: 'confirm', pronunciation: '/kənˈfɜːm/', partOfSpeech: 'verb', definition: 'To make sure something is correct', exampleSentence: 'Please confirm your reservation.' },
         { word: 'urgent', pronunciation: '/ˈɜːdʒənt/', partOfSpeech: 'adjective', definition: 'Requiring immediate action', exampleSentence: 'This is urgent — I need help now.' },
       ],
     },
     listening: {
-      title: 'At the Office',
+      title: 'At the Front Desk',
       instruction: 'Listen to the conversation. Then answer the questions.',
-      audioText: 'Hi, this is Maria calling from the front desk. I\'m calling to confirm your appointment for tomorrow at two o\'clock. If you need to reschedule, please call us back as soon as possible. We look forward to seeing you.',
+      audioText: "Hi, this is Maria calling from the front desk. I'm calling to confirm your appointment for tomorrow at two o'clock. If you need to reschedule, please call us back as soon as possible. We look forward to seeing you.",
       questions: [
         { id: 'l1', question: 'Who is calling?', options: ['A doctor', 'Maria from the front desk', 'A customer', 'A manager'], correct: 1 },
         { id: 'l2', question: 'What is the purpose of the call?', options: ['To cancel an appointment', 'To make a complaint', 'To confirm an appointment', 'To ask for directions'], correct: 2 },
@@ -881,9 +853,9 @@ function getFallbackLesson() {
       instruction: 'Repeat each phrase clearly. Focus on stress and rhythm.',
       drills: [
         { id: 's1', phrase: 'Could I speak to the manager, please?', tip: 'Stress "manager" — COUld I SPEAK to the MANager, PLEASE?' },
-        { id: 's2', phrase: 'I\'d like to make an appointment.', tip: 'Notice the linking: I\'d-like-to — blend the words smoothly.' },
+        { id: 's2', phrase: "I'd like to make an appointment.", tip: "Notice the linking: I'd-like-to — blend the words smoothly." },
       ],
-      conversationPrompt: 'Imagine you are calling a clinic to book an appointment. Record yourself making the phone call. Include: your name, the reason for the appointment, and ask what times are available.',
+      conversationPrompt: 'Imagine you are calling a clinic to book an appointment. Record yourself making the call. Include: your name, the reason for the appointment, and ask what times are available.',
     },
     practice: {
       title: 'Quick Check',
@@ -891,24 +863,283 @@ function getFallbackLesson() {
       questions: [
         { id: 'p1', question: 'You need to see a doctor urgently. What do you say on the phone?', options: ['I want a pizza.', 'I need to make an urgent appointment.', 'Are you open tomorrow?', 'Where is the clinic?'], correct: 1 },
         { id: 'p2', question: 'Which word means "to make certain something is correct"?', options: ['cancel', 'ignore', 'confirm', 'forget'], correct: 2 },
-        { id: 'p3', question: 'Fill in the blank: "Is this time _____ for you?" ', options: ['urgent', 'available', 'confirmed', 'appointment'], correct: 1 },
+        { id: 'p3', question: 'Fill in the blank: "Is this time _____ for you?"', options: ['urgent', 'available', 'confirmed', 'appointment'], correct: 1 },
       ],
     },
     writing: {
       title: 'Write a Message',
       instruction: 'Write your response in the box below.',
-      prompt: 'Write a short text message to your boss explaining that you need to leave early today for a doctor\'s appointment. Be polite and professional.',
+      prompt: "Write a short text message to your boss explaining that you need to leave early today for a doctor's appointment. Be polite and professional.",
       minWords: 30,
     },
     review: {
-      title: 'Today\'s Key Points',
+      title: "Today's Key Points",
       keyTakeaways: [
-        'You learned 4 important words: appointment, available, confirm, urgent.',
-        'You practiced phone phrases for making appointments.',
+        'You learned 4 useful words: appointment, available, confirm, urgent.',
+        'You practised phone phrases for making appointments.',
         'You wrote a professional message in English.',
       ],
     },
-  };
+  },
+
+  // ── 1: Shopping & money ──
+  {
+    topic: 'Shopping and Prices',
+    objective: 'Ask about prices, make a purchase, and handle returns at a store.',
+    warmup: {
+      title: 'Your Last Purchase',
+      instruction: 'Think about something you bought recently.',
+      prompt: 'What was the last thing you bought? How much did it cost? Describe it in 2-3 sentences.',
+    },
+    vocabulary: {
+      title: 'Shopping Words',
+      instruction: 'Click each word to see its meaning. Then try to use it in a sentence.',
+      words: [
+        { word: 'receipt', pronunciation: '/rɪˈsiːt/', partOfSpeech: 'noun', definition: 'A paper showing what you paid for', exampleSentence: 'Please keep your receipt for the return.' },
+        { word: 'refund', pronunciation: '/ˈriːfʌnd/', partOfSpeech: 'noun', definition: 'Money returned to you for an item', exampleSentence: 'I would like a refund, please.' },
+        { word: 'discount', pronunciation: '/ˈdɪskaʊnt/', partOfSpeech: 'noun', definition: 'A reduction in the normal price', exampleSentence: 'Is there a student discount?' },
+        { word: 'cash', pronunciation: '/kæʃ/', partOfSpeech: 'noun', definition: 'Paper money and coins', exampleSentence: 'Do you accept cash or only card?' },
+        { word: 'expensive', pronunciation: '/ɪkˈspɛnsɪv/', partOfSpeech: 'adjective', definition: 'Costing a lot of money', exampleSentence: 'This jacket is too expensive for me.' },
+      ],
+    },
+    listening: {
+      title: 'At the Cash Register',
+      instruction: 'Listen carefully and answer the questions.',
+      audioText: "Good afternoon. Your total comes to twenty-four dollars and fifty cents. Will that be cash or card today? We also have a sale on all winter items — twenty percent off if you'd like to add anything else. And here's your receipt. Have a great day!",
+      questions: [
+        { id: 'l1', question: 'How much does the customer need to pay?', options: ['$14.50', '$24.50', '$20.00', '$24.00'], correct: 1 },
+        { id: 'l2', question: 'What is on sale today?', options: ['All items', 'Winter items', 'Summer items', 'Nothing'], correct: 1 },
+      ],
+    },
+    speaking: {
+      title: 'Shopping Phrases',
+      instruction: 'Repeat each phrase clearly. Focus on rising intonation for questions.',
+      drills: [
+        { id: 's1', phrase: 'How much does this cost?', tip: 'Rising tone at the end — How much does this COST?' },
+        { id: 's2', phrase: 'Do you accept credit cards?', tip: 'Stress "credit CARDS" — make it clear what you mean.' },
+      ],
+      conversationPrompt: "You bought a shirt yesterday but it's the wrong size. Record yourself asking the cashier for a refund or exchange. Include: what you bought, why you want to return it, and what you'd prefer instead.",
+    },
+    practice: {
+      title: 'Quick Check',
+      instruction: 'Choose the best answer.',
+      questions: [
+        { id: 'p1', question: 'Which word means "money returned to you"?', options: ['receipt', 'discount', 'refund', 'cash'], correct: 2 },
+        { id: 'p2', question: 'What do you ask if you want a lower price?', options: ['Is there a discount?', 'Where is the bathroom?', 'What time is it?', 'Can I have a bag?'], correct: 0 },
+        { id: 'p3', question: 'Fill in the blank: "Could I have a _____, please? I need it to return this item."', options: ['refund', 'receipt', 'discount', 'price'], correct: 1 },
+      ],
+    },
+    writing: {
+      title: 'Write a Complaint',
+      instruction: 'Write your response in the box below.',
+      prompt: 'Write a short email to a store explaining that the shoes you bought online arrived damaged. Politely ask for a refund or replacement.',
+      minWords: 30,
+    },
+    review: {
+      title: "Today's Key Points",
+      keyTakeaways: [
+        'You learned 5 shopping words: receipt, refund, discount, cash, expensive.',
+        'You practised asking about prices and requesting refunds.',
+        'You wrote a polite complaint message.',
+      ],
+    },
+  },
+
+  // ── 2: At work ──
+  {
+    topic: 'At the Workplace',
+    objective: 'Communicate about your schedule, ask for time off, and report a problem at work.',
+    warmup: {
+      title: 'Your Workday',
+      instruction: 'Think about your typical day at work.',
+      prompt: 'What time do you start work? What is the first thing you do? Describe it in 2-3 sentences.',
+    },
+    vocabulary: {
+      title: 'Workplace Words',
+      instruction: 'Click each word to see its meaning. Then try to use it in a sentence.',
+      words: [
+        { word: 'shift', pronunciation: '/ʃɪft/', partOfSpeech: 'noun', definition: 'A scheduled period of work', exampleSentence: 'My shift starts at 6am tomorrow.' },
+        { word: 'supervisor', pronunciation: '/ˈsuːpəvaɪzə/', partOfSpeech: 'noun', definition: 'The person who manages your work', exampleSentence: 'I need to talk to my supervisor.' },
+        { word: 'paycheck', pronunciation: '/ˈpeɪtʃɛk/', partOfSpeech: 'noun', definition: 'The money you receive for your work', exampleSentence: 'I get my paycheck every two weeks.' },
+        { word: 'overtime', pronunciation: '/ˈəʊvətaɪm/', partOfSpeech: 'noun', definition: 'Extra hours worked beyond the normal schedule', exampleSentence: 'I worked 5 hours of overtime last week.' },
+        { word: 'break', pronunciation: '/breɪk/', partOfSpeech: 'noun', definition: 'A short rest period during work', exampleSentence: 'We get a 30-minute break for lunch.' },
+      ],
+    },
+    listening: {
+      title: 'Asking for Time Off',
+      instruction: 'Listen to the conversation between an employee and supervisor.',
+      audioText: "Excuse me, Linda? I'm sorry to bother you, but I need to ask for next Friday off. My daughter has a school event in the morning. I can switch shifts with Carlos if that helps. I just wanted to give you plenty of notice.",
+      questions: [
+        { id: 'l1', question: 'What does the employee need?', options: ['A pay raise', 'A day off', 'A new uniform', 'A break'], correct: 1 },
+        { id: 'l2', question: 'What does the employee offer to do?', options: ['Work overtime', 'Switch shifts with Carlos', 'Bring her daughter to work', 'Quit her job'], correct: 1 },
+      ],
+    },
+    speaking: {
+      title: 'Polite Workplace Phrases',
+      instruction: 'Repeat each phrase. Focus on a calm, polite tone.',
+      drills: [
+        { id: 's1', phrase: "I'm sorry to bother you, but I have a question.", tip: 'Soften your voice — start politely so your supervisor is open to listening.' },
+        { id: 's2', phrase: 'Could I take my break now, please?', tip: 'Use rising intonation on "please" to sound polite.' },
+      ],
+      conversationPrompt: 'Imagine you need to leave work two hours early for a family emergency. Record yourself talking to your supervisor. Include: a polite opening, the reason, and offering to make up the hours.',
+    },
+    practice: {
+      title: 'Quick Check',
+      instruction: 'Choose the best answer.',
+      questions: [
+        { id: 'p1', question: 'Which word means "extra hours worked"?', options: ['shift', 'break', 'overtime', 'paycheck'], correct: 2 },
+        { id: 'p2', question: 'Who do you talk to if you have a problem at work?', options: ['Your customer', 'Your supervisor', 'Your neighbour', 'Your doctor'], correct: 1 },
+        { id: 'p3', question: 'Fill in the blank: "My _____ starts at 9am and ends at 5pm."', options: ['paycheck', 'break', 'shift', 'supervisor'], correct: 2 },
+      ],
+    },
+    writing: {
+      title: 'Email Your Supervisor',
+      instruction: 'Write your response in the box below.',
+      prompt: 'Write a short, polite email to your supervisor asking for next Tuesday off because you have a doctor appointment. Offer to work an extra shift to cover.',
+      minWords: 30,
+    },
+    review: {
+      title: "Today's Key Points",
+      keyTakeaways: [
+        'You learned 5 workplace words: shift, supervisor, paycheck, overtime, break.',
+        'You practised polite ways to talk to your supervisor.',
+        'You wrote a professional time-off request.',
+      ],
+    },
+  },
+
+  // ── 3: Health & doctor ──
+  {
+    topic: 'At the Doctor',
+    objective: 'Describe symptoms to a doctor and understand basic medical instructions.',
+    warmup: {
+      title: 'How Do You Feel?',
+      instruction: 'Think about how your body feels today.',
+      prompt: 'When was the last time you felt sick? What was wrong? Describe it in 2-3 sentences.',
+    },
+    vocabulary: {
+      title: 'Health Words',
+      instruction: 'Click each word to see its meaning. Then try to use it in a sentence.',
+      words: [
+        { word: 'symptom', pronunciation: '/ˈsɪmptəm/', partOfSpeech: 'noun', definition: 'A sign that you are sick', exampleSentence: 'A headache is a common symptom of the flu.' },
+        { word: 'prescription', pronunciation: '/prɪˈskrɪpʃən/', partOfSpeech: 'noun', definition: 'A doctor\'s written order for medicine', exampleSentence: 'I need to fill my prescription at the pharmacy.' },
+        { word: 'pain', pronunciation: '/peɪn/', partOfSpeech: 'noun', definition: 'A bad feeling in your body when you are hurt or sick', exampleSentence: 'I have a sharp pain in my back.' },
+        { word: 'fever', pronunciation: '/ˈfiːvə/', partOfSpeech: 'noun', definition: 'A high body temperature', exampleSentence: 'My son has a fever of 102 degrees.' },
+        { word: 'allergy', pronunciation: '/ˈælədʒi/', partOfSpeech: 'noun', definition: 'A bad reaction your body has to something', exampleSentence: 'I have an allergy to peanuts.' },
+      ],
+    },
+    listening: {
+      title: 'In the Doctor\'s Office',
+      instruction: 'Listen to the conversation between a patient and doctor.',
+      audioText: "So tell me, what brings you in today? I see — a sore throat for three days now. Any fever? Yes, a small one yesterday. Okay, let me take a look. Open your mouth and say 'ah'. Mm-hm. I think you have a throat infection. I'm going to write you a prescription for some antibiotics. Take one pill twice a day for seven days.",
+      questions: [
+        { id: 'l1', question: 'How long has the patient had a sore throat?', options: ['One day', 'Two days', 'Three days', 'A week'], correct: 2 },
+        { id: 'l2', question: 'What does the doctor prescribe?', options: ['Vitamins', 'Antibiotics', 'Pain killers', 'Cough syrup'], correct: 1 },
+      ],
+    },
+    speaking: {
+      title: 'Describing How You Feel',
+      instruction: 'Repeat each phrase. Focus on clear pronunciation of the body parts.',
+      drills: [
+        { id: 's1', phrase: 'I have a pain in my chest.', tip: 'Stress "PAIN" — make it clear this is the problem.' },
+        { id: 's2', phrase: 'I am allergic to penicillin.', tip: 'Pronounce "allergic" carefully: a-LER-jik.' },
+      ],
+      conversationPrompt: 'You have had a bad headache for two days. Record yourself talking to a doctor. Include: how long you have had the headache, where the pain is, and any other symptoms.',
+    },
+    practice: {
+      title: 'Quick Check',
+      instruction: 'Choose the best answer.',
+      questions: [
+        { id: 'p1', question: 'What is a "symptom"?', options: ['A type of medicine', 'A sign that you are sick', 'A doctor', 'A hospital'], correct: 1 },
+        { id: 'p2', question: 'Where do you go to get medicine?', options: ['The bank', 'The pharmacy', 'The school', 'The post office'], correct: 1 },
+        { id: 'p3', question: 'Fill in the blank: "I need to fill my _____ at the drugstore."', options: ['symptom', 'fever', 'prescription', 'allergy'], correct: 2 },
+      ],
+    },
+    writing: {
+      title: 'Note for Your Doctor',
+      instruction: 'Write your response in the box below.',
+      prompt: 'Write a short note describing your symptoms to a doctor. Include at least three symptoms and how long you have had them.',
+      minWords: 30,
+    },
+    review: {
+      title: "Today's Key Points",
+      keyTakeaways: [
+        'You learned 5 health words: symptom, prescription, pain, fever, allergy.',
+        'You practised describing how you feel to a doctor.',
+        'You wrote a clear note about your health.',
+      ],
+    },
+  },
+
+  // ── 4: Family & community ──
+  {
+    topic: 'Family and Neighbours',
+    objective: 'Talk about your family and have small talk with a neighbour.',
+    warmup: {
+      title: 'About Your Family',
+      instruction: 'Think about the people closest to you.',
+      prompt: 'Who do you live with? Tell me a little about one family member. Describe in 2-3 sentences.',
+    },
+    vocabulary: {
+      title: 'Family & Community Words',
+      instruction: 'Click each word to see its meaning. Then try to use it in a sentence.',
+      words: [
+        { word: 'neighbour', pronunciation: '/ˈneɪbə/', partOfSpeech: 'noun', definition: 'A person who lives near you', exampleSentence: 'My neighbour is very friendly.' },
+        { word: 'relative', pronunciation: '/ˈrɛlətɪv/', partOfSpeech: 'noun', definition: 'A member of your family', exampleSentence: 'I have many relatives in Mexico.' },
+        { word: 'borrow', pronunciation: '/ˈbɒrəʊ/', partOfSpeech: 'verb', definition: 'To use something that belongs to someone else', exampleSentence: 'Can I borrow your pen?' },
+        { word: 'invite', pronunciation: '/ɪnˈvaɪt/', partOfSpeech: 'verb', definition: 'To ask someone to come somewhere', exampleSentence: 'We invited our neighbours for dinner.' },
+        { word: 'together', pronunciation: '/təˈɡɛðə/', partOfSpeech: 'adverb', definition: 'With another person or group', exampleSentence: 'My family eats dinner together every night.' },
+      ],
+    },
+    listening: {
+      title: 'Meeting a Neighbour',
+      instruction: 'Listen to two neighbours meeting in the hallway.',
+      audioText: "Hi there! I think we're new neighbours. My name is Sandra, I just moved into apartment 4B last week. Oh nice to meet you! I'm Pablo, I live in 4C with my wife and two kids. Welcome to the building. If you ever need anything — sugar, a tool, anything — just knock on our door.",
+      questions: [
+        { id: 'l1', question: 'Who just moved in?', options: ['Pablo', 'Sandra', 'Pablo\'s wife', 'A child'], correct: 1 },
+        { id: 'l2', question: 'How does Pablo respond?', options: ['He ignores her', 'He is angry', 'He is friendly and helpful', 'He is too busy'], correct: 2 },
+      ],
+    },
+    speaking: {
+      title: 'Friendly Small Talk',
+      instruction: 'Repeat each phrase. Focus on a warm, friendly tone.',
+      drills: [
+        { id: 's1', phrase: 'Nice to meet you. How are you settling in?', tip: 'Smile while you say it — a friendly tone makes a big difference.' },
+        { id: 's2', phrase: 'If you need anything, just let me know.', tip: 'Say it slowly and warmly — this is a kind offer.' },
+      ],
+      conversationPrompt: 'A new neighbour just moved into your building. Record yourself introducing yourself. Include: your name, how long you have lived there, and offering to help with something.',
+    },
+    practice: {
+      title: 'Quick Check',
+      instruction: 'Choose the best answer.',
+      questions: [
+        { id: 'p1', question: 'Who is a "relative"?', options: ['A friend at work', 'A member of your family', 'Your boss', 'A stranger'], correct: 1 },
+        { id: 'p2', question: 'Which is a friendly thing to say to a new neighbour?', options: ['Go away.', 'Welcome to the building!', 'I am too busy.', 'What do you want?'], correct: 1 },
+        { id: 'p3', question: 'Fill in the blank: "Can I _____ your ladder for an hour?"', options: ['invite', 'borrow', 'together', 'neighbour'], correct: 1 },
+      ],
+    },
+    writing: {
+      title: 'Note for a Neighbour',
+      instruction: 'Write your response in the box below.',
+      prompt: 'Write a short, friendly note to a new neighbour. Introduce yourself, welcome them, and offer to help if they need anything.',
+      minWords: 30,
+    },
+    review: {
+      title: "Today's Key Points",
+      keyTakeaways: [
+        'You learned 5 community words: neighbour, relative, borrow, invite, together.',
+        'You practised friendly phrases for meeting new people.',
+        'You wrote a welcoming note to a neighbour.',
+      ],
+    },
+  },
+];
+
+function getFallbackLesson(level, day) {
+  const dayNum = parseInt(day, 10) || 1;
+  const idx = (dayNum - 1) % FALLBACK_LESSONS.length;
+  // Return a deep clone so render code can't mutate the shared template across days
+  return JSON.parse(JSON.stringify(FALLBACK_LESSONS[idx]));
 }
 
 // ══════════════════════════════════════════════════════
