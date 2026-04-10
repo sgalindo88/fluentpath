@@ -300,6 +300,42 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
   .main-content { margin-left:0; padding:20px 16px 60px; }
   .topbar { padding:0 16px; }
 }
+
+/* ── LESSON LIBRARY PANEL ── */
+.lib-legend-dot { display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:middle;margin-right:5px; }
+.lib-level-label { font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);padding:6px 0 3px; }
+.lib-day-grid { display:grid;grid-template-columns:repeat(20,1fr);gap:3px;margin-bottom:14px; }
+.lib-cell {
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:600;cursor:pointer;border:1px solid transparent;
+  transition:transform 0.12s,box-shadow 0.12s;border-radius:2px;
+}
+.lib-cell:hover { transform:scale(1.2);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,0.18); }
+.lib-cell-0  { background:#fdecea;color:#c0392b;border-color:#e8c4c0; }
+.lib-cell-1  { background:#fff8e1;color:#8a6200;border-color:#e8d5a0; }
+.lib-cell-5  { background:var(--green-bg);color:var(--green);border-color:#b2d8bb; }
+.lib-cell-10 { background:#e8f0fd;color:#1e4d8c;border-color:#a0b8e0; }
+.lib-modal-overlay {
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(26,18,8,0.55);z-index:500;
+  align-items:flex-start;justify-content:center;padding:72px 16px 24px;
+}
+.lib-modal-overlay.open { display:flex; }
+.lib-modal-box {
+  background:white;width:min(700px,100%);max-height:82vh;
+  overflow-y:auto;padding:32px;position:relative;
+  border-top:4px solid var(--blue);
+}
+.lib-entry-row {
+  display:flex;align-items:flex-start;gap:12px;padding:14px 0;
+  border-bottom:1px solid var(--cream);flex-wrap:wrap;
+}
+.lib-entry-row:last-child { border-bottom:none; }
+.lib-entry-meta { flex:1;min-width:0; }
+.lib-entry-id { font-size:12px;font-weight:700;color:var(--muted);font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.lib-entry-detail { font-size:11px;color:var(--muted);margin-top:3px; }
+.lib-recycled-badge { display:inline-flex;align-items:center;gap:3px;background:#e8f0fd;color:#1e4d8c;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:2px 7px;border-radius:2px;margin-left:6px;vertical-align:middle; }
+.lib-preview-box { background:var(--cream);border:1px solid var(--rule);padding:14px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto;margin-top:10px;line-height:1.5; }
 </style>
 </head>
 <body>
@@ -368,6 +404,9 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       <div class="sb-link" id="nav-progress" onclick="showPanel('progress')">
         <div class="sb-icon">📈</div> Progress Tracker
       </div>
+      <div class="sb-link" id="nav-library" onclick="showPanel('library')">
+        <div class="sb-icon">📚</div> Lesson Library
+      </div>
 
       <div class="sb-section">STUDENT</div>
       <div class="sb-link" id="nav-profile" onclick="showPanel('profile')">
@@ -402,6 +441,24 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div class="stat-box rust">
             <div class="stat-val" id="stat-marked">0</div>
             <div class="stat-lbl">Lessons Marked</div>
+          </div>
+        </div>
+
+        <!-- Library badge row — populated when Lesson Library panel is visited -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px;">
+          <div class="stat-box blue" style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div class="stat-val" style="font-size:26px;" id="dash-lib-total">—</div>
+              <div class="stat-lbl">Library Entries</div>
+            </div>
+            <div style="font-size:26px;opacity:0.25;">📚</div>
+          </div>
+          <div class="stat-box green" style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div class="stat-val" style="font-size:26px;" id="dash-lib-recycled">—</div>
+              <div class="stat-lbl">Times Recycled</div>
+            </div>
+            <div style="font-size:26px;opacity:0.25;">♻</div>
           </div>
         </div>
 
@@ -949,6 +1006,49 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
         </div>
 
       </div><!-- /panel-placementtest -->
+
+      <!-- ══ LESSON LIBRARY ══ -->
+      <div class="panel" id="panel-library">
+        <div class="panel-header">
+          <div class="panel-eyebrow">COURSE MANAGEMENT</div>
+          <div class="panel-title">Lesson <em>Library</em></div>
+          <div class="panel-sub">Previously generated lessons, indexed by level and day. Cells turn green at 5+ entries — the threshold where recycling activates (50 %). Blue at 10+ entries (80 % recycle). Click any cell to view, preview, or soft-delete entries.</div>
+        </div>
+
+        <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-box blue">
+            <div class="stat-val" id="lib-stat-total">—</div>
+            <div class="stat-lbl">Total Entries</div>
+          </div>
+          <div class="stat-box green">
+            <div class="stat-val" id="lib-stat-recycled">—</div>
+            <div class="stat-lbl">Times Recycled</div>
+          </div>
+          <div class="stat-box gold">
+            <div class="stat-val" id="lib-stat-seeded">—</div>
+            <div class="stat-lbl">Days Seeded (5+)</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-bottom:20px;font-size:12px;color:var(--muted);">
+          <span><span class="lib-legend-dot" style="background:#fdecea;border:1px solid #e8c4c0;"></span>0 entries</span>
+          <span><span class="lib-legend-dot" style="background:#fff8e1;border:1px solid #e8d5a0;"></span>1–4 (seeding)</span>
+          <span><span class="lib-legend-dot" style="background:var(--green-bg);border:1px solid #b2d8bb;"></span>5–9 (50 % recycle)</span>
+          <span><span class="lib-legend-dot" style="background:#e8f0fd;border:1px solid #a0b8e0;"></span>10+ (80 % recycle)</span>
+        </div>
+
+        <div id="lib-grid-container">
+          <div style="font-size:14px;color:var(--muted);font-style:italic;">Loading library data…</div>
+        </div>
+
+        <!-- Entry list / preview modal -->
+        <div class="lib-modal-overlay" id="lib-modal" onclick="if(event.target===this)closeLibraryModal()">
+          <div class="lib-modal-box">
+            <button onclick="closeLibraryModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);">✕</button>
+            <div id="lib-modal-content"></div>
+          </div>
+        </div>
+      </div><!-- /panel-library -->
 
     </div><!-- /main-content -->
   </div><!-- /layout -->
@@ -1502,9 +1602,10 @@ function showPanel(id) {
   document.getElementById('panel-' + id).classList.add('active');
   document.getElementById('nav-' + id)?.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  // Auto-load data when navigating to marking panels
+  // Auto-load data when navigating to specific panels
   if (id === 'placementtest') loadPlacementTest();
   if (id === 'marking') autoLoadSubmission();
+  if (id === 'library') loadLibraryPanel();
 }
 
 // ══════════════════════════════════════════════════════
@@ -2473,6 +2574,191 @@ window.addEventListener('DOMContentLoaded', () => {
   // Otherwise the setup screen stays visible (fallback)
   if (ex.studentName) document.getElementById('setup-student').value = ex.studentName;
 });
+
+
+// ══════════════════════════════════════════════════════
+// LESSON LIBRARY PANEL
+// ══════════════════════════════════════════════════════
+var libData = null; // cached get_library response
+
+function loadLibraryPanel() {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.startsWith('https://')) {
+    document.getElementById('lib-grid-container').innerHTML =
+      '<div style="color:var(--muted);font-style:italic;">Webhook not configured — library unavailable offline.</div>';
+    return;
+  }
+  document.getElementById('lib-grid-container').innerHTML =
+    '<div style="font-size:14px;color:var(--muted);font-style:italic;">Loading…</div>';
+
+  FP.api.get(WEBHOOK_URL + '?action=get_library', { timeout: 30000 })
+    .then(function(data) {
+      libData = data;
+      renderLibraryStats(data);
+      renderLibraryGrid(data);
+      updateDashboardLibraryBadge(data.totalEntries || 0, data.totalRecycled || 0);
+    })
+    .catch(function(err) {
+      document.getElementById('lib-grid-container').innerHTML =
+        '<div style="color:var(--rust);font-style:italic;">Failed to load library: ' + escHtml(err.message) + '</div>';
+    });
+}
+
+function renderLibraryStats(data) {
+  var seeded = (data.groups || []).filter(function(g) { return g.count >= 5; }).length;
+  var tEl = document.getElementById('lib-stat-total');
+  var rEl = document.getElementById('lib-stat-recycled');
+  var sEl = document.getElementById('lib-stat-seeded');
+  if (tEl) tEl.textContent = data.totalEntries  || 0;
+  if (rEl) rEl.textContent = data.totalRecycled || 0;
+  if (sEl) sEl.textContent = seeded;
+}
+
+function renderLibraryGrid(data) {
+  var groupMap = {};
+  (data.groups || []).forEach(function(g) { groupMap[g.level + '_' + g.day] = g; });
+
+  var LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  var html = '';
+  LEVELS.forEach(function(level) {
+    html += '<div class="lib-level-label">' + escHtml(level) + '</div>';
+    html += '<div class="lib-day-grid">';
+    for (var d = 1; d <= 20; d++) {
+      var g     = groupMap[level + '_' + d];
+      var count = g ? g.count : 0;
+      var cls   = count === 0 ? 'lib-cell-0' : count < 5 ? 'lib-cell-1' : count < 10 ? 'lib-cell-5' : 'lib-cell-10';
+      var title = escHtml(level) + ' Day ' + d + ': ' + count + ' entr' + (count === 1 ? 'y' : 'ies');
+      html += '<div class="lib-cell ' + cls + '" title="' + title + '"' +
+              ' onclick="openLibraryCell(\'' + escHtml(level) + '\',' + d + ')">' + count + '</div>';
+    }
+    html += '</div>';
+  });
+  document.getElementById('lib-grid-container').innerHTML = html;
+}
+
+function openLibraryCell(level, day) {
+  var groupMap = {};
+  if (libData && libData.groups) {
+    libData.groups.forEach(function(g) { groupMap[g.level + '_' + g.day] = g; });
+  }
+  var g       = groupMap[level + '_' + day];
+  var content = document.getElementById('lib-modal-content');
+
+  var html = '<div class="panel-eyebrow" style="margin-bottom:4px;">LESSON LIBRARY</div>' +
+    '<div style="font-family:\'Playfair Display\',serif;font-size:24px;font-weight:700;margin-bottom:4px;">' +
+    escHtml(level) + ' &middot; Day ' + day + '</div>';
+
+  if (!g || g.entries.length === 0) {
+    html += '<div style="font-size:14px;color:var(--muted);font-style:italic;margin-top:16px;">No entries yet for this day.</div>';
+  } else {
+    html += '<div style="font-size:13px;color:var(--muted);margin-bottom:18px;">' +
+      g.entries.length + ' entr' + (g.entries.length === 1 ? 'y' : 'ies') + '</div>';
+
+    g.entries.forEach(function(entry) {
+      var shortId = String(entry.id).replace('lib_', '').slice(0, 20);
+      var badge   = entry.times_served > 0
+        ? '<span class="lib-recycled-badge">&#9851; served ' + entry.times_served + '&times;</span>'
+        : '';
+      var diffParsed = null;
+      try { if (entry.original_difficulty_json) diffParsed = JSON.parse(entry.original_difficulty_json); } catch (e) {}
+      var diffStr = (diffParsed && diffParsed.difficultyProfile && Object.keys(diffParsed.difficultyProfile).length > 0)
+        ? Object.keys(diffParsed.difficultyProfile).map(function(k) {
+            return k.replace(/_/g,' ') + ':' + diffParsed.difficultyProfile[k];
+          }).join(' &middot; ')
+        : 'default difficulty';
+      var safeId = escHtml(entry.id);
+
+      html += '<div class="lib-entry-row" id="entry-' + safeId + '">' +
+        '<div class="lib-entry-meta">' +
+          '<div class="lib-entry-id">' + escHtml(shortId) + badge + '</div>' +
+          '<div class="lib-entry-detail">Source: ' + escHtml(entry.source_student || '—') +
+            ' &nbsp;·&nbsp; Created: ' + escHtml(String(entry.created_at || '').slice(0, 10)) + '</div>' +
+          '<div class="lib-entry-detail" style="font-size:10px;margin-top:2px;">' + diffStr + '</div>' +
+          '<div id="preview-' + safeId + '" style="display:none;"></div>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">' +
+          '<button class="btn-preview" onclick="toggleLibraryPreview(\'' + safeId + '\')" style="font-size:11px;padding:6px 12px;">Preview</button>' +
+          '<button class="btn-reject" onclick="deleteLibraryEntry(\'' + safeId + '\',\'' + escHtml(level) + '\',' + day + ')" style="font-size:11px;padding:6px 12px;">Delete</button>' +
+        '</div>' +
+      '</div>';
+    });
+  }
+
+  content.innerHTML = html;
+  document.getElementById('lib-modal').classList.add('open');
+}
+
+function toggleLibraryPreview(entryId) {
+  var box = document.getElementById('preview-' + entryId);
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+
+  box.innerHTML = '<div style="font-size:12px;color:var(--muted);font-style:italic;margin-top:8px;">Loading…</div>';
+  box.style.display = 'block';
+
+  var url = WEBHOOK_URL + '?action=get_library_entry&id=' + encodeURIComponent(entryId);
+  FP.api.get(url, { timeout: 20000 })
+    .then(function(data) {
+      if (!data || !data.found || !data.entry) {
+        box.innerHTML = '<div style="color:var(--rust);font-size:12px;margin-top:8px;">Entry not found.</div>';
+        return;
+      }
+      var lesson = null;
+      try { lesson = JSON.parse(data.entry.lesson_json || ''); } catch (e) {}
+      if (!lesson) {
+        box.innerHTML = '<div style="color:var(--rust);font-size:12px;margin-top:8px;">Could not parse lesson JSON.</div>';
+        return;
+      }
+      var preview = {
+        topic: lesson.topic, objective: lesson.objective,
+        warmup: lesson.warmup && lesson.warmup.prompt,
+        vocabulary: lesson.vocabulary && (lesson.vocabulary.words || []).map(function(w){ return w.word; }).join(', '),
+        speaking: lesson.speaking && lesson.speaking.conversationPrompt,
+        writing: lesson.writing && { prompt: lesson.writing.prompt, minWords: lesson.writing.minWords },
+        review: lesson.review && lesson.review.keyTakeaways
+      };
+      box.innerHTML = '<div class="lib-preview-box">' + escHtml(JSON.stringify(preview, null, 2)) + '</div>';
+    })
+    .catch(function(err) {
+      box.innerHTML = '<div style="color:var(--rust);font-size:12px;margin-top:8px;">Failed to load: ' + escHtml(err.message) + '</div>';
+    });
+}
+
+function deleteLibraryEntry(entryId, level, day) {
+  if (!confirm('Soft-delete this lesson from the library?\n\nIt will no longer be served to students. Recoverable by editing the sheet directly (set is_active back to "true").')) return;
+
+  FP.api.postForm(WEBHOOK_URL, { action: 'delete_library_entry', id: entryId })
+    .then(function() {
+      // Update local cache so the modal and grid refresh immediately
+      if (libData && libData.groups) {
+        libData.groups.forEach(function(g) {
+          if (g.level === level && g.day === day) {
+            g.entries = g.entries.filter(function(e) { return e.id !== entryId; });
+            g.count   = g.entries.length;
+          }
+        });
+        libData.totalEntries = Math.max(0, (libData.totalEntries || 1) - 1);
+      }
+      openLibraryCell(level, day);
+      renderLibraryStats(libData || {});
+      renderLibraryGrid(libData || { groups: [] });
+      updateDashboardLibraryBadge(
+        (libData && libData.totalEntries)  || 0,
+        (libData && libData.totalRecycled) || 0
+      );
+    })
+    .catch(function(err) { alert('Delete failed: ' + escHtml(err.message)); });
+}
+
+function closeLibraryModal() {
+  document.getElementById('lib-modal').classList.remove('open');
+}
+
+function updateDashboardLibraryBadge(total, recycled) {
+  var tEl = document.getElementById('dash-lib-total');
+  var rEl = document.getElementById('dash-lib-recycled');
+  if (tEl) tEl.textContent = total;
+  if (rEl) rEl.textContent = recycled;
+}
 </script>
 <script src="video-call.js"></script>
 </body>

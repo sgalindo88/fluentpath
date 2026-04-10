@@ -195,6 +195,10 @@ var HEADERS = {
   ],
   'Students': [
     'student_name', 'date_joined'
+  ],
+  'Lesson Library': [
+    'id', 'level', 'day', 'created_at', 'source_student',
+    'original_difficulty_json', 'lesson_json', 'is_active', 'times_served'
   ]
 };
 
@@ -232,6 +236,12 @@ function doGet(e) {
         String(e.parameter.spanish || '').toLowerCase() === 'true',
         student
       );
+
+    } else if (action === 'get_library') {
+      result = handleGetLibrary();
+
+    } else if (action === 'get_library_entry') {
+      result = handleGetLibraryEntry(e.parameter.id);
 
     } else {
       result = { error: 'Unknown action: ' + action };
@@ -469,52 +479,73 @@ function handleGetLatestSubmission(studentName) {
 
 
 // ── GET: generate_lesson ───────────────────────────────
-// Calls Claude API to generate a fresh lesson plan for the given level/day/topic.
-// If a student name is provided, looks up their teacher-set difficulty profile,
-// focus areas, and AI instructions from the Settings sheet and folds them into
-// the prompt so each lesson reflects the teacher's customisation.
-// Returns { found: true, lesson: {...} } on success, { error: '...' } on failure.
+// Checks the Lesson Library first (decisions 3–6, 9); falls back to fresh
+// Claude generation when needed. Returns { found, lesson, source } where
+// source is 'library' | 'rewrite' | 'fresh'.
 function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
   if (!level || !day || !topic) {
     return { error: 'Missing required parameter (level, day, topic)' };
   }
 
-  var props = PropertiesService.getScriptProperties();
+  var props  = PropertiesService.getScriptProperties();
   var apiKey = props.getProperty('CLAUDE_API_KEY');
-  if (!apiKey) {
-    return { error: 'CLAUDE_API_KEY not set in Script Properties' };
-  }
+  if (!apiKey) return { error: 'CLAUDE_API_KEY not set in Script Properties' };
   var model = props.getProperty('CLAUDE_MODEL') || CLAUDE_DEFAULT_MODEL;
 
-  // Look up teacher's difficulty customisation for this student (if any)
+  // Load teacher's difficulty profile for this student (if any)
   var difficulty = null;
   if (studentName) {
     var settingsRow = findLastByStudent('Settings', HEADERS['Settings'], studentName);
     if (settingsRow && settingsRow['difficulty_json']) {
-      try {
-        difficulty = JSON.parse(String(settingsRow['difficulty_json']));
-      } catch (parseErr) {
-        // Malformed JSON in the sheet — log and continue without difficulty
-        console.warn('Could not parse difficulty_json for ' + studentName + ': ' + parseErr.message);
-      }
+      try { difficulty = JSON.parse(String(settingsRow['difficulty_json'])); }
+      catch (parseErr) { console.warn('Could not parse difficulty_json for ' + studentName + ': ' + parseErr.message); }
     }
   }
 
+  // Decision 5: non-empty aiInstructions → skip library entirely (serve fresh, no write-back)
+  var hasCustomInstructions = !!(difficulty && (difficulty.aiInstructions || '').trim().length > 0);
+
+  // ── Library lookup (non-blocking — any failure falls through to fresh generation) ──
+  if (!hasCustomInstructions) {
+    try {
+      var entries      = getLibraryEntries(level, day);
+      var recycleChance = recycleProbability(entries.length);
+
+      if (entries.length > 0 && Math.random() < recycleChance) {
+        var match = findLibraryMatch(entries, difficulty || {});
+        if (match && match.lesson) {
+          try { incrementTimesServed(match.id); } catch (e) {}
+          return { found: true, lesson: match.lesson, source: 'library' };
+        }
+
+        // Option C: no direct match — rewrite closest entry for this difficulty
+        var closest = findClosestEntry(entries, difficulty || {});
+        if (closest && closest.lesson) {
+          try {
+            var rewritten = rewriteLessonForDifficulty(closest.lesson, difficulty || {}, level, day, apiKey, model);
+            try { addToLibrary(level, day, rewritten, difficulty || {}, studentName); } catch (e) {}
+            return { found: true, lesson: rewritten, source: 'rewrite' };
+          } catch (rewriteErr) {
+            console.warn('Option-C rewrite failed, generating fresh: ' + rewriteErr.message);
+            // fall through to fresh generation below
+          }
+        }
+      }
+    } catch (libLookupErr) {
+      console.warn('Library lookup failed (non-fatal), generating fresh: ' + libLookupErr.message);
+      // fall through to fresh generation — the library never blocks a lesson
+    }
+  }
+
+  // ── Fresh generation ────────────────────────────────
   var prompt = buildLessonPrompt(level, day, topic, allowSpanish, difficulty);
 
   try {
     var resp = UrlFetchApp.fetch(CLAUDE_API_URL, {
-      method: 'post',
+      method:      'post',
       contentType: 'application/json',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      payload: JSON.stringify({
-        model: model,
-        max_tokens: CLAUDE_MAX_TOKENS,
-        messages: [{ role: 'user', content: prompt }]
-      }),
+      headers:     { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      payload:     JSON.stringify({ model: model, max_tokens: CLAUDE_MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
       muteHttpExceptions: true
     });
 
@@ -525,7 +556,6 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
       var msg = (body && body.error && body.error.message) || ('HTTP ' + code);
       return { error: 'Claude API error: ' + msg };
     }
-
     if (!body.content || !body.content.length || body.content[0].type !== 'text') {
       return { error: 'Claude API returned no text content' };
     }
@@ -537,13 +567,17 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
       .trim();
 
     var lesson;
-    try {
-      lesson = JSON.parse(text);
-    } catch (parseErr) {
-      return { error: 'Could not parse lesson JSON: ' + parseErr.message };
+    try { lesson = JSON.parse(text); }
+    catch (parseErr) { return { error: 'Could not parse lesson JSON: ' + parseErr.message }; }
+
+    // Decision 6: custom-instructed lessons never enter the library
+    if (!hasCustomInstructions) {
+      try { addToLibrary(level, day, lesson, difficulty || {}, studentName); } catch (e) {
+        console.warn('Library write failed (non-fatal): ' + e.message);
+      }
     }
 
-    return { found: true, lesson: lesson };
+    return { found: true, lesson: lesson, source: 'fresh' };
   } catch (err) {
     return { error: 'Lesson generation failed: ' + err.message };
   }
@@ -726,6 +760,257 @@ function buildTeacherGuidanceBlock(difficulty, level, defaultMinWords) {
 
 
 // ══════════════════════════════════════════════════════
+// LESSON LIBRARY — helpers
+// ══════════════════════════════════════════════════════
+
+var SLIDER_KEYS = [
+  'vocabulary_density', 'sentence_complexity', 'speaking_duration',
+  'writing_length', 'listening_speed', 'grammar_complexity'
+];
+
+/**
+ * Returns the probability (0–1) that a given library coverage count should
+ * trigger a recycle attempt rather than fresh generation (decision 3).
+ *   0–4  → 0   (100% fresh — seed phase)
+ *   5–9  → 0.5 (50% recycle)
+ *   10+  → 0.8 (80% recycle)
+ */
+function recycleProbability(entryCount) {
+  if (entryCount < 5)  return 0;
+  if (entryCount < 10) return 0.5;
+  return 0.8;
+}
+
+/** Load all active entries for a (level, day) bucket, with parsed difficulty + lesson objects. */
+function getLibraryEntries(level, day) {
+  var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var rows   = sheetToObjects(sheet);
+  var result = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r['level']).trim() !== String(level).trim()) continue;
+    if (parseInt(r['day'], 10) !== parseInt(day, 10)) continue;
+    if (String(r['is_active']).trim() === 'false') continue;
+    var entry = {
+      id:             String(r['id']).trim(),
+      level:          r['level'],
+      day:            r['day'],
+      created_at:     r['created_at'],
+      source_student: r['source_student'],
+      times_served:   parseInt(r['times_served'], 10) || 0,
+      difficulty:     null,
+      lesson:         null
+    };
+    try { if (r['original_difficulty_json']) entry.difficulty = JSON.parse(String(r['original_difficulty_json'])); } catch (e) {}
+    try { if (r['lesson_json'])              entry.lesson     = JSON.parse(String(r['lesson_json']));              } catch (e) {}
+    result.push(entry);
+  }
+  return result;
+}
+
+/**
+ * Walk strict → lenient → null (decision 4).
+ * Strict:  all 6 sliders within ±1; if incoming difficulty has focusTags, ≥1 must overlap.
+ * Lenient: Manhattan distance across all 6 sliders ≤ 4; focus tags ignored.
+ */
+function findLibraryMatch(entries, difficulty) {
+  var profile  = (difficulty && difficulty.difficultyProfile) ? difficulty.difficultyProfile : {};
+  var incoming = (difficulty && difficulty.focusTags)         ? difficulty.focusTags          : [];
+
+  function sv(prof, k) { return parseInt(prof[k], 10) || 3; }
+
+  // Strict pass
+  for (var i = 0; i < entries.length; i++) {
+    var ep     = (entries[i].difficulty && entries[i].difficulty.difficultyProfile) ? entries[i].difficulty.difficultyProfile : {};
+    var efTags = (entries[i].difficulty && entries[i].difficulty.focusTags)         ? entries[i].difficulty.focusTags          : [];
+    var strictOk = SLIDER_KEYS.every(function(k) { return Math.abs(sv(profile, k) - sv(ep, k)) <= 1; });
+    var tagOk    = (incoming.length === 0) || incoming.some(function(t) { return efTags.indexOf(t) >= 0; });
+    if (strictOk && tagOk) return entries[i];
+  }
+
+  // Lenient pass
+  for (var j = 0; j < entries.length; j++) {
+    var ep2  = (entries[j].difficulty && entries[j].difficulty.difficultyProfile) ? entries[j].difficulty.difficultyProfile : {};
+    var dist = SLIDER_KEYS.reduce(function(sum, k) { return sum + Math.abs(sv(profile, k) - sv(ep2, k)); }, 0);
+    if (dist <= 4) return entries[j];
+  }
+
+  return null;
+}
+
+/**
+ * True if any existing entry at this (level, day) has all 6 sliders
+ * identical to `difficulty` — prevents near-duplicate writes (decision 9).
+ * Only used on the write path; not for serving.
+ */
+function nearDuplicateExists(entries, difficulty) {
+  var profile = (difficulty && difficulty.difficultyProfile) ? difficulty.difficultyProfile : {};
+  function sv(prof, k) { return parseInt(prof[k], 10) || 3; }
+  return entries.some(function(e) {
+    var ep = (e.difficulty && e.difficulty.difficultyProfile) ? e.difficulty.difficultyProfile : {};
+    return SLIDER_KEYS.every(function(k) { return sv(profile, k) === sv(ep, k); });
+  });
+}
+
+/** Return the entry with the smallest Manhattan distance from `difficulty` (used for option C). */
+function findClosestEntry(entries, difficulty) {
+  var profile = (difficulty && difficulty.difficultyProfile) ? difficulty.difficultyProfile : {};
+  function sv(prof, k) { return parseInt(prof[k], 10) || 3; }
+  var best = null, bestDist = Infinity;
+  for (var i = 0; i < entries.length; i++) {
+    var ep   = (entries[i].difficulty && entries[i].difficulty.difficultyProfile) ? entries[i].difficulty.difficultyProfile : {};
+    var dist = SLIDER_KEYS.reduce(function(sum, k) { return sum + Math.abs(sv(profile, k) - sv(ep, k)); }, 0);
+    if (dist < bestDist) { bestDist = dist; best = entries[i]; }
+  }
+  return best;
+}
+
+/**
+ * Append a lesson to the library, subject to the near-duplicate dedup check (decision 9).
+ * Returns true if written, false if skipped (duplicate exists).
+ */
+function addToLibrary(level, day, lesson, difficulty, sourceStudent) {
+  var entries = getLibraryEntries(level, day);
+  if (nearDuplicateExists(entries, difficulty || {})) return false;
+
+  var id = 'lib_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+  safeAppendRow('Lesson Library', HEADERS['Lesson Library'], {
+    id:                       id,
+    level:                    String(level),
+    day:                      String(day),
+    created_at:               new Date().toISOString(),
+    source_student:           sourceStudent || '',
+    original_difficulty_json: JSON.stringify(difficulty || {}),
+    lesson_json:              JSON.stringify(lesson),
+    is_active:                'true',
+    times_served:             '0'
+  });
+  return true;
+}
+
+/** Increment the times_served counter for a library entry by id. */
+function incrementTimesServed(entryId) {
+  var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var actual = ensureSheetHeaders(sheet, HEADERS['Lesson Library']);
+  var idCol  = actual.indexOf('id');
+  var tsCol  = actual.indexOf('times_served');
+  if (idCol < 0 || tsCol < 0 || sheet.getLastRow() < 2) return;
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, actual.length).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][idCol]).trim() === String(entryId).trim()) {
+      sheet.getRange(i + 2, tsCol + 1).setValue((parseInt(data[i][tsCol], 10) || 0) + 1);
+      return;
+    }
+  }
+}
+
+/**
+ * Option C: rewrite a source lesson for a new difficulty profile via Claude.
+ * Cheaper than full generation — the topic, structure, and activities stay identical.
+ */
+function rewriteLessonForDifficulty(sourceLesson, targetDifficulty, level, day, apiKey, model) {
+  var defaultMinWords = { A1: 20, A2: 40, B1: 80, B2: 120, C1: 180, C2: 250 }[level] || 80;
+  var guidance        = buildTeacherGuidanceBlock(targetDifficulty, level, defaultMinWords);
+
+  var prompt =
+    'You are an English language teacher. Adjust the following lesson plan to match a new difficulty profile.\n\n' +
+    'Keep the topic, theme, and activity structure identical. Only change vocabulary level, sentence complexity, ' +
+    'writing minimum word count, speaking task length, listening passage pacing, and grammar structures.\n\n' +
+    'Return ONLY valid JSON in the exact same schema as the input. No markdown, no explanation.\n\n' +
+    'SOURCE LESSON:\n' + JSON.stringify(sourceLesson) + '\n\n' +
+    (guidance ? 'TARGET DIFFICULTY:\n' + guidance + '\n\n' : '') +
+    'LEVEL: ' + level + '  DAY: ' + day;
+
+  var resp = UrlFetchApp.fetch(CLAUDE_API_URL, {
+    method:      'post',
+    contentType: 'application/json',
+    headers:     { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    payload:     JSON.stringify({ model: model, max_tokens: CLAUDE_MAX_TOKENS, messages: [{ role: 'user', content: prompt }] }),
+    muteHttpExceptions: true
+  });
+
+  var code = resp.getResponseCode();
+  var body = JSON.parse(resp.getContentText());
+  if (code >= 400) throw new Error('Claude API error on rewrite: ' + ((body.error && body.error.message) || code));
+  if (!body.content || !body.content.length || body.content[0].type !== 'text') throw new Error('Empty rewrite response');
+
+  var text = body.content[0].text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+  return JSON.parse(text);
+}
+
+
+// ── GET: get_library ──────────────────────────────────
+// Returns all active library entries grouped by (level, day) with counts and
+// serve statistics. lesson_json is deliberately excluded — fetch individually
+// via get_library_entry when previewing.
+function handleGetLibrary() {
+  var sheet   = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var rows    = sheetToObjects(sheet);
+  var grouped = {};
+  var totalEntries  = 0;
+  var totalRecycled = 0;
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r['is_active']).trim() === 'false') continue;
+    var key = String(r['level']).trim() + '_' + String(parseInt(r['day'], 10));
+    if (!grouped[key]) {
+      grouped[key] = { level: String(r['level']).trim(), day: parseInt(r['day'], 10), count: 0, timesServed: 0, entries: [] };
+    }
+    var ts = parseInt(r['times_served'], 10) || 0;
+    grouped[key].count++;
+    grouped[key].timesServed += ts;
+    totalEntries++;
+    totalRecycled += ts;
+
+    grouped[key].entries.push({
+      id:                       String(r['id']).trim(),
+      created_at:               String(r['created_at'] || ''),
+      source_student:           String(r['source_student'] || ''),
+      times_served:             ts,
+      original_difficulty_json: String(r['original_difficulty_json'] || '')
+    });
+  }
+
+  return { found: true, totalEntries: totalEntries, totalRecycled: totalRecycled, groups: Object.values(grouped) };
+}
+
+// ── GET: get_library_entry ────────────────────────────
+// Returns the full row (including lesson_json) for a single entry by id.
+function handleGetLibraryEntry(id) {
+  if (!id) return { found: false, error: 'Missing id' };
+  var sheet = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var rows  = sheetToObjects(sheet);
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i]['id']).trim() === String(id).trim()) {
+      return { found: true, entry: rows[i] };
+    }
+  }
+  return { found: false };
+}
+
+// ── POST: delete_library_entry ────────────────────────
+// Soft-deletes a library entry by setting is_active = 'false'.
+function handleDeleteLibraryEntry(id) {
+  if (!id) return { result: 'error', message: 'Missing id' };
+  var sheet     = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var actual    = ensureSheetHeaders(sheet, HEADERS['Lesson Library']);
+  var idCol     = actual.indexOf('id');
+  var activeCol = actual.indexOf('is_active');
+  if (idCol < 0 || activeCol < 0) return { result: 'error', message: 'Missing columns' };
+  if (sheet.getLastRow() < 2) return { result: 'error', message: 'Not found' };
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, actual.length).getValues();
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][idCol]).trim() === String(id).trim()) {
+      sheet.getRange(i + 2, activeCol + 1).setValue('false');
+      return { result: 'success' };
+    }
+  }
+  return { result: 'error', message: 'Entry not found' };
+}
+
+
+// ══════════════════════════════════════════════════════
 // doPOST — handles all write requests
 // ══════════════════════════════════════════════════════
 
@@ -775,6 +1060,11 @@ function doPost(e) {
       var examData = {};
       HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
       upsertByStudent('Examiner Results', HEADERS['Examiner Results'], params['candidate_name'], examData);
+
+    } else if (action === 'delete_library_entry') {
+      return ContentService
+        .createTextOutput(JSON.stringify(handleDeleteLibraryEntry(params['id'])))
+        .setMimeType(ContentService.MimeType.JSON);
 
     } else if (!action) {
       // No action specified → student submitted placement test → Initial Test Results

@@ -4,6 +4,42 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.15.0] - 2026-04-10
+
+### Added — Lesson Library & Recycling System
+
+#### Core algorithm (`apps-script.js`)
+- **New `Lesson Library` sheet** — auto-created with columns `id`, `level`, `day`, `created_at`, `source_student`, `original_difficulty_json`, `lesson_json`, `is_active`, `times_served`; created via the existing `ensureSheetHeaders` helper, no manual schema changes needed
+- **`recycleProbability(entryCount)`** — single authoritative function for the tier curve: 0–4 entries → 0 % recycle (seed phase), 5–9 → 50 %, 10+ → 80 %
+- **`getLibraryEntries(level, day)`** — loads all active entries for a `(level, day)` bucket with parsed `difficulty` and `lesson` objects
+- **`findLibraryMatch(entries, difficulty)`** — strict pass (all 6 sliders within ±1, ≥1 focus tag overlap if incoming has tags) then lenient pass (Manhattan distance ≤ 4, focus tags ignored); returns first match or null
+- **`nearDuplicateExists(entries, difficulty)`** — dedup check for writes: true if any existing entry has all 6 sliders identical (write path only, not serve path)
+- **`addToLibrary(level, day, lesson, difficulty, sourceStudent)`** — appends a row after passing the dedup check; returns false if skipped
+- **`incrementTimesServed(entryId)`** — increments the `times_served` cell on a library row in-place
+- **`findClosestEntry(entries, difficulty)`** — picks the entry with smallest Manhattan distance for option-C rewrites
+- **`rewriteLessonForDifficulty(sourceLesson, targetDifficulty, level, day, apiKey, model)`** — option-C: sends source lesson + target difficulty block to Claude; keeps topic/structure, adjusts only difficulty dimensions
+- **`handleGetLibrary()`** — new GET action `get_library`; returns entry counts and serve totals grouped by `(level, day)`, omits `lesson_json` for speed
+- **`handleGetLibraryEntry(id)`** — new GET action `get_library_entry`; returns the full row including `lesson_json` for preview
+- **`handleDeleteLibraryEntry(id)`** — new POST action `delete_library_entry`; soft-deletes by setting `is_active = 'false'` (recoverable from the sheet)
+
+#### `handleGenerateLesson` orchestration
+- Checks `aiInstructions` first: non-empty → skip library entirely and generate fresh (decision 5)
+- Loads library entries, rolls against `recycleProbability`: if recycling fires, attempts `findLibraryMatch` → if hit, increments `times_served` and returns cached lesson (`source: 'library'`); if miss, attempts option-C rewrite (`source: 'rewrite'`); rewrite failures fall back to fresh generation
+- Fresh-generated lessons are written back to the library unless `aiInstructions` was non-empty (decision 6)
+- All writes pass through the dedup check (decision 9) — no near-duplicate entries bloat the library
+- Response now includes a `source` field: `'library'` | `'rewrite'` | `'fresh'` (client ignores this; useful for debugging)
+
+#### Teacher Dashboard — Lesson Library panel (`examiner-panel.html`)
+- **New "Lesson Library" sidebar link** under COURSE section
+- **Stats row**: Total Entries / Times Recycled / Days Seeded (5+)
+- **6 × 20 grid** (one row per CEFR level, 20 columns for lesson days): cells colour-coded red (0), yellow (1–4), green (5–9), blue (10+); hover enlarges the cell; clicking opens the entry list modal
+- **Entry list modal**: shows `id` (short), source student, created date, difficulty profile summary, times-served badge; entry-level Preview and Delete buttons
+- **Preview**: fetches and displays a compact lesson summary (topic, objective, vocab words, writing prompt, key takeaways) without loading the full JSON blob
+- **Soft-delete**: confirms before acting; updates local cache and re-renders the grid and modal immediately without a full page reload
+- **Recycled badge on Dashboard**: two new stat boxes ("Library Entries" / "Times Recycled") appear on the overview panel; populated the first time the Lesson Library panel is opened
+
+---
+
 ## [0.14.0] - 2026-04-09
 
 ### Fixed — AI Lesson Generation Now Actually Works

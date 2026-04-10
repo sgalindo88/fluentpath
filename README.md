@@ -62,7 +62,7 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
 
 **Phase 1 -- Placement:** Student completes a four-skill proficiency test. The teacher marks it in the dashboard, assigns a CEFR level (A1--C2), and the student is placed into the right course tier. Students can skip the test if the teacher allows it.
 
-**Phase 2 -- Course:** Student works through a 20-day structured course with AI-generated lessons. Each day's lesson is generated fresh by the Claude API (via the Apps Script proxy) and cached per student/day in localStorage. If the API is unavailable, a 5-lesson offline fallback library cycles by day and a banner notifies the student. The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
+**Phase 2 -- Course:** Student works through a 20-day structured course with AI-generated lessons. Each day's lesson is served from the **Lesson Library** when a matching entry exists (recycling activates at 5+ entries per `(level, day)` bucket) or generated fresh by Claude if not. Freshly generated lessons are written back to the library so later students benefit from the pool. Lessons generated with teacher-specific `aiInstructions` are never recycled. All lessons are cached per student/day in localStorage so reloads don't re-bill the API. If the API is unavailable, a 5-lesson offline fallback library cycles by day and a banner notifies the student. The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
 
 **Live video calls** are available on all student pages via an optional floating "Join Video Call" button (same as the teacher dashboard).
 
@@ -235,7 +235,8 @@ english-course/
 | 6 | Marking | **Weekly Summaries** | 4-week skill assessments + AI-generated narrative summaries |
 | 7 | Course | **Adjust Difficulty** | 6 sliders (vocabulary, grammar, speaking, writing, listening, sentence complexity) + focus area tags |
 | 8 | Course | **Progress Tracker** | Lesson-by-lesson record table, skills snapshot with progress bars |
-| 9 | Student | **Student Profile** | Settings form (name, email, CEFR level, course month, notes) + permission toggles (allow Spanish, skip test, retake test) synced to Google Sheets |
+| 9 | Course | **Lesson Library** | 6 × 20 coverage grid colour-coded by entry count; click any cell to list, preview, or soft-delete library entries; stats: total entries, times recycled, days seeded |
+| 10 | Student | **Student Profile** | Settings form (name, email, CEFR level, course month, notes) + permission toggles (allow Spanish, skip test, retake test) synced to Google Sheets |
 
 #### Placement Test Marking (Panel 4)
 
