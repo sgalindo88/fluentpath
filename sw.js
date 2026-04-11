@@ -8,7 +8,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v3';
+var CACHE_VERSION = 'fp-v4';
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 var APP_SHELL = [
@@ -38,7 +38,7 @@ var APP_SHELL = [
   './src/styles/examiner-panel.css',
 ];
 
-var API_CACHE = 'fp-api-v3';
+var API_CACHE = 'fp-api-v4';
 var POST_QUEUE_DB = 'fp-post-queue';
 var POST_QUEUE_STORE = 'requests';
 
@@ -109,14 +109,38 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // ── App shell (local files): cache-first, update in background ──
+  // ── App shell (local files) ──
   if (url.origin === self.location.origin) {
-    event.respondWith(cacheFirst(event.request, CACHE_VERSION));
+    // HTML pages use network-first so users always get fresh content when online
+    if (event.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+      event.respondWith(networkFirst(event.request, CACHE_VERSION));
+    } else {
+      // CSS, JS, etc. use cache-first (they change less frequently)
+      event.respondWith(cacheFirst(event.request, CACHE_VERSION));
+    }
     return;
   }
 });
 
 // ── STRATEGIES ──────────────────────────────────────────
+
+function networkFirst(request, cacheName) {
+  return fetch(request).then(function (response) {
+    if (response.ok) {
+      var clone = response.clone();
+      caches.open(cacheName).then(function (cache) { cache.put(request, clone); });
+    }
+    return response;
+  }).catch(function () {
+    // Network failed — try cache
+    return caches.match(request).then(function (cached) {
+      return cached || new Response('Offline — please reconnect and try again.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    });
+  });
+}
 
 function cacheFirst(request, cacheName) {
   return caches.match(request).then(function (cached) {
