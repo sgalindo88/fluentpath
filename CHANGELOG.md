@@ -4,6 +4,24 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.19.0] - 2026-04-11
+
+### Fixed — innerHTML XSS Hardening
+
+#### Shared utilities (`src/utils.js`)
+- **`escHtml()` now escapes single quotes** — added `&#39;` replacement so values are safe inside single-quoted HTML attributes and `onclick` handlers (previously only escaped `&`, `<`, `>`, `"`)
+
+#### Examiner marking (`src/examiner-marking.html`)
+- **`addChip()`** — `label`, `ans`, and `detail` parameters now escaped with `escHtml()` before DOM insertion; previously interpolated raw student MCQ answers into innerHTML
+- **`buildCEFRRef()`** — `b.level` and `b.desc` now escaped (defensive; values are currently hardcoded constants)
+- **Added `utils.js` script include** — page was using `escHtml()` calls without loading the shared utility
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **Approval queue** — `l.id` now escaped with `escHtml()` in all `onclick` handlers and `id` attributes (6 occurrences across `renderApprovalQueue` and `renderLessonPreviewContent`)
+- **Focus tags** — `opt` values now escaped in `buildFocusTags()` onclick handlers and button text (defensive; values are currently from a hardcoded constant)
+
+---
+
 ## [0.18.0] - 2026-04-11
 
 ### Added — Token-Based API Authentication

@@ -688,6 +688,7 @@ body {
 <script src="config.js"></script>
 <script src="config.local.js"></script>
 <script src="api.js"></script>
+<script src="utils.js"></script>
 <script>
 // ══════════════════════════════════════════════════════
 // CONFIGURATION — paste your Google Apps Script URL here
@@ -866,8 +867,8 @@ function addChip(containerId, label, ans, pts, max, detail, unanswered) {
   const cls = unanswered ? '' : (pts === max ? 'correct' : 'wrong');
   d.className = 'mcq-chip ' + cls;
   d.innerHTML = `<span class="chip-icon">${unanswered ? '○' : (pts === max ? '✓' : '✗')}</span>
-    <div><div style="display:flex;align-items:baseline;gap:6px;"><span class="chip-q">${label}</span><span style="font-size:12px;color:var(--ink);font-weight:600;">→ ${ans}</span></div>
-    <div class="chip-detail">${detail} &nbsp;·&nbsp; ${pts}/${max} pts</div></div>`;
+    <div><div style="display:flex;align-items:baseline;gap:6px;"><span class="chip-q">${escHtml(label)}</span><span style="font-size:12px;color:var(--ink);font-weight:600;">→ ${escHtml(ans)}</span></div>
+    <div class="chip-detail">${escHtml(detail)} &nbsp;·&nbsp; ${pts}/${max} pts</div></div>`;
   c.appendChild(d);
 }
 
@@ -1000,9 +1001,9 @@ function updateResults() {
 function buildCEFRRef() {
   document.getElementById('cefr-ref').innerHTML = CEFR_BANDS.map(b =>
     `<div style="display:flex;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--rule);font-size:13px;">
-      <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;width:40px;">${b.level}</span>
+      <span style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;width:40px;">${escHtml(b.level)}</span>
       <span style="color:var(--muted);font-style:italic;width:75px;">${b.min}–${b.max} pts</span>
-      <span>${b.desc}</span>
+      <span>${escHtml(b.desc)}</span>
     </div>`).join('');
 }
 

@@ -1848,19 +1848,19 @@ function renderApprovalQueue() {
   }
 
   container.innerHTML = ex.pendingLessons.map(l => `
-    <div class="approval-item ${l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : ''}" id="ai-${l.id}">
+    <div class="approval-item ${l.status === 'approved' ? 'approved' : l.status === 'rejected' ? 'rejected' : ''}" id="ai-${escHtml(l.id)}">
       <div class="ai-info">
         <div class="ai-name">${escHtml(l.studentName || ex.studentName)} · <span style="color:var(--gold);">${escHtml(l.level)}</span></div>
         <div class="ai-meta">Day ${escHtml(String(l.day))} · ${escHtml(l.date)} · Topic: <em>${escHtml(l.topic || 'Not yet generated')}</em></div>
         <div style="margin-top:4px;"><span class="pill ${escHtml(l.status || 'pending')}">${escHtml(l.status || 'pending')}</span></div>
       </div>
       <div class="ai-actions">
-        <button class="btn-preview" onclick="toggleLessonPreview('${l.id}')">👁 Preview</button>
-        ${l.status !== 'approved' ? `<button class="btn-approve" onclick="approveLesson('${l.id}')">✓ Approve</button>` : ''}
-        ${l.status !== 'rejected' ? `<button class="btn-reject" onclick="rejectLesson('${l.id}')">✗ Reject</button>` : ''}
+        <button class="btn-preview" onclick="toggleLessonPreview('${escHtml(l.id)}')">👁 Preview</button>
+        ${l.status !== 'approved' ? `<button class="btn-approve" onclick="approveLesson('${escHtml(l.id)}')">✓ Approve</button>` : ''}
+        ${l.status !== 'rejected' ? `<button class="btn-reject" onclick="rejectLesson('${escHtml(l.id)}')">✗ Reject</button>` : ''}
       </div>
     </div>
-    <div class="lesson-preview" id="preview-${l.id}">
+    <div class="lesson-preview" id="preview-${escHtml(l.id)}">
       ${renderLessonPreviewContent(l)}
     </div>
   `).join('');
@@ -1891,10 +1891,10 @@ function renderLessonPreviewContent(l) {
       <div style="margin-top:14px;">
         <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:8px;">ADJUST DIFFICULTY</div>
         <div class="diff-controls">
-          <button class="diff-btn active" onclick="setDiffMode('${l.id}', 'easier', this)">⬇ Easier</button>
-          <button class="diff-btn active" style="background:var(--ink);color:var(--paper);border-color:var(--ink);" onclick="setDiffMode('${l.id}', 'normal', this)">✓ As Generated</button>
-          <button class="diff-btn" onclick="setDiffMode('${l.id}', 'harder', this)">⬆ Harder</button>
-          <button class="diff-btn" onclick="regenerateLesson('${l.id}')">🔄 Regenerate</button>
+          <button class="diff-btn active" onclick="setDiffMode('${escHtml(l.id)}', 'easier', this)">⬇ Easier</button>
+          <button class="diff-btn active" style="background:var(--ink);color:var(--paper);border-color:var(--ink);" onclick="setDiffMode('${escHtml(l.id)}', 'normal', this)">✓ As Generated</button>
+          <button class="diff-btn" onclick="setDiffMode('${escHtml(l.id)}', 'harder', this)">⬆ Harder</button>
+          <button class="diff-btn" onclick="regenerateLesson('${escHtml(l.id)}')">🔄 Regenerate</button>
         </div>
       </div>
     </div>
@@ -2510,7 +2510,7 @@ function syncDifficultyToSheet(statusId, successMsg) {
 function buildFocusTags() {
   const container = document.getElementById('focus-tags');
   container.innerHTML = FOCUS_OPTIONS.map(opt => `
-    <button class="diff-btn ${ex.focusTags.has(opt) ? 'active' : ''}" onclick="toggleFocusTag('${opt}', this)">${opt}</button>
+    <button class="diff-btn ${ex.focusTags.has(opt) ? 'active' : ''}" onclick="toggleFocusTag('${escHtml(opt)}', this)">${escHtml(opt)}</button>
   `).join('');
 }
 

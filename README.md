@@ -85,7 +85,7 @@ english-course/
     ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys, auth tokens)
     ├── config.local.js            # Auth token overrides (gitignored — never committed)
     ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding, auto-auth)
-    ├── utils.js                   # Shared utilities (escHtml)
+    ├── utils.js                   # Shared utilities (escHtml — XSS-safe for content and attributes)
     ├── theme.css                  # Shared design tokens (CSS variables, font imports)
     ├── video-call.js              # Jitsi Meet optional video panel
     ├── mobile.css                 # Mobile-first enhancements
