@@ -8,7 +8,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v4';
+var CACHE_VERSION = 'fp-v5';
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 var APP_SHELL = [
@@ -38,7 +38,7 @@ var APP_SHELL = [
   './src/styles/examiner-panel.css',
 ];
 
-var API_CACHE = 'fp-api-v4';
+var API_CACHE = 'fp-api-v5';
 var POST_QUEUE_DB = 'fp-post-queue';
 var POST_QUEUE_STORE = 'requests';
 
@@ -91,22 +91,11 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // ── API GET (Apps Script) ──
+  // ── API requests (Apps Script) — pass through to network ──
+  // Apps Script uses 302 redirects which can cause issues with SW caching.
+  // Let all API calls go directly to the network without SW interception.
   if (url.hostname.includes('script.google.com')) {
-    // Lesson generation should always hit the network (each call may return a different lesson)
-    if (url.search.includes('generate_lesson')) {
-      event.respondWith(
-        fetch(event.request).catch(function () {
-          return new Response(JSON.stringify({ error: 'Offline' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        })
-      );
-    } else {
-      event.respondWith(staleWhileRevalidate(event.request));
-    }
-    return;
+    return; // don't call event.respondWith — browser handles it normally
   }
 
   // ── App shell (local files) ──

@@ -20,7 +20,7 @@
         listEl.appendChild(card);
       });
     } catch(e) {
-      listEl.innerHTML = '<div class="empty-msg">Could not load students.<br>Check your connection and try again.</div>';
+      listEl.innerHTML = '<div class="empty-msg">Could not load students.<br>' + escHtml(e.message) + '</div>';
     }
   }
 

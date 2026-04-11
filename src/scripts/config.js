@@ -21,11 +21,10 @@ FP.WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXY
 FP.FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
 
 // ── Auth Tokens ─────────────────────────────────────────────
-// These are placeholder values. Override them in config.local.js
-// (gitignored) with the real secrets that match your Apps Script
-// Script Properties (APP_SECRET and TEACHER_SECRET).
-FP.APP_TOKEN = '';
-FP.TEACHER_TOKEN = '';
+// Production tokens (match APP_SECRET and TEACHER_SECRET in Script Properties).
+// For local dev with a different Apps Script deployment, override in config.local.js.
+FP.APP_TOKEN = '04eaecb3a0ccb2dc91c6b0da61a8d875';
+FP.TEACHER_TOKEN = '5fc87759a0b6b02e2f8f69125cafb1a8';
 
 // ── CEFR Levels ──────────────────────────────────────────────
 FP.LEVELS = {
