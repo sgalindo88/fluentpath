@@ -5,7 +5,7 @@
 .claude/
 
 # Local secrets (auth tokens — never commit)
-src/config.local.js
+src/scripts/config.local.js
 
 # VS Code
 .vscode/

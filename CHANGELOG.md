@@ -4,6 +4,24 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.20.0] - 2026-04-11
+
+### Changed — Extract JavaScript from HTML files
+
+All inline `<script>` blocks have been moved to separate `.js` files. HTML files now contain only markup and CSS. No logic was changed — this is a pure structural extraction.
+
+| HTML File | New JS File | Lines |
+|-----------|-------------|------:|
+| `index.html` | `src/scripts/hub.js` | 366 |
+| `teacher.html` | `src/scripts/teacher-portal.js` | 34 |
+| `src/student-initial-test.html` | `src/scripts/student-test.js` | 751 |
+| `src/student-course.html` | `src/scripts/student-lesson.js` | 1,665 |
+| `src/examiner-panel.html` | `src/scripts/examiner-panel.js` | 2,028 |
+
+All JS files grouped under `src/scripts/`. Script load order preserved — each HTML file loads the new `.js` file in the same position as the original inline script, followed by any subsequent scripts (video-call.js, i18n.js).
+
+---
+
 ## [0.19.0] - 2026-04-11
 
 ### Fixed — innerHTML XSS Hardening
@@ -40,7 +58,7 @@ All notable changes to the FluentPath platform are documented here.
 - **`postForm`** — injects `token` and `teacher_token` into the form body automatically
 - **`postJson`** — appends tokens to the URL via `_appendToken` (body stays pure JSON)
 
-#### New file: `src/config.local.js` (gitignored)
+#### New file: `src/scripts/config.local.js` (gitignored)
 - Template file for local token overrides; included by all HTML pages after `config.js`
 
 #### All HTML pages

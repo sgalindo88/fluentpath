@@ -14,7 +14,7 @@
         - Execute as: Me
         - Who has access: Anyone
      5. Copy the deployment URL and use it in the platform
-     6. In the frontend, create src/config.local.js (gitignored) and set
+     6. In the frontend, create src/scripts/config.local.js (gitignored) and set
         FP.APP_TOKEN and FP.TEACHER_TOKEN to match the Script Properties
 
    Handles all GET (reads + AI lesson generation) and POST (writes) for FluentPath.

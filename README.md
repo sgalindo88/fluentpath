@@ -78,19 +78,25 @@ english-course/
 ├── GOOGLE_SHEETS_SCHEMA.md        # Full database schema documentation
 ├── apps-script.js                 # Google Apps Script source (paste into Code.gs)
 └── src/
-    ├── student-initial-test.html  # Placement test (student)
-    ├── student-course.html        # Daily lesson (student)
-    ├── examiner-panel.html        # Teacher dashboard (all-in-one)
+    ├── student-initial-test.html  # Placement test (student) — HTML/CSS only
+    ├── student-course.html        # Daily lesson (student) — HTML/CSS only
+    ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML/CSS only
     ├── examiner-marking.html      # Standalone marking (legacy)
-    ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys, auth tokens)
-    ├── config.local.js            # Auth token overrides (gitignored — never committed)
-    ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding, auto-auth)
-    ├── utils.js                   # Shared utilities (escHtml — XSS-safe for content and attributes)
     ├── theme.css                  # Shared design tokens (CSS variables, font imports)
-    ├── video-call.js              # Jitsi Meet optional video panel
     ├── mobile.css                 # Mobile-first enhancements
-    ├── i18n.js                    # Level-aware Spanish translation
-    └── checkpoint.js              # Session recovery / auto-save
+    └── scripts/
+        ├── hub.js                 # Student hub logic (from index.html)
+        ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
+        ├── student-test.js        # Placement test logic (from student-initial-test.html)
+        ├── student-lesson.js      # Daily lesson logic (from student-course.html)
+        ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
+        ├── config.js              # Shared configuration (webhook URL, CEFR levels, storage keys, auth tokens)
+        ├── config.local.js        # Auth token overrides (gitignored — never committed)
+        ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
+        ├── utils.js               # Shared utilities (escHtml — XSS-safe for content and attributes)
+        ├── video-call.js          # Jitsi Meet optional video panel
+        ├── i18n.js                # Level-aware Spanish translation
+        └── checkpoint.js          # Session recovery / auto-save
 ```
 
 ---
@@ -390,7 +396,7 @@ Print-inspired, academic, warm -- designed to feel calm and professional for adu
 | `student-course.html` | Sends / Receives | Lesson requests, approval polling, completion data |
 | `examiner-panel.html` | Sends / Receives | Marks, approvals, settings, test results fetch, CEFR level |
 
-**Authentication:** All API requests require an `APP_SECRET` token (set in Script Properties). Teacher-only endpoints (grading, settings, attendance, library management) additionally require a `TEACHER_SECRET`. Tokens are auto-injected by `api.js`. See `src/config.local.js` for frontend setup.
+**Authentication:** All API requests require an `APP_SECRET` token (set in Script Properties). Teacher-only endpoints (grading, settings, attendance, library management) additionally require a `TEACHER_SECRET`. Tokens are auto-injected by `api.js`. See `src/scripts/config.local.js` for frontend setup.
 
 Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
