@@ -511,7 +511,7 @@ The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHE
 - **Storage:** localStorage (checkpoints, preferences, achievements), Google Sheets (shared persistence)
 - **Translation:** Level-aware Spanish with 4 modes (spanish-primary, tap-to-translate, teacher-gated, english-only)
 - **Email:** Formspree (test results) + MailApp (teacher/student notifications)
-- **Hosting:** GitHub Pages at [sgalindo88.github.io/english-course](https://sgalindo88.github.io/english-course/)
+- **Hosting:** GitHub Pages at [sgalindo88.github.io/fluentpath](https://sgalindo88.github.io/fluentpath/)
 - **Local Dev:** DDEV + `npm run dev` with auto-detected staging environment
 
 ---

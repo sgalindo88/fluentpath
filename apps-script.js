@@ -965,7 +965,7 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
   }
 
   // ── Fresh generation ────────────────────────────────
-  var prompt = buildLessonPrompt(level, day, topic, allowSpanish, difficulty);
+  var prompt = buildLessonPrompt(level, day, topic, allowSpanish, difficulty, studentName);
 
   try {
     var resp = UrlFetchApp.fetch(CLAUDE_API_URL, {
@@ -1011,7 +1011,7 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
 }
 
 /** Build the lesson prompt sent to Claude. Mirrors the structure expected by student-course.html. */
-function buildLessonPrompt(level, day, topic, allowSpanish, difficulty) {
+function buildLessonPrompt(level, day, topic, allowSpanish, difficulty, studentName) {
   var levelInfo = {
     'A1': { name: 'Beginner',           theme: 'Everyday Survival' },
     'A2': { name: 'Elementary',         theme: 'Community & Life' },

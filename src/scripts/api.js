@@ -38,10 +38,11 @@ FP.api = (function () {
 
   /**
    * Encode an object as application/x-www-form-urlencoded.
-   * Values are truncated to `maxLen` chars (default 2 000) to match existing behaviour.
+   * Values are truncated to `maxLen` chars (default 10 000) to prevent data loss
+   * on long writing responses and speaking transcripts.
    */
   function _encodeForm(payload, maxLen) {
-    var limit = maxLen || 2000;
+    var limit = maxLen || 10000;
     return Object.keys(payload).map(function (k) {
       return encodeURIComponent(k) + '=' + encodeURIComponent(String(payload[k]).substring(0, limit));
     }).join('&');
@@ -186,6 +187,12 @@ FP.hideSaveOverlay = function () {
   if (el) el.style.display = 'none';
 };
 
+
+// ══════════════════════════════════════════════════════
+// STARTUP — run once on every page load
+// ══════════════════════════════════════════════════════
+
+if (typeof cleanupLocalStorage === 'function') cleanupLocalStorage();
 
 // ══════════════════════════════════════════════════════
 // DEV BANNER — shown in development mode

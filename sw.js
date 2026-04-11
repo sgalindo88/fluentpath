@@ -8,7 +8,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v1';
+var CACHE_VERSION = 'fp-v2';
 var APP_SHELL = [
   '/',
   '/index.html',
@@ -36,7 +36,7 @@ var APP_SHELL = [
   '/src/styles/examiner-panel.css',
 ];
 
-var API_CACHE = 'fp-api-v1';
+var API_CACHE = 'fp-api-v2';
 var POST_QUEUE_DB = 'fp-post-queue';
 var POST_QUEUE_STORE = 'requests';
 
@@ -89,9 +89,21 @@ self.addEventListener('fetch', function (event) {
     return;
   }
 
-  // ── API GET (Apps Script): stale-while-revalidate ──
+  // ── API GET (Apps Script) ──
   if (url.hostname.includes('script.google.com')) {
-    event.respondWith(staleWhileRevalidate(event.request));
+    // Lesson generation should always hit the network (each call may return a different lesson)
+    if (url.search.includes('generate_lesson')) {
+      event.respondWith(
+        fetch(event.request).catch(function () {
+          return new Response(JSON.stringify({ error: 'Offline' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        })
+      );
+    } else {
+      event.respondWith(staleWhileRevalidate(event.request));
+    }
     return;
   }
 
@@ -128,7 +140,16 @@ function staleWhileRevalidate(request) {
     return cache.match(request).then(function (cached) {
       var fetchPromise = fetch(request).then(function (response) {
         if (response.ok) {
-          cache.put(request, response.clone());
+          // Only cache successful API responses (skip error JSON like { error: "..." })
+          var cacheClone = response.clone();
+          var checkClone = response.clone();
+          checkClone.text().then(function (text) {
+            try {
+              var body = JSON.parse(text);
+              if (body.error) return; // don't cache error responses
+            } catch (e) { /* not JSON — cache it */ }
+            cache.put(request, cacheClone);
+          }).catch(function () { cache.put(request, cacheClone); });
         }
         return response;
       }).catch(function () {

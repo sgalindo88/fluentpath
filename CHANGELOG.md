@@ -4,6 +4,29 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.43.0] - 2026-04-11
+
+### Fixed — Quick wins from suggestions audit
+
+#### localStorage cleanup (Suggestion 7.2) — `src/scripts/utils.js`
+- **`cleanupLocalStorage()`** — runs on every page load via `api.js`; removes lesson caches and hub cache older than 30 days; adds `_ts` timestamps to existing entries for future cleanup; warns in console when localStorage exceeds 4MB
+
+#### postForm truncation limit (Suggestion 3.4) — `src/scripts/api.js`
+- **Default limit raised from 2,000 to 10,000 characters** — prevents silent data loss on long writing responses and speaking transcripts
+
+#### Checkpoint double-buffer (Suggestion 9.3) — `src/scripts/checkpoint.js`
+- **Double-buffer writes** — alternates between `_a` and `_b` localStorage slots; a crash mid-save corrupts at most one slot, the other remains valid
+- **Version field** — checkpoints include `_version: 2`; incompatible old versions are filtered out on load
+- **Legacy migration** — `load()` checks old single-key format first, so existing checkpoints are still recovered
+
+#### Day X/20 progress in lesson nav (Suggestion 5.6) — `src/scripts/student-lesson.js`
+- **Nav badge updated** — shows "Day 3 / 20" instead of just "Day 3" during lessons
+
+#### New file: `SUGGESTIONS_AUDIT.md`
+- Complete cross-reference of all 45 suggestions vs. implementation status (32 done, 7 low-effort remaining, 6 deferred)
+
+---
+
 ## [0.42.0] - 2026-04-11
 
 ### Added — Service worker for offline resilience

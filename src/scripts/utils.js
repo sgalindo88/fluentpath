@@ -75,3 +75,68 @@ function timeAgo(timestamp) {
   if (hrs < 24) return hrs + 'h ago / hace ' + hrs + 'h';
   return 'over a day ago / hace más de un día';
 }
+
+// ── localStorage Cleanup ────────────────────────────────
+
+/** Maximum age for cached entries (30 days in ms). */
+var LS_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Clean up stale localStorage entries on app load.
+ * - Removes lesson caches (fp_lesson_*) older than 30 days
+ * - Removes hub cache if older than 30 days
+ * - Warns in console if localStorage usage exceeds 4MB
+ *
+ * Call once on page load (e.g. from hub.js or api.js).
+ */
+function cleanupLocalStorage() {
+  try {
+    var now = Date.now();
+    var keysToRemove = [];
+
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      if (!key) continue;
+
+      // Check timestamped entries (fp_lesson_*, fp_hub_cache)
+      if (key.startsWith('fp_lesson_') || key === 'fp_hub_cache') {
+        try {
+          var raw = localStorage.getItem(key);
+          var parsed = JSON.parse(raw);
+          // Check _ts (timestamp we add) or _savedAt (checkpoint format)
+          var ts = parsed && (parsed._ts || parsed._savedAt);
+          if (ts && (now - ts) > LS_MAX_AGE) {
+            keysToRemove.push(key);
+          }
+          // If no timestamp, add one for future cleanup
+          if (parsed && !parsed._ts) {
+            parsed._ts = now;
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
+        } catch (e) {
+          // Unparseable — remove it
+          keysToRemove.push(key);
+        }
+      }
+    }
+
+    keysToRemove.forEach(function(k) {
+      localStorage.removeItem(k);
+    });
+
+    if (keysToRemove.length > 0) {
+      console.log('[FluentPath] Cleaned up ' + keysToRemove.length + ' stale localStorage entries.');
+    }
+
+    // Warn if approaching storage limit (~5MB for most browsers)
+    var totalSize = 0;
+    for (var j = 0; j < localStorage.length; j++) {
+      var k = localStorage.key(j);
+      if (k) totalSize += (localStorage.getItem(k) || '').length;
+    }
+    var sizeMB = (totalSize / (1024 * 1024)).toFixed(1);
+    if (totalSize > 4 * 1024 * 1024) {
+      console.warn('[FluentPath] localStorage usage is ' + sizeMB + 'MB — approaching the 5MB browser limit.');
+    }
+  } catch (e) { /* localStorage unavailable */ }
+}

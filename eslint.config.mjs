@@ -63,6 +63,7 @@ export default [
         formatDuration: 'readonly',
         formatPlayTime: 'readonly',
         timeAgo: 'readonly',
+        cleanupLocalStorage: 'readonly',
         Checkpoint: 'writable',
         VideoCall: 'writable',
         I18n: 'writable',

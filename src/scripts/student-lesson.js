@@ -113,7 +113,7 @@ function tryResumeLesson() {
       showScreen('screen-lesson');
       var info = LEVEL_THEMES[state.level] || { theme: '' };
       document.getElementById('navInfo').textContent = state.level + ' · ' + info.theme;
-      document.getElementById('navDay').textContent = 'Day ' + state.dayNumber;
+      document.getElementById('navDay').textContent = 'Day ' + state.dayNumber + ' / ' + FP.COURSE_DAYS;
       document.getElementById('navDay').style.display = 'block';
       document.getElementById('navTimer').style.display = 'block';
       document.getElementById('lessonLabel').textContent = 'Day ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme;
@@ -234,7 +234,7 @@ async function beginLesson() {
   // Update nav
   const info = LEVEL_THEMES[state.level];
   document.getElementById('navInfo').textContent = `${state.level} · ${info.theme}`;
-  document.getElementById('navDay').textContent = `Day ${state.dayNumber}`;
+  document.getElementById('navDay').textContent = `Day ${state.dayNumber} / ${FP.COURSE_DAYS}`;
   document.getElementById('navDay').style.display = 'block';
   document.getElementById('navTimer').style.display = 'block';
   document.getElementById('lessonLabel').textContent = `Day ${state.dayNumber} · ${state.level} · ${info.theme}`;

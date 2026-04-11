@@ -18,29 +18,67 @@ const Checkpoint = (() => {
   'use strict';
 
   const PREFIX = 'fp_ckpt_';
+  const VERSION = 2; // increment when checkpoint structure changes
 
-  /* ── Core API ───────────────────────────────────────────── */
+  /* ── Core API (double-buffer) ──────────────────────────── */
+  // Alternates writes between _a and _b slots. On load, picks the
+  // newest valid slot. A crash during save corrupts at most one slot.
+
+  var writeSlot = {}; // tracks which slot to write next per key
 
   function save(key, data) {
     try {
       data._savedAt = Date.now();
-      localStorage.setItem(PREFIX + key, JSON.stringify(data));
+      data._version = VERSION;
+      var slot = writeSlot[key] === 'b' ? 'a' : 'b';
+      writeSlot[key] = slot;
+      localStorage.setItem(PREFIX + key + '_' + slot, JSON.stringify(data));
     } catch (e) { /* quota exceeded or unavailable */ }
   }
 
   function load(key) {
+    var a = _loadSlot(key, 'a');
+    var b = _loadSlot(key, 'b');
+    // Also try the old single-key format (migration from pre-double-buffer)
+    var legacy = _loadLegacy(key);
+
+    // Pick the newest valid checkpoint
+    var candidates = [a, b, legacy].filter(function(c) { return c !== null; });
+    if (candidates.length === 0) return null;
+
+    // Filter out incompatible versions
+    candidates = candidates.filter(function(c) { return !c._version || c._version === VERSION; });
+    if (candidates.length === 0) return null;
+
+    // Return the one with the most recent _savedAt
+    candidates.sort(function(x, y) { return (y._savedAt || 0) - (x._savedAt || 0); });
+    return candidates[0];
+  }
+
+  function _loadSlot(key, slot) {
     try {
-      const raw = localStorage.getItem(PREFIX + key);
+      var raw = localStorage.getItem(PREFIX + key + '_' + slot);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function _loadLegacy(key) {
+    try {
+      var raw = localStorage.getItem(PREFIX + key);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
 
   function clear(key) {
-    try { localStorage.removeItem(PREFIX + key); } catch (e) {}
+    try {
+      localStorage.removeItem(PREFIX + key + '_a');
+      localStorage.removeItem(PREFIX + key + '_b');
+      localStorage.removeItem(PREFIX + key); // legacy single-key
+    } catch (e) {}
   }
 
   function has(key) {
-    try { return localStorage.getItem(PREFIX + key) !== null; } catch (e) { return false; }
+    return load(key) !== null;
   }
 
   /* ── Inject modal CSS ───────────────────────────────────── */
