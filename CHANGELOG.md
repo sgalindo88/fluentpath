@@ -4,6 +4,15 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.37.0] - 2026-04-11
+
+### Added — CI/CD with GitHub Actions
+
+- **`.github/workflows/ci.yml`** — runs on push to `master` and pull requests; checks out code, installs dependencies (`npm ci`), runs `npm run lint`, then `npm test`; uses Node 18 with npm cache
+- **README.md** — CI status badge added below the title
+
+---
+
 ## [0.36.0] - 2026-04-11
 
 ### Added — Health monitoring endpoint

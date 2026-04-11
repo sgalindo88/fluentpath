@@ -1,5 +1,7 @@
 # FluentPath -- Language Learning & Assessment Platform
 
+[![CI](https://github.com/sgalindo88/english-course/actions/workflows/ci.yml/badge.svg)](https://github.com/sgalindo88/english-course/actions/workflows/ci.yml)
+
 A browser-based English language learning and assessment system by **Fluentora**, designed for **adult immigrants** (ages 20--50) who lack the time or resources for formal schooling. The platform supports **one-on-one tutoring** with live video calls and asynchronous self-study.
 
 Two audiences -- **students** taking tests and completing lessons, and **teachers** marking work and managing course progress. All interfaces share a cohesive visual identity (Playfair Display + Source Serif 4 typography, cream/ink/rust palette) and integrate with Google Sheets, the Claude API, and Jitsi Meet.
