@@ -4,6 +4,38 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.18.0] - 2026-04-11
+
+### Added — Token-Based API Authentication
+
+#### Apps Script (`apps-script.js`)
+- **Two-tier auth system** — all requests validated against `APP_SECRET` (Script Property); teacher-only endpoints (grading, settings, attendance, library delete, AI summaries) additionally require `TEACHER_SECRET`
+- **`validateToken(params)`** / **`validateTeacherToken(params)`** — check request tokens against Script Properties; first-run grace period skips validation if no secrets are configured yet
+- **`TEACHER_ACTIONS` map** — declarative list of actions requiring teacher-level auth
+- **Unauthorized responses** — requests with missing or invalid tokens receive `{ error: 'Unauthorized' }` with no data leakage
+
+#### Shared config (`src/config.js`)
+- **`FP.APP_TOKEN`** / **`FP.TEACHER_TOKEN`** — placeholder token fields (empty by default, overridden by `config.local.js`)
+
+#### Shared API wrapper (`src/api.js`)
+- **`_appendToken(url)`** — internal helper that appends `token` and `teacher_token` query params to GET and JSON POST URLs
+- **`postForm`** — injects `token` and `teacher_token` into the form body automatically
+- **`postJson`** — appends tokens to the URL via `_appendToken` (body stays pure JSON)
+
+#### New file: `src/config.local.js` (gitignored)
+- Template file for local token overrides; included by all HTML pages after `config.js`
+
+#### All HTML pages
+- Added `<script src="config.local.js">` after `config.js` in: `index.html`, `teacher.html`, `student-initial-test.html`, `student-course.html`, `examiner-panel.html`, `examiner-marking.html`
+
+#### Student course (`src/student-course.html`)
+- **Audio upload** — direct `fetch` call now includes `token` query parameter
+
+#### `.gitignore`
+- Added `src/config.local.js` to prevent secrets from being committed
+
+---
+
 ## [0.17.0] - 2026-04-11
 
 ### Changed — Grading Panel Overhaul

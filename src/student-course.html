@@ -319,6 +319,7 @@ body {
 </style>
 <link rel="stylesheet" href="mobile.css">
 <script src="config.js"></script>
+<script src="config.local.js"></script>
 <script src="api.js"></script>
 <script src="utils.js"></script>
 <script src="checkpoint.js"></script>
@@ -1536,7 +1537,9 @@ async function uploadAudioRecordings() {
   try {
     // Use text/plain so the browser sends a simple request (no CORS preflight).
     // Apps Script reads e.postData.contents regardless of content-type.
-    const resp = await fetch(GOOGLE_SHEET_WEBHOOK + '?action=save_audio', {
+    var audioUrl = GOOGLE_SHEET_WEBHOOK + '?action=save_audio';
+    if (FP.APP_TOKEN) audioUrl += '&token=' + encodeURIComponent(FP.APP_TOKEN);
+    const resp = await fetch(audioUrl, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain' },

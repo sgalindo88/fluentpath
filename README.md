@@ -82,8 +82,9 @@ english-course/
     ├── student-course.html        # Daily lesson (student)
     ├── examiner-panel.html        # Teacher dashboard (all-in-one)
     ├── examiner-marking.html      # Standalone marking (legacy)
-    ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys)
-    ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding)
+    ├── config.js                  # Shared configuration (webhook URL, CEFR levels, storage keys, auth tokens)
+    ├── config.local.js            # Auth token overrides (gitignored — never committed)
+    ├── api.js                     # Shared fetch wrapper (timeout, error handling, form encoding, auto-auth)
     ├── utils.js                   # Shared utilities (escHtml)
     ├── theme.css                  # Shared design tokens (CSS variables, font imports)
     ├── video-call.js              # Jitsi Meet optional video panel
@@ -389,6 +390,8 @@ Print-inspired, academic, warm -- designed to feel calm and professional for adu
 | `student-course.html` | Sends / Receives | Lesson requests, approval polling, completion data |
 | `examiner-panel.html` | Sends / Receives | Marks, approvals, settings, test results fetch, CEFR level |
 
+**Authentication:** All API requests require an `APP_SECRET` token (set in Script Properties). Teacher-only endpoints (grading, settings, attendance, library management) additionally require a `TEACHER_SECRET`. Tokens are auto-injected by `api.js`. See `src/config.local.js` for frontend setup.
+
 Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
 ### Claude API (Anthropic) -- via Apps Script Proxy
@@ -398,7 +401,16 @@ Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 | `student-course.html` | `claude-haiku-4-5` (default; configurable via `CLAUDE_MODEL` Script Property) | AI-generated daily lessons via the `generate_lesson` GET action; cached per (level, day) in localStorage |
 | `examiner-panel.html` | `claude-sonnet-4-20250514` | AI-drafted weekly summary narratives (routed through Apps Script `ai_summary` action) |
 
-**Setup:** the Apps Script project requires `CLAUDE_API_KEY` in **Script Properties** (Project Settings → Script Properties → Add). Optionally override the default model with a `CLAUDE_MODEL` property (e.g. `claude-sonnet-4-6` for higher quality at ~3× cost). See the header comment in `apps-script.js` for full deployment steps.
+**Setup:** the Apps Script project requires these **Script Properties** (Project Settings → Script Properties → Add):
+
+| Property | Required | Description |
+|----------|----------|-------------|
+| `CLAUDE_API_KEY` | Yes | Anthropic API key (`sk-ant-...`) |
+| `APP_SECRET` | Yes | Random 32-char string shared with frontend `config.local.js` |
+| `TEACHER_SECRET` | Yes | Separate secret for teacher-only endpoints |
+| `CLAUDE_MODEL` | No | Override default model (default: `claude-haiku-4-5`) |
+
+See the header comment in `apps-script.js` for full deployment steps.
 
 ### Jitsi Meet (Video Calls)
 

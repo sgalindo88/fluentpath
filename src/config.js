@@ -11,6 +11,13 @@ var FP = window.FP || {};
 FP.WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
 FP.FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
 
+// ── Auth Tokens ─────────────────────────────────────────────
+// These are placeholder values. Override them in config.local.js
+// (gitignored) with the real secrets that match your Apps Script
+// Script Properties (APP_SECRET and TEACHER_SECRET).
+FP.APP_TOKEN = '';
+FP.TEACHER_TOKEN = '';
+
 // ── CEFR Levels ──────────────────────────────────────────────
 FP.LEVELS = {
   A1: { name: 'Beginner',            theme: 'Everyday Survival',    colour: '#b8471e' },

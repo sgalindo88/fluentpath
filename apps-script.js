@@ -4,17 +4,18 @@
    Deployment:
      1. Open script.google.com → create or edit project
      2. Paste this entire file into Code.gs
-     3. Set the Claude API key in Script Properties:
-        Project Settings (gear icon) → Script Properties → Add:
-          Property: CLAUDE_API_KEY
-          Value:    sk-ant-... (your key)
-        Optional override:
-          Property: CLAUDE_MODEL
-          Value:    claude-haiku-4-5  (default; or claude-sonnet-4-6 for higher quality)
+     3. Set Script Properties (Project Settings → gear icon → Script Properties):
+          CLAUDE_API_KEY:  sk-ant-... (your key)
+          APP_SECRET:      (random 32-char string — shared with frontend config.local.js)
+          TEACHER_SECRET:  (separate random string — only given to teachers)
+        Optional:
+          CLAUDE_MODEL:    claude-haiku-4-5 (default; or claude-sonnet-4-6 for higher quality)
      4. Deploy → New deployment → Web app
         - Execute as: Me
         - Who has access: Anyone
      5. Copy the deployment URL and use it in the platform
+     6. In the frontend, create src/config.local.js (gitignored) and set
+        FP.APP_TOKEN and FP.TEACHER_TOKEN to match the Script Properties
 
    Handles all GET (reads + AI lesson generation) and POST (writes) for FluentPath.
    ═══════════════════════════════════════════════════════════════ */
@@ -25,6 +26,51 @@
 var CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 var CLAUDE_DEFAULT_MODEL = 'claude-haiku-4-5';
 var CLAUDE_MAX_TOKENS = 4096;
+
+// ══════════════════════════════════════════════════════
+// AUTHENTICATION
+// ══════════════════════════════════════════════════════
+
+/**
+ * Validate the request token against Script Properties.
+ * - APP_SECRET  → required for all requests (student + teacher)
+ * - TEACHER_SECRET → required only for teacher/write endpoints
+ *
+ * Setup: Project Settings → Script Properties → Add:
+ *   APP_SECRET:     (random 32-char string shared with the frontend)
+ *   TEACHER_SECRET: (separate secret known only to the teacher)
+ */
+function validateToken(params) {
+  var props = PropertiesService.getScriptProperties();
+  var appSecret = props.getProperty('APP_SECRET');
+  // If no APP_SECRET is configured yet, skip validation (first-run grace)
+  if (!appSecret) return true;
+  var token = String(params['token'] || '').trim();
+  return token === appSecret;
+}
+
+function validateTeacherToken(params) {
+  var props = PropertiesService.getScriptProperties();
+  var teacherSecret = props.getProperty('TEACHER_SECRET');
+  // If no TEACHER_SECRET is configured, fall back to APP_SECRET check only
+  if (!teacherSecret) return validateToken(params);
+  var token = String(params['teacher_token'] || '').trim();
+  return token === teacherSecret && validateToken(params);
+}
+
+/** Actions that require teacher-level auth */
+var TEACHER_ACTIONS = {
+  'save_marks': true,
+  'update_settings': true,
+  'save_attendance': true,
+  'delete_library_entry': true,
+  'ai_summary': true
+};
+
+/** POST actions that write Examiner Results (no explicit action field) */
+function isExaminerPost(params) {
+  return (params['sheet_name'] || '').trim() === 'Examiner Results';
+}
 
 // ══════════════════════════════════════════════════════
 // HELPERS
@@ -214,6 +260,13 @@ function doGet(e) {
   var action = (e.parameter.action || '').trim();
   var student = (e.parameter.student || '').trim();
   var result = { found: false };
+
+  // ── Auth check ──
+  if (!validateToken(e.parameter)) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   try {
     if (action === 'get_progress') {
@@ -1251,6 +1304,20 @@ function doPost(e) {
       var parsed = JSON.parse(e.postData.contents);
       action = (parsed.action || '').trim();
     } catch (jsonErr) { /* leave action empty */ }
+  }
+
+  // ── Auth check ──
+  // Teacher actions require teacher_token; all others require app token
+  if (TEACHER_ACTIONS[action] || isExaminerPost(params)) {
+    if (!validateTeacherToken(params)) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  } else if (!validateToken(params)) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   try {

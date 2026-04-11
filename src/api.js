@@ -48,7 +48,23 @@ FP.api = (function () {
   }
 
   /**
+   * Append auth token query parameters to a URL.
+   * Only applies to the Apps Script webhook — other endpoints (Formspree, etc.) are left untouched.
+   */
+  function _appendToken(url) {
+    if (!FP.APP_TOKEN) return url;
+    if (!FP.WEBHOOK_URL || url.indexOf(FP.WEBHOOK_URL) !== 0) return url;
+    var sep = url.indexOf('?') === -1 ? '?' : '&';
+    var tokenUrl = url + sep + 'token=' + encodeURIComponent(FP.APP_TOKEN);
+    if (FP.TEACHER_TOKEN) {
+      tokenUrl += '&teacher_token=' + encodeURIComponent(FP.TEACHER_TOKEN);
+    }
+    return tokenUrl;
+  }
+
+  /**
    * GET request that returns parsed JSON.
+   * Auth tokens are appended automatically.
    * @param {string} url
    * @param {object} [options]
    * @param {number} [options.timeout]
@@ -56,7 +72,7 @@ FP.api = (function () {
    */
   function get(url, options) {
     var opt = options || {};
-    return _fetch(url, { method: 'GET', redirect: 'follow' }, opt.timeout)
+    return _fetch(_appendToken(url), { method: 'GET', redirect: 'follow' }, opt.timeout)
       .then(function (resp) {
         if (!resp.ok) throw new Error('GET failed: ' + resp.status);
         return resp.json();
@@ -75,11 +91,16 @@ FP.api = (function () {
    */
   function postForm(url, payload, options) {
     var opt = options || {};
+    // Inject auth tokens into the payload for Apps Script requests only
+    var authedPayload = Object.assign({}, payload);
+    var isWebhook = FP.WEBHOOK_URL && url.indexOf(FP.WEBHOOK_URL) === 0;
+    if (isWebhook && FP.APP_TOKEN) authedPayload.token = FP.APP_TOKEN;
+    if (isWebhook && FP.TEACHER_TOKEN) authedPayload.teacher_token = FP.TEACHER_TOKEN;
     return _fetch(url, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: _encodeForm(payload, opt.maxValueLength),
+      body: _encodeForm(authedPayload, opt.maxValueLength),
     }, opt.timeout).then(function () { return true; });
   }
 
@@ -98,7 +119,8 @@ FP.api = (function () {
     if (opt.headers) {
       Object.keys(opt.headers).forEach(function (k) { headers[k] = opt.headers[k]; });
     }
-    return _fetch(url, {
+    // For JSON posts, append token as query parameter (body is JSON, not form data)
+    return _fetch(_appendToken(url), {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(payload),
