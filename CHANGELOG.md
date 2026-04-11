@@ -4,6 +4,15 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.24.0] - 2026-04-11
+
+### Changed — Move legacy file to `legacy/`
+
+- **`src/examiner-marking.html`** → moved to **`legacy/examiner-marking.html`** with its CSS; paths updated to reference `../src/` for shared scripts and styles. Superseded by the teacher dashboard's "Grade Placement Test" panel.
+- **`src/styles/examiner-marking.css`** → moved to **`legacy/examiner-marking.css`**
+
+---
+
 ## [0.23.0] - 2026-04-11
 
 ### Changed — Consolidate utility functions and extract magic numbers

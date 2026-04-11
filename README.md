@@ -18,7 +18,7 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
   - [student-initial-test.html -- Placement Test](#3-student-initial-testhtml--placement-test)
   - [student-course.html -- Daily Lesson](#4-student-coursehtml--daily-lesson)
   - [examiner-panel.html -- Teacher Dashboard](#5-examiner-panelhtml--teacher-dashboard)
-  - [examiner-marking.html -- Standalone Marking (Legacy)](#6-examiner-markinghtml--standalone-marking-legacy)
+  - [examiner-marking.html -- Standalone Marking (Legacy, moved to `legacy/`)](#6-examiner-markinghtml--standalone-marking-legacy)
 - [Shared Utilities](#shared-utilities)
 - [Level-Aware Translation System](#level-aware-translation-system)
 - [Shared Design System](#shared-design-system)
@@ -77,33 +77,36 @@ english-course/
 ├── CHANGELOG.md                   # Version history
 ├── GOOGLE_SHEETS_SCHEMA.md        # Full database schema documentation
 ├── apps-script.js                 # Google Apps Script source (paste into Code.gs)
-└── src/
-    ├── student-initial-test.html  # Placement test (student) — HTML only
-    ├── student-course.html        # Daily lesson (student) — HTML only
-    ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML only
-    ├── examiner-marking.html      # Standalone marking (legacy) — HTML only
-    ├── scripts/
-    │   ├── hub.js                 # Student hub logic (from index.html)
-    │   ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
-    │   ├── student-test.js        # Placement test logic (from student-initial-test.html)
-    │   ├── student-lesson.js      # Daily lesson logic (from student-course.html)
-    │   ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
-    │   ├── config.js              # Shared configuration (endpoints, CEFR levels, auth tokens, course constants)
-    │   ├── config.local.js        # Auth token overrides (gitignored — never committed)
-    │   ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
-    │   ├── utils.js               # Shared utilities (escHtml, formatDate, formatDuration, timeAgo, ...)
-    │   ├── video-call.js          # Jitsi Meet optional video panel
-    │   ├── i18n.js                # Level-aware Spanish translation
-    │   └── checkpoint.js          # Session recovery / auto-save
-    └── styles/
-        ├── theme.css              # Shared design tokens (CSS variables, font imports)
-        ├── mobile.css             # Mobile-first responsive enhancements
-        ├── hub.css                # Student hub styles (from index.html)
-        ├── teacher-portal.css     # Teacher portal styles (from teacher.html)
-        ├── student-test.css       # Placement test styles (from student-initial-test.html)
-        ├── student-lesson.css     # Daily lesson styles (from student-course.html)
-        ├── examiner-panel.css     # Teacher dashboard styles (from examiner-panel.html)
-        └── examiner-marking.css   # Standalone marking styles (from examiner-marking.html)
+├── package.json                   # npm project config (lint, format, dev scripts)
+├── eslint.config.mjs              # ESLint 9 flat config
+├── src/
+│   ├── student-initial-test.html  # Placement test (student) — HTML only
+│   ├── student-course.html        # Daily lesson (student) — HTML only
+│   ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML only
+│   ├── scripts/
+│   │   ├── hub.js                 # Student hub logic (from index.html)
+│   │   ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
+│   │   ├── student-test.js        # Placement test logic (from student-initial-test.html)
+│   │   ├── student-lesson.js      # Daily lesson logic (from student-course.html)
+│   │   ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
+│   │   ├── config.js              # Shared configuration (endpoints, CEFR levels, auth tokens, course constants)
+│   │   ├── config.local.js        # Auth token overrides (gitignored — never committed)
+│   │   ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
+│   │   ├── utils.js               # Shared utilities (escHtml, formatDate, formatDuration, timeAgo, ...)
+│   │   ├── video-call.js          # Jitsi Meet optional video panel
+│   │   ├── i18n.js                # Level-aware Spanish translation
+│   │   └── checkpoint.js          # Session recovery / auto-save
+│   └── styles/
+│       ├── theme.css              # Shared design tokens (CSS variables, font imports)
+│       ├── mobile.css             # Mobile-first responsive enhancements
+│       ├── hub.css                # Student hub styles (from index.html)
+│       ├── teacher-portal.css     # Teacher portal styles (from teacher.html)
+│       ├── student-test.css       # Placement test styles (from student-initial-test.html)
+│       ├── student-lesson.css     # Daily lesson styles (from student-course.html)
+│       └── examiner-panel.css     # Teacher dashboard styles (from examiner-panel.html)
+└── legacy/
+    ├── examiner-marking.html      # Standalone marking tool (superseded by teacher dashboard)
+    └── examiner-marking.css       # Styles for the legacy marking tool
 ```
 
 ---
@@ -287,7 +290,7 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 
 ### 6. `examiner-marking.html` -- Standalone Marking (Legacy)
 
-**Purpose:** Original standalone placement test marking tool. Still functional but superseded by the "Mark Placement Test" panel in the Teacher Dashboard. Kept for backwards compatibility. Uses Formspree email import workflow.
+**Moved to `legacy/examiner-marking.html`.** Original standalone placement test marking tool. Still functional but superseded by the "Grade Placement Test" panel in the Teacher Dashboard. Uses the Formspree email import workflow. Not actively maintained — use the dashboard instead.
 
 ---
 
