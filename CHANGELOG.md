@@ -4,6 +4,26 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.26.0] - 2026-04-11
+
+### Changed — Lazy-load teacher dashboard panels
+
+#### Teacher dashboard (`src/scripts/examiner-panel.js`)
+- **`panelLoaded` tracker** — tracks which panels have been loaded; data fetched only on first visit
+- **`showPanel`** — now calls `loadPanelData(id)` on first visit instead of loading all data at init
+- **`loadPanelData(id)`** — dispatches to the correct loader: `loadPlacementTest`, `autoLoadSubmission`, `loadLibraryPanel`, `loadApprovalQueue`
+- **`reloadPanel(id)`** — forces a panel to re-fetch its data (for post-save scenarios)
+- **`initApp`** — removed eager `autoLoadSubmission()` call; marking data now loads only when the teacher clicks the Grade Lessons panel
+- **`fetchDashboardData`** — remains as the only network call on init (updates stats, attendance, lesson records for the dashboard panel)
+- **`updateDashboardStats`** / **`getCurrentDay`** — replaced hard-coded `20` with `FP.COURSE_DAYS`
+
+#### Impact
+- Initial dashboard load drops from 3+ API calls to 1 (just `get_progress`)
+- Panel-specific data (`get_test_results`, `get_latest_submission`, `get_library`, approval queue) fetches only when needed
+- Tab switching after first load is instant (data is cached in JS memory)
+
+---
+
 ## [0.25.0] - 2026-04-11
 
 ### Changed — Apps Script: dispatch tables, input validation, caching, error logging

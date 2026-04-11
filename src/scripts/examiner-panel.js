@@ -469,10 +469,8 @@ function initApp() {
     if (saved) { var el = document.getElementById(noteElements[i]); if (el) el.value = saved; }
   }
 
-  // Auto-load latest submission for marking
-  autoLoadSubmission();
-
-  // Fetch course progress from Google Sheets in background
+  // Fetch course progress from Google Sheets (updates dashboard stats, attendance, lesson records)
+  // This is the only network call on init — panel-specific data loads lazily on first visit.
   fetchDashboardData();
 }
 
@@ -569,24 +567,47 @@ function getLevelTheme(level) {
 function getCurrentDay() {
   // Use actual lesson progress: count days marked present, or fall back to lesson records count
   const presentDays = Object.values(ex.attendance).filter(v => v === 'present').length;
-  if (presentDays > 0) return Math.min(presentDays, 20);
-  if (ex.lessonRecords.length > 0) return Math.min(ex.lessonRecords.length, 20);
+  if (presentDays > 0) return Math.min(presentDays, FP.COURSE_DAYS);
+  if (ex.lessonRecords.length > 0) return Math.min(ex.lessonRecords.length, FP.COURSE_DAYS);
   return 1;
 }
 
 // ══════════════════════════════════════════════════════
-// NAVIGATION
+// NAVIGATION — lazy-load panel data on first visit
 // ══════════════════════════════════════════════════════
+var panelLoaded = {};
+
 function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   document.getElementById('nav-' + id)?.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  // Auto-load data when navigating to specific panels
-  if (id === 'placementtest') loadPlacementTest();
-  if (id === 'marking') autoLoadSubmission();
-  if (id === 'library') loadLibraryPanel();
+
+  // Load panel data only on first visit (or when forced)
+  if (!panelLoaded[id]) {
+    panelLoaded[id] = true;
+    loadPanelData(id);
+  }
+}
+
+/** Fetch data for a specific panel on first visit. */
+function loadPanelData(id) {
+  switch (id) {
+    case 'placementtest': loadPlacementTest(); break;
+    case 'marking':       autoLoadSubmission(); break;
+    case 'library':       loadLibraryPanel(); break;
+    case 'approvals':     loadApprovalQueue(); break;
+    // dashboard, attendance, difficulty, progress, weekly, profile
+    // are populated by initApp + fetchDashboardData (already loaded)
+  }
+}
+
+/** Force a panel to reload its data (e.g. after saving). */
+function reloadPanel(id) {
+  panelLoaded[id] = false;
+  loadPanelData(id);
+  panelLoaded[id] = true;
 }
 
 // ══════════════════════════════════════════════════════
@@ -596,7 +617,7 @@ function updateDashboardStats() {
   const present = Object.values(ex.attendance).filter(v => v === 'present').length;
   const absent  = Object.values(ex.attendance).filter(v => v === 'absent').length;
   const done    = present + absent;
-  const total   = 20;
+  const total   = FP.COURSE_DAYS;
   const dayNum  = getCurrentDay();
   const pctOverall = Math.round(done / total * 100);
   const pctAttend  = done > 0 ? Math.round(present/done*100) : 0;
