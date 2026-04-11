@@ -94,7 +94,7 @@ function updatePTResults() {
   document.getElementById('pt-listening-score').innerHTML = l + ' <span>/ 15</span>';
   document.getElementById('pt-writing-score').innerHTML = w + ' <span>/ 25</span>';
   document.getElementById('pt-speaking-score').innerHTML = s + ' <span>/ 20</span>';
-  document.getElementById('pt-res-total').innerHTML = total + ' <span style="font-size:18px;color:var(--muted);">/ 80</span>';
+  document.getElementById('pt-res-total').innerHTML = total + ' <span style="font-size:18px;color:var(--muted);">/ ' + FP.TEST_TOTAL_MARKS + '</span>';
   document.getElementById('pt-res-cefr').textContent = cefr;
   document.getElementById('pt-res-reading').innerHTML = r + ' <span style="font-size:13px;color:var(--muted);">/ 20</span>';
   document.getElementById('pt-res-writing').innerHTML = w + ' <span style="font-size:13px;color:var(--muted);">/ 25</span>';
@@ -381,7 +381,7 @@ async function savePlacementToSheets() {
     writing_score: w + ' / 25',
     listening_score: l + ' / 15',
     speaking_score: s + ' / 20',
-    total_score: total + ' / 80',
+    total_score: total + ' / ' + FP.TEST_TOTAL_MARKS,
     cefr_level: ptGetCEFR(total),
     examiner_feedback: document.getElementById('pt-overall-feedback').value || '',
     score_q11: ptScores.q11 || 0,

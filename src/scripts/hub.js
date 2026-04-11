@@ -2,8 +2,10 @@
    Configuration
    ───────────────────────────────────────────────────────────── */
 
-const WEBHOOK_URL  = FP.WEBHOOK_URL;
-const LEVEL_INFO   = FP.LEVELS;
+const WEBHOOK_URL   = FP.WEBHOOK_URL;
+const LEVEL_INFO    = FP.LEVELS;
+const COURSE_DAYS   = FP.COURSE_DAYS;
+const TOTAL_MARKS   = FP.TEST_TOTAL_MARKS;
 
 /* ─────────────────────────────────────────────────────────────
    State
@@ -133,7 +135,7 @@ function renderDashboard() {
   const hasLevel  = !!d.cefr_level;
   const courseDays = d.lessons_completed || 0;
   const courseStarted = courseDays > 0;
-  const courseComplete = courseDays >= 20;
+  const courseComplete = courseDays >= COURSE_DAYS;
 
   // Subtitle
   const subtitle = document.getElementById('dashSubtitle');
@@ -141,7 +143,7 @@ function renderDashboard() {
   else if (!hasLevel)     subtitle.textContent = 'Your test is being reviewed by your teacher.';
   else if (!courseStarted) subtitle.textContent = 'You\'re ready to start your course!';
   else if (courseComplete) subtitle.textContent = 'Congratulations — you\'ve completed the course!';
-  else                     subtitle.textContent = 'Day ' + courseDays + ' of 20 completed. Keep going!';
+  else                     subtitle.textContent = 'Day ' + courseDays + ' of ' + COURSE_DAYS + ' completed. Keep going!';
 
   // ── Milestone 1: Placement Test ──
   const msTest = document.getElementById('ms-test');
@@ -155,7 +157,7 @@ function renderDashboard() {
     msTestCard.style.display = 'block';
     msTestCard.innerHTML = '<span class="badge badge-done">Completed</span>';
     if (d.total_score) {
-      msTestCard.innerHTML += ' <span style="margin-left:8px;font-size:14px;color:var(--muted);">' + d.total_score + ' / 80</span>';
+      msTestCard.innerHTML += ' <span style="margin-left:8px;font-size:14px;color:var(--muted);">' + d.total_score + ' / ' + TOTAL_MARKS + '</span>';
     }
     if (settings.allow_retake_test) {
       msTestCard.innerHTML += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule);">' +
@@ -199,17 +201,17 @@ function renderDashboard() {
   if (courseComplete) {
     msCourse.classList.add('done');
     msCourse.classList.remove('active');
-    msCourseDesc.textContent = 'You completed all 20 lessons. Well done!';
+    msCourseDesc.textContent = 'You completed all ' + COURSE_DAYS + ' lessons. Well done!';
     msCourseCard.style.display = 'block';
     msCourseCard.innerHTML =
       '<span class="badge badge-done">Complete</span>' +
       '<div class="progress-track" style="margin-top:12px;"><div class="progress-fill" style="width:100%;"></div></div>' +
-      '<div class="progress-text">20 / 20 lessons</div>';
+      '<div class="progress-text">' + COURSE_DAYS + ' / ' + COURSE_DAYS + ' lessons</div>';
   } else if (courseStarted) {
     msCourse.classList.add('active');
-    const pct = Math.round((courseDays / 20) * 100);
+    const pct = Math.round((courseDays / COURSE_DAYS) * 100);
     const nextDay = courseDays + 1;
-    msCourseDesc.textContent = 'You have completed ' + courseDays + ' of 20 lessons. Next up: Day ' + nextDay + '.';
+    msCourseDesc.textContent = 'You have completed ' + courseDays + ' of ' + COURSE_DAYS + ' lessons. Next up: Day ' + nextDay + '.';
     msCourseCard.style.display = 'block';
 
     // Build lesson history sorted by day number
@@ -220,25 +222,6 @@ function renderDashboard() {
       });
       var total = lessons.length;
       var MAX_VISIBLE = 5;
-
-      function formatLessonDate(raw) {
-        if (!raw) return '';
-        var str = String(raw);
-        try {
-          // Handle ISO timestamps (2026-04-10T04:00:00.000Z) and plain dates (2026-04-10)
-          var d = new Date(str.length > 10 ? str : str + 'T00:00:00');
-          if (isNaN(d.getTime())) return str;
-          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        } catch(e) { return str; }
-      }
-
-      function formatTimeSpent(val) {
-        if (!val) return '';
-        var n = parseInt(val, 10);
-        // If it's not a clean number (e.g. "8:53:11 a.m.") it's a time string, not minutes
-        if (isNaN(n) || String(val).includes(':')) return '';
-        return n + 'm';
-      }
 
       function lessonRowHtml(lesson) {
         var timeStr = formatTimeSpent(lesson.time_spent);
@@ -280,13 +263,13 @@ function renderDashboard() {
 
     msCourseCard.innerHTML =
       '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%;"></div></div>' +
-      '<div class="progress-text">' + courseDays + ' / 20 lessons completed</div>' +
+      '<div class="progress-text">' + courseDays + ' / ' + COURSE_DAYS + ' lessons completed</div>' +
       historyHtml;
   } else if (hasLevel) {
     msCourse.classList.add('active');
-    msCourseDesc.textContent = 'Your course is ready to begin — 20 daily lessons tailored to your level.';
+    msCourseDesc.textContent = 'Your course is ready to begin — ' + COURSE_DAYS + ' daily lessons tailored to your level.';
   } else {
-    msCourseDesc.textContent = 'A 20-day personalised course with daily lessons tailored to your level.';
+    msCourseDesc.textContent = 'A ' + COURSE_DAYS + '-day personalised course with daily lessons tailored to your level.';
   }
 
   // ── CTA Section ──
@@ -338,17 +321,6 @@ function logout() {
   progress = null;
   document.getElementById('studentName').value = '';
   showScreen('screen-welcome');
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Utilities
-   ───────────────────────────────────────────────────────────── */
-
-function formatDate(dateStr) {
-  try {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  } catch (e) { return dateStr; }
 }
 
 /* ─────────────────────────────────────────────────────────────

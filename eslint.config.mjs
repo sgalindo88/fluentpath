@@ -57,6 +57,12 @@ export default [
         // FluentPath globals (shared across pages via script tags)
         FP: 'writable',
         escHtml: 'writable',
+        formatDate: 'readonly',
+        formatLessonDate: 'readonly',
+        formatTimeSpent: 'readonly',
+        formatDuration: 'readonly',
+        formatPlayTime: 'readonly',
+        timeAgo: 'readonly',
         Checkpoint: 'writable',
         VideoCall: 'writable',
         I18n: 'writable',

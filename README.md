@@ -88,10 +88,10 @@ english-course/
     │   ├── student-test.js        # Placement test logic (from student-initial-test.html)
     │   ├── student-lesson.js      # Daily lesson logic (from student-course.html)
     │   ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
-    │   ├── config.js              # Shared configuration (webhook URL, CEFR levels, auth tokens)
+    │   ├── config.js              # Shared configuration (endpoints, CEFR levels, auth tokens, course constants)
     │   ├── config.local.js        # Auth token overrides (gitignored — never committed)
     │   ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
-    │   ├── utils.js               # Shared utilities (escHtml — XSS-safe)
+    │   ├── utils.js               # Shared utilities (escHtml, formatDate, formatDuration, timeAgo, ...)
     │   ├── video-call.js          # Jitsi Meet optional video panel
     │   ├── i18n.js                # Level-aware Spanish translation
     │   └── checkpoint.js          # Session recovery / auto-save

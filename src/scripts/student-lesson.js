@@ -23,7 +23,7 @@ let state = {
   approved: false,
 };
 
-const LESSON_DURATION = 90 * 60; // 90 minutes in seconds
+const LESSON_DURATION = FP.LESSON_DURATION_MIN * 60; // seconds
 
 const LEVEL_THEMES = {
   A1: { name: 'Beginner', theme: 'Everyday Survival', color: '#2e6e45' },
@@ -211,7 +211,7 @@ async function startCourse() {
 function getCourseDay() {
   // Use last completed day from localStorage + 1, capped at 20
   var last = parseInt(localStorage.getItem('fp_last_lesson_day') || '0', 10);
-  return Math.min(last + 1, 20);
+  return Math.min(last + 1, FP.COURSE_DAYS);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1526,7 +1526,7 @@ async function finishLesson() {
 
   document.getElementById('stat-time').textContent = elapsed + 'm';
   document.getElementById('stat-steps').textContent = state.steps.length;
-  document.getElementById('stat-day').textContent = state.dayNumber + ' / 20';
+  document.getElementById('stat-day').textContent = state.dayNumber + ' / ' + FP.COURSE_DAYS;
 
   showScreen('screen-complete');
   document.getElementById('progressBar').style.width = '100%';

@@ -4,6 +4,34 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.23.0] - 2026-04-11
+
+### Changed — Consolidate utility functions and extract magic numbers
+
+#### Shared config (`src/scripts/config.js`)
+- **`FP.COURSE_DAYS`** (20), **`FP.TEST_TOTAL_MARKS`** (80), **`FP.LESSON_DURATION_MIN`** (90) — single source of truth for course constants; previously hard-coded across 15+ locations
+
+#### Shared utilities (`src/scripts/utils.js`)
+- **Expanded from 1 to 7 functions** — consolidated duplicated helpers from hub.js, student-test.js, and checkpoint.js:
+  - `formatDate(dateStr, style)` — long ("10 April 2026") or short ("10 Apr") formatting
+  - `formatLessonDate(raw)` — short date alias for lesson displays
+  - `formatTimeSpent(val)` — minutes display, filters malformed clock strings
+  - `formatDuration(ms)` — "Xm Ys" from milliseconds
+  - `formatPlayTime(ms)` — "Xs listened" from milliseconds
+  - `timeAgo(timestamp)` — bilingual relative time display
+
+#### Files cleaned up
+- **`src/scripts/hub.js`** — removed `formatDate`, `formatLessonDate`, `formatTimeSpent`; replaced 9 hard-coded `20` and 1 hard-coded `80` with `COURSE_DAYS` / `TOTAL_MARKS` constants
+- **`src/scripts/student-test.js`** — removed `formatDuration`, `formatPlayTime` (now from utils.js)
+- **`src/scripts/student-lesson.js`** — `LESSON_DURATION` now uses `FP.LESSON_DURATION_MIN`; course day cap uses `FP.COURSE_DAYS`
+- **`src/scripts/examiner-panel.js`** — total score display uses `FP.TEST_TOTAL_MARKS`
+- **`src/scripts/checkpoint.js`** — removed local `timeAgo` (now from utils.js)
+- **`src/scripts/teacher-portal.js`** — removed inline `escHtml` (now uses shared utils.js)
+- **`teacher.html`** — added `utils.js` script include
+- **`src/student-initial-test.html`** — added `utils.js` script include (required by checkpoint.js)
+
+---
+
 ## [0.22.0] - 2026-04-11
 
 ### Added — ESLint and Prettier

@@ -24,11 +24,5 @@
     }
   }
 
-  function escHtml(str) {
-    var d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
   loadStudents();
 })();

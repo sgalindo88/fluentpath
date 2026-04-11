@@ -429,11 +429,6 @@ let listeningTotalTime = 0;
 let dictationPlayStart = null;
 let dictationTotalTime = 0;
 
-function formatPlayTime(ms) {
-  var s = Math.round(ms / 1000);
-  return s < 60 ? s + 's listened' : Math.floor(s / 60) + 'm ' + (s % 60) + 's listened';
-}
-
 function playListeningAudio() {
   if (state.listeningPlays >= MAX_PLAYS) return;
   state.listeningPlays++;
@@ -524,13 +519,6 @@ async function finishTest() {
   state.endTime = new Date();
   showScreen('screen-submitting');
   await submitResults();
-}
-
-function formatDuration(ms) {
-  const totalSec = Math.round(ms / 1000);
-  const mins = Math.floor(totalSec / 60);
-  const secs = totalSec % 60;
-  return mins + 'm ' + secs + 's';
 }
 
 function showResultsScreen(submissionOk, submissionMsg) {

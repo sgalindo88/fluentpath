@@ -28,6 +28,11 @@ FP.LEVELS = {
   C2: { name: 'Proficiency',          theme: 'Full Fluency',         colour: '#1a1208' },
 };
 
+// ── Course Constants ─────────────────────────────────────────
+FP.COURSE_DAYS = 20;
+FP.TEST_TOTAL_MARKS = 80;
+FP.LESSON_DURATION_MIN = 90;
+
 // ── localStorage Keys ────────────────────────────────────────
 FP.KEYS = {
   STUDENT_NAME:     'fp_student_name',

@@ -43,17 +43,6 @@ const Checkpoint = (() => {
     try { return localStorage.getItem(PREFIX + key) !== null; } catch (e) { return false; }
   }
 
-  /* ── Time-ago helper ────────────────────────────────────── */
-  function timeAgo(timestamp) {
-    if (!timestamp) return '';
-    const mins = Math.round((Date.now() - timestamp) / 60000);
-    if (mins < 1) return 'just now / justo ahora';
-    if (mins < 60) return mins + ' min ago / hace ' + mins + ' min';
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return hrs + 'h ago / hace ' + hrs + 'h';
-    return 'over a day ago / hace más de un día';
-  }
-
   /* ── Inject modal CSS ───────────────────────────────────── */
   function injectCSS() {
     if (document.getElementById('ckpt-styles')) return;
