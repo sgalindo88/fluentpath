@@ -379,6 +379,10 @@ body {
   color: white;
 }
 
+/* Accessibility: correct/wrong text labels alongside colour */
+.option-btn.correct::after { content:'Correct'; font-size:11px; font-weight:600; color:var(--green); margin-left:auto; }
+.option-btn.wrong::after { content:'Incorrect'; font-size:11px; font-weight:600; color:var(--rust); margin-left:auto; }
+
 /* Multi-select */
 .multi-note {
   font-size: 12px;

@@ -738,6 +738,12 @@ function renderStep() {
     case 'writing':    renderWriting(wrap, data); break;
     case 'review':     renderReview(wrap, data); break;
   }
+
+  // Focus management: move focus to the first interactive element in the new step
+  setTimeout(function() {
+    var target = wrap.querySelector('textarea, input, button, [tabindex="0"]');
+    if (target) target.focus();
+  }, 100);
 }
 
 // ── BILINGUAL HELPERS ──
@@ -805,7 +811,7 @@ function renderWarmup(wrap, data) {
 // ── VOCABULARY ──
 function renderVocabulary(wrap, data) {
   const words = (data.words || []).map((w, i) => `
-    <div class="vocab-item" onclick="revealWord(this)">
+    <div class="vocab-item" tabindex="0" role="button" aria-label="Vocabulary: ${escHtml(w.word)} — tap to reveal definition" onclick="revealWord(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();revealWord(this);}">
       <div class="vi-word">${escHtml(w.word)}</div>
       <div class="vi-pron">${escHtml(w.pronunciation || '')} · ${escHtml(w.partOfSpeech || '')}</div>
       <div class="vi-hint">Tap to see meaning</div>
@@ -854,7 +860,7 @@ function renderListening(wrap, data) {
   listeningPlays = 0;
   const qs = (data.questions || []).map((q, qi) => {
     const opts = (q.options || []).map((o, oi) => `
-      <div class="mcq-opt" id="lo-${q.id}-${oi}" onclick="selectListeningOpt('${q.id}', ${oi}, ${q.correct})">
+      <div class="mcq-opt" id="lo-${q.id}-${oi}" tabindex="0" role="button" aria-label="Option ${String.fromCharCode(65+oi)}: ${escHtml(o)}" onclick="selectListeningOpt('${q.id}', ${oi}, ${q.correct})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectListeningOpt('${q.id}', ${oi}, ${q.correct});}">
         <div class="opt-letter">${String.fromCharCode(65+oi)}</div>
         <div>${escHtml(o)}</div>
       </div>`).join('');
@@ -862,7 +868,7 @@ function renderListening(wrap, data) {
       <div style="margin-bottom:20px;">
         <div style="font-size:14px;font-weight:600;margin-bottom:8px;">${qi+1}. ${biText(q.question, q.question_es)}</div>
         <div class="mcq-options">${opts}</div>
-        <div id="lf-${q.id}" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
+        <div id="lf-${q.id}" aria-live="polite" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
       </div>`;
   }).join('');
 
@@ -1326,7 +1332,7 @@ function similarity(a, b) {
 function renderPractice(wrap, data) {
   const qs = (data.questions || []).map((q, qi) => {
     const opts = (q.options || []).map((o, oi) => `
-      <div class="mcq-opt" id="po-${q.id}-${oi}" onclick="selectPracticeOpt('${q.id}', ${oi}, ${q.correct})">
+      <div class="mcq-opt" id="po-${q.id}-${oi}" tabindex="0" role="button" aria-label="Option ${String.fromCharCode(65+oi)}: ${escHtml(o)}" onclick="selectPracticeOpt('${q.id}', ${oi}, ${q.correct})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPracticeOpt('${q.id}', ${oi}, ${q.correct});}">
         <div class="opt-letter">${String.fromCharCode(65+oi)}</div>
         <div>${escHtml(o)}</div>
       </div>`).join('');
@@ -1334,7 +1340,7 @@ function renderPractice(wrap, data) {
       <div style="margin-bottom:24px;">
         <div style="font-size:15px;font-weight:600;margin-bottom:10px;">${qi+1}. ${biText(q.question, q.question_es)}</div>
         <div class="mcq-options">${opts}</div>
-        <div id="pf-${q.id}" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
+        <div id="pf-${q.id}" aria-live="polite" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
       </div>`;
   }).join('');
 

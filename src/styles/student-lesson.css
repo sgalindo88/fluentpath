@@ -246,6 +246,12 @@ body {
 }
 .mcq-opt.correct .opt-letter { background:var(--green); }
 .mcq-opt.wrong .opt-letter { background:var(--rust); }
+/* Accessibility: correct/wrong text labels alongside colour */
+.mcq-opt.correct::after { content:'Correct'; font-size:11px; font-weight:600; color:var(--green); margin-left:auto; }
+.mcq-opt.wrong::after { content:'Incorrect'; font-size:11px; font-weight:600; color:var(--rust); margin-left:auto; }
+
+/* Vocabulary cards: keyboard accessible */
+.vocab-item:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 
 /* text areas */
 .writing-area {

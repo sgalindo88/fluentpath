@@ -4,6 +4,43 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.35.0] - 2026-04-11
+
+### Added — Keyboard navigation and accessibility
+
+#### Colour contrast (`src/styles/theme.css`)
+- **`--muted` darkened** from `#6b5f4e` to `#5a5040` — achieves WCAG AA 4.5:1 contrast ratio on `--paper` background
+
+#### Focus indicators (`src/styles/theme.css`)
+- **`:focus-visible` global rule** — 2px solid blue outline on all interactive elements when using keyboard navigation
+- **`:focus:not(:focus-visible)`** — removes outline for mouse/touch users (no visual regression)
+
+#### MCQ options — keyboard + screen reader (`src/scripts/student-lesson.js`)
+- **`tabindex="0"`**, **`role="button"`**, **`aria-label`** added to all listening and practice MCQ options
+- **`onkeydown` handler** — Enter and Space keys select an option (same as click)
+- **`aria-live="polite"`** on feedback containers — screen readers announce correct/incorrect results
+
+#### MCQ feedback — text labels (`src/styles/student-lesson.css`, `src/styles/student-test.css`)
+- **`::after` pseudo-elements** — "Correct" / "Incorrect" text labels added alongside the colour change, so colourblind users can distinguish results
+
+#### Vocabulary cards (`src/scripts/student-lesson.js`)
+- **`tabindex="0"`**, **`role="button"`**, **`aria-label`** added to each vocabulary card
+- **Enter/Space keyboard handling** — toggles word definition reveal
+
+#### Focus management — step transitions (`src/scripts/student-lesson.js`)
+- **Auto-focus** on first interactive element (textarea, input, button, or `[tabindex="0"]`) when a lesson step changes
+
+#### Focus management — test screens (`src/scripts/student-test.js`)
+- **Auto-focus** on first interactive element when navigating between test sections
+
+#### Placement test feedback (`src/scripts/student-test.js`)
+- **`aria-live="polite"`** set dynamically on MCQ feedback elements and Q19 multi-select feedback
+
+#### Timer (`src/student-course.html`)
+- **`aria-label="Lesson timer"`** added to the timer element
+
+---
+
 ## [0.34.0] - 2026-04-11
 
 ### Added — Multi-student class overview

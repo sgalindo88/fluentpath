@@ -13,11 +13,23 @@
   --rust: #b8471e;
   --gold: #c9933a;
   --rule: #c8bfa8;
-  --muted: #6b5f4e;
+  --muted: #5a5040;  /* darkened from #6b5f4e for WCAG AA 4.5:1 on --paper */
   --green: #2e6e45;
   --green-bg: #eaf3ec;
   --blue: #1e4d8c;
   --blue-bg: #eaf0fb;
   --purple: #7b3fa0;
   --purple-bg: #f3edf8;
+}
+
+/* ── Global Focus Indicators ──────────────────────────────── */
+/* Visible focus outline for all interactive elements (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* Remove default outline only when not using keyboard (mouse/touch) */
+:focus:not(:focus-visible) {
+  outline: none;
 }

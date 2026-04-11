@@ -153,6 +153,13 @@ function showScreen(id) {
   updateNav(id);
   updateProgress(id);
   if (ckptInterval) saveTestCheckpoint();
+  // Focus management: move focus to first interactive element in new screen
+  setTimeout(function() {
+    var screen = document.getElementById(id);
+    if (!screen) return;
+    var target = screen.querySelector('button:not(:disabled), textarea, input, [tabindex="0"]');
+    if (target) target.focus();
+  }, 100);
 }
 
 function updateNav(id) {
@@ -226,6 +233,7 @@ function selectMCQ(qId, letter, isCorrect) {
 
   const fb = document.getElementById(qId + '-fb');
   if (fb) {
+    fb.setAttribute('aria-live', 'polite');
     fb.classList.add('show');
     if (isCorrect) {
       fb.classList.add('correct-fb');
@@ -269,6 +277,7 @@ function submitQ19() {
   });
 
   const fb = document.getElementById('q19-fb');
+  fb.setAttribute('aria-live', 'polite');
   fb.classList.add('show');
   if (correct) {
     fb.classList.add('correct-fb');
