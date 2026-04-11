@@ -1,0 +1,100 @@
+/* ── Reset ─────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;}
+html{background:var(--paper);color:var(--ink);}
+body{font-family:'Source Serif 4',Georgia,serif;font-weight:300;line-height:1.7;min-height:100vh;}
+
+/* ── Shared Typography ─────────────────────────────────────── */
+h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-height:1.2;}
+.label{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;font-weight:600;color:var(--muted);}
+
+/* ── Layout ────────────────────────────────────────────────── */
+.screen{display:none;min-height:100vh;padding:40px 24px 80px;}
+.screen.active{display:block;animation:fadeIn 0.35s ease both;}
+.container{max-width:600px;margin:0 auto;}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+
+/* ── Welcome Screen ────────────────────────────────────────── */
+.welcome-header{text-align:center;margin-bottom:48px;padding-top:60px;}
+.welcome-header h1{font-size:clamp(36px,7vw,56px);margin-bottom:8px;}
+.welcome-header h1 .accent{color:var(--rust);font-style:italic;}
+.welcome-header p{color:var(--muted);font-size:16px;font-style:italic;max-width:380px;margin:0 auto;}
+.welcome-divider{width:60px;height:2px;background:var(--gold);margin:20px auto 0;}
+
+.login-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:36px 32px;margin-bottom:24px;}
+.login-card label{display:block;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:6px;}
+.login-card input{width:100%;border:none;border-bottom:2px solid var(--rule);background:transparent;font-family:'Source Serif 4',Georgia,serif;font-size:18px;padding:8px 0;color:var(--ink);outline:none;transition:border-color 0.2s;}
+.login-card input:focus{border-bottom-color:var(--rust);}
+.login-hint{font-size:13px;color:var(--muted);margin-top:12px;font-style:italic;}
+
+.btn-enter{display:block;width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Playfair Display',Georgia,serif;font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;}
+.btn-enter:hover{background:var(--rust);}
+.btn-enter:disabled{opacity:0.35;cursor:not-allowed;}
+
+.welcome-footer{text-align:center;margin-top:40px;font-size:12px;color:var(--muted);}
+.welcome-footer a{color:var(--rust);text-decoration:none;}
+
+/* ── Loading Screen ────────────────────────────────────────── */
+.loading-center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;}
+.spinner{width:36px;height:36px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:20px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── Dashboard Screen ──────────────────────────────────────── */
+.dash-header{padding-top:40px;margin-bottom:36px;}
+.dash-greeting{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:4px;}
+.dash-name{font-size:clamp(28px,5vw,40px);margin-bottom:4px;}
+.dash-subtitle{font-size:14px;color:var(--muted);}
+
+/* ── Journey Timeline ──────────────────────────────────────── */
+.journey{position:relative;padding-left:40px;margin-bottom:40px;}
+.journey::before{content:'';position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--rule);}
+
+.milestone{position:relative;margin-bottom:32px;}
+.milestone:last-child{margin-bottom:0;}
+
+.milestone-dot{position:absolute;left:-40px;top:4px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',Georgia,serif;font-size:14px;font-weight:700;border:2px solid var(--rule);background:var(--paper);color:var(--muted);transition:all 0.3s;}
+.milestone.active .milestone-dot{border-color:var(--rust);background:var(--rust);color:white;}
+.milestone.done .milestone-dot{border-color:var(--green);background:var(--green);color:white;}
+
+.milestone-label{font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:2px;}
+.milestone-title{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;margin-bottom:4px;}
+.milestone-desc{font-size:14px;color:var(--muted);line-height:1.5;}
+
+.milestone-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:20px;margin-top:12px;}
+
+/* ── Status Badges ─────────────────────────────────────────── */
+.badge{display:inline-block;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:600;padding:4px 10px;border-radius:3px;vertical-align:middle;}
+.badge-pending{background:#fdf4e7;color:var(--gold);border:1px solid #e8d5a8;}
+.badge-done{background:var(--green-bg);color:var(--green);border:1px solid #c0dcc8;}
+.badge-not-started{background:var(--cream);color:var(--muted);border:1px solid var(--rule);}
+.badge-level{background:var(--blue-bg);color:var(--blue);border:1px solid #b8cce8;font-size:13px;font-weight:700;padding:5px 14px;font-family:'Playfair Display',Georgia,serif;letter-spacing:0.05em;}
+
+/* ── Progress Bar ──────────────────────────────────────────── */
+.progress-track{width:100%;height:8px;background:var(--rule);border-radius:4px;overflow:hidden;margin-top:10px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:4px;transition:width 0.6s ease;}
+.progress-text{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ── CTA Section ───────────────────────────────────────────── */
+.cta-section{text-align:center;margin-top:40px;padding-top:32px;border-top:1px solid var(--rule);}
+.cta-section p{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:16px;}
+.btn-cta{display:inline-block;padding:16px 40px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Playfair Display',Georgia,serif;font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;text-decoration:none;}
+.btn-cta:hover{background:var(--rust);}
+.btn-cta.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
+.btn-cta.secondary:hover{border-color:var(--rust);color:var(--rust);}
+
+/* ── Logout link ───────────────────────────────────────────── */
+.dash-logout{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color 0.2s;}
+.dash-logout:hover{color:var(--rust);}
+
+/* ── Info Card ─────────────────────────────────────────────── */
+.info-card{background:var(--blue-bg);border:1px solid #b8cce8;border-radius:6px;padding:16px 20px;margin-top:24px;font-size:13px;color:var(--blue);line-height:1.6;}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media(max-width:600px){
+  .screen{padding:24px 16px 60px;}
+  .welcome-header{padding-top:32px;margin-bottom:32px;}
+  .login-card{padding:24px 20px;}
+  .dash-header{padding-top:24px;}
+  .milestone-card{padding:16px;}
+}

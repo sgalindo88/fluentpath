@@ -4,6 +4,23 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.21.0] - 2026-04-11
+
+### Changed — Extract CSS from HTML files into `src/styles/`
+
+All inline `<style>` blocks have been moved to separate `.css` files under `src/styles/`. Existing shared CSS (`theme.css`, `mobile.css`) also moved there. HTML files now contain only markup.
+
+| HTML File | New CSS File | Lines |
+|-----------|-------------|------:|
+| `index.html` | `src/styles/hub.css` | 100 |
+| `teacher.html` | `src/styles/teacher-portal.css` | 42 |
+| `src/student-initial-test.html` | `src/styles/student-test.css` | 774 |
+| `src/student-course.html` | `src/styles/student-lesson.css` | 310 |
+| `src/examiner-panel.html` | `src/styles/examiner-panel.css` | 330 |
+| `src/examiner-marking.html` | `src/styles/examiner-marking.css` | 348 |
+
+---
+
 ## [0.20.0] - 2026-04-11
 
 ### Changed — Extract JavaScript from HTML files

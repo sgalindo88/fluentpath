@@ -78,25 +78,32 @@ english-course/
 ├── GOOGLE_SHEETS_SCHEMA.md        # Full database schema documentation
 ├── apps-script.js                 # Google Apps Script source (paste into Code.gs)
 └── src/
-    ├── student-initial-test.html  # Placement test (student) — HTML/CSS only
-    ├── student-course.html        # Daily lesson (student) — HTML/CSS only
-    ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML/CSS only
-    ├── examiner-marking.html      # Standalone marking (legacy)
-    ├── theme.css                  # Shared design tokens (CSS variables, font imports)
-    ├── mobile.css                 # Mobile-first enhancements
-    └── scripts/
-        ├── hub.js                 # Student hub logic (from index.html)
-        ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
-        ├── student-test.js        # Placement test logic (from student-initial-test.html)
-        ├── student-lesson.js      # Daily lesson logic (from student-course.html)
-        ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
-        ├── config.js              # Shared configuration (webhook URL, CEFR levels, storage keys, auth tokens)
-        ├── config.local.js        # Auth token overrides (gitignored — never committed)
-        ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
-        ├── utils.js               # Shared utilities (escHtml — XSS-safe for content and attributes)
-        ├── video-call.js          # Jitsi Meet optional video panel
-        ├── i18n.js                # Level-aware Spanish translation
-        └── checkpoint.js          # Session recovery / auto-save
+    ├── student-initial-test.html  # Placement test (student) — HTML only
+    ├── student-course.html        # Daily lesson (student) — HTML only
+    ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML only
+    ├── examiner-marking.html      # Standalone marking (legacy) — HTML only
+    ├── scripts/
+    │   ├── hub.js                 # Student hub logic (from index.html)
+    │   ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
+    │   ├── student-test.js        # Placement test logic (from student-initial-test.html)
+    │   ├── student-lesson.js      # Daily lesson logic (from student-course.html)
+    │   ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
+    │   ├── config.js              # Shared configuration (webhook URL, CEFR levels, auth tokens)
+    │   ├── config.local.js        # Auth token overrides (gitignored — never committed)
+    │   ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
+    │   ├── utils.js               # Shared utilities (escHtml — XSS-safe)
+    │   ├── video-call.js          # Jitsi Meet optional video panel
+    │   ├── i18n.js                # Level-aware Spanish translation
+    │   └── checkpoint.js          # Session recovery / auto-save
+    └── styles/
+        ├── theme.css              # Shared design tokens (CSS variables, font imports)
+        ├── mobile.css             # Mobile-first responsive enhancements
+        ├── hub.css                # Student hub styles (from index.html)
+        ├── teacher-portal.css     # Teacher portal styles (from teacher.html)
+        ├── student-test.css       # Placement test styles (from student-initial-test.html)
+        ├── student-lesson.css     # Daily lesson styles (from student-course.html)
+        ├── examiner-panel.css     # Teacher dashboard styles (from examiner-panel.html)
+        └── examiner-marking.css   # Standalone marking styles (from examiner-marking.html)
 ```
 
 ---
