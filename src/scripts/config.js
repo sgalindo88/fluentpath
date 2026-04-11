@@ -56,3 +56,17 @@ FP.KEYS = {
   LESSON_MARKS:     'fp_lesson_marks',
   COURSE_ID:        'fp_course_id',
 };
+
+// ── Load config.local.js (optional, gitignored) ─────────
+// Only loads if the file exists. In production (GitHub Pages) the file
+// is absent and this silently skips it — no 404 in the console.
+(function () {
+  if (FP.ENV === 'production') return; // skip in production — file won't exist
+  var scripts = document.getElementsByTagName('script');
+  var thisScript = scripts[scripts.length - 1];
+  var basePath = thisScript.src.substring(0, thisScript.src.lastIndexOf('/') + 1);
+  var s = document.createElement('script');
+  s.src = basePath + 'config.local.js';
+  s.onerror = function () { s.remove(); };
+  thisScript.parentNode.insertBefore(s, thisScript.nextSibling);
+})();
