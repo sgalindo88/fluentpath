@@ -4,6 +4,28 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.41.0] - 2026-04-11
+
+### Added — clasp for Apps Script version control
+
+#### New files
+- **`appsscript.json`** — Apps Script manifest with V8 runtime, timezone, OAuth scopes (spreadsheets, drive, external requests, mail)
+- **`.clasp.json`** — clasp config pointing to the Apps Script project (gitignored — contains script ID)
+- **`.claspignore`** — only pushes `apps-script.js` and `appsscript.json` to Google; ignores all frontend files
+
+#### Config
+- **`package.json`** — added `clasp:push`, `clasp:deploy` (push + deploy with git commit message), `clasp:status` scripts
+- **`.gitignore`** — added `.clasp.json`
+
+#### Setup (one-time, interactive)
+1. `npx clasp login` — opens browser for Google OAuth
+2. Find your Script ID: Apps Script editor → Project Settings → Script ID
+3. Paste it into `.clasp.json` replacing `YOUR_SCRIPT_ID_HERE`
+4. `npm run clasp:push` — pushes `apps-script.js` to the project
+5. `npm run clasp:deploy` — pushes + creates a new versioned deployment
+
+---
+
 ## [0.40.0] - 2026-04-11
 
 ### Added — Multi-course support

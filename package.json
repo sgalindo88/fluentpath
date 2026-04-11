@@ -10,7 +10,10 @@
     "format:check": "prettier --check src/scripts/ src/styles/ *.html",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev": "npx serve ."
+    "dev": "npx serve .",
+    "clasp:push": "clasp push",
+    "clasp:deploy": "clasp push && clasp deploy -d \"$(git log -1 --format=%s)\"",
+    "clasp:status": "clasp status"
   },
   "repository": {
     "type": "git",
@@ -24,6 +27,7 @@
   },
   "homepage": "https://github.com/sgalindo88/english-course#readme",
   "devDependencies": {
+    "@google/clasp": "^3.3.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
     "prettier": "^3.8.2",

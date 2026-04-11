@@ -1,0 +1,5 @@
+# Push only apps-script.js and appsscript.json to Google Apps Script.
+# Everything else is frontend code hosted on GitHub Pages.
+**/**
+!apps-script.js
+!appsscript.json
