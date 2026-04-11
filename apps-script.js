@@ -414,6 +414,10 @@ var HEADERS = {
   'Lesson Library': [
     'id', 'level', 'day', 'created_at', 'source_student',
     'original_difficulty_json', 'lesson_json', 'is_active', 'times_served'
+  ],
+  'Vocabulary Tracker': [
+    'student_name', 'word', 'level', 'day_introduced',
+    'last_reviewed', 'review_count', 'next_review_date'
   ]
 };
 
@@ -989,7 +993,137 @@ function buildLessonPrompt(level, day, topic, allowSpanish, difficulty) {
       '(they are learning English), but definitions and example sentences need "_es" translations.';
   }
 
+  // Inject review words for spaced repetition
+  if (studentName) {
+    var reviewWords = getReviewWords(studentName);
+    if (reviewWords.length > 0) {
+      var wordList = reviewWords.map(function(r) { return r.word; }).join(', ');
+      prompt += '\n\nSPACED REPETITION: Include these review vocabulary words from previous lessons: ' +
+        wordList + '. Integrate them naturally into today\'s warm-up, practice questions, or writing prompt ' +
+        '— do NOT add them to the vocabulary section (they are review, not new words).';
+    }
+  }
+
   return prompt;
+}
+
+// ══════════════════════════════════════════════════════
+// VOCABULARY SPACED REPETITION
+// ══════════════════════════════════════════════════════
+
+/** SRS intervals in days: review after 1, 3, 7, 14 days. */
+var SRS_INTERVALS = [1, 3, 7, 14];
+
+/**
+ * Get up to 3 words due for review for a student.
+ * A word is due when today >= next_review_date.
+ */
+function getReviewWords(studentName) {
+  var sheet = getOrCreateSheet('Vocabulary Tracker', HEADERS['Vocabulary Tracker']);
+  if (sheet.getLastRow() < 2) return [];
+
+  var rows = sheetToObjects(sheet);
+  var target = String(studentName).toLowerCase().trim();
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var due = rows.filter(function(r) {
+    if (String(r['student_name'] || '').toLowerCase().trim() !== target) return false;
+    if (!r['next_review_date']) return false;
+    var nextDate = new Date(r['next_review_date']);
+    return !isNaN(nextDate.getTime()) && nextDate <= today;
+  });
+
+  // Sort by oldest due first, take 3
+  due.sort(function(a, b) {
+    return new Date(a['next_review_date']) - new Date(b['next_review_date']);
+  });
+  return due.slice(0, 3);
+}
+
+/**
+ * Save vocabulary words learned in a lesson to the tracker.
+ * Skips words already tracked for this student.
+ */
+function saveVocabularyWords(studentName, words, level, dayNumber) {
+  if (!studentName || !words || !words.length) return;
+  var sheet = getOrCreateSheet('Vocabulary Tracker', HEADERS['Vocabulary Tracker']);
+  ensureSheetHeaders(sheet, HEADERS['Vocabulary Tracker']);
+
+  // Find existing words for this student
+  var existing = new Set();
+  if (sheet.getLastRow() > 1) {
+    var rows = sheetToObjects(sheet);
+    var target = String(studentName).toLowerCase().trim();
+    rows.forEach(function(r) {
+      if (String(r['student_name'] || '').toLowerCase().trim() === target) {
+        existing.add(String(r['word'] || '').toLowerCase().trim());
+      }
+    });
+  }
+
+  var today = new Date().toISOString().split('T')[0];
+  var nextReview = new Date();
+  nextReview.setDate(nextReview.getDate() + SRS_INTERVALS[0]); // first review after 1 day
+
+  words.forEach(function(w) {
+    var word = String(w).trim();
+    if (!word || existing.has(word.toLowerCase())) return;
+    sheet.appendRow([
+      studentName,
+      word,
+      level || '',
+      today,          // day_introduced
+      '',             // last_reviewed (empty until first review)
+      0,              // review_count
+      nextReview.toISOString().split('T')[0]  // next_review_date
+    ]);
+  });
+}
+
+/**
+ * Mark review words as reviewed after a lesson that included them.
+ * Advances each word to the next SRS interval.
+ */
+function markWordsReviewed(studentName, words) {
+  if (!studentName || !words || !words.length) return;
+  var sheet = getOrCreateSheet('Vocabulary Tracker', HEADERS['Vocabulary Tracker']);
+  if (sheet.getLastRow() < 2) return;
+
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var colIdx = {};
+  HEADERS['Vocabulary Tracker'].forEach(function(c) { colIdx[c] = headerRow.indexOf(c); });
+
+  var target = String(studentName).toLowerCase().trim();
+  var wordSet = {};
+  words.forEach(function(w) { wordSet[String(w).toLowerCase().trim()] = true; });
+  var today = new Date().toISOString().split('T')[0];
+
+  var dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, headerRow.length);
+  var data = dataRange.getValues();
+  var changed = false;
+
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    if (String(row[colIdx['student_name']] || '').toLowerCase().trim() !== target) continue;
+    if (!wordSet[String(row[colIdx['word']] || '').toLowerCase().trim()]) continue;
+
+    var count = parseInt(row[colIdx['review_count']], 10) || 0;
+    count++;
+    var intervalIdx = Math.min(count, SRS_INTERVALS.length) - 1;
+    var next = new Date();
+    next.setDate(next.getDate() + SRS_INTERVALS[intervalIdx]);
+
+    data[i][colIdx['last_reviewed']] = today;
+    data[i][colIdx['review_count']] = count;
+    data[i][colIdx['next_review_date']] = next.toISOString().split('T')[0];
+    changed = true;
+  }
+
+  if (changed) {
+    dataRange.setValues(data);
+  }
 }
 
 /** Translate the teacher's 1-5 difficulty sliders, focus tags, and free-form
@@ -1555,10 +1689,24 @@ var POST_HANDLERS = {
   save_progress: function(params) {
     var name = requireParam(params, 'student_name');
     var day = requireParam(params, 'day_number');
-    requireParam(params, 'level');
+    var level = requireParam(params, 'level');
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
     notifyTeacherLessonSubmitted(name, day);
+    // Save vocabulary words if provided (extracted from lesson content by frontend)
+    if (params['vocabulary_words']) {
+      try {
+        var words = JSON.parse(params['vocabulary_words']);
+        if (Array.isArray(words)) {
+          saveVocabularyWords(name, words, level, parseInt(day, 10));
+          // Mark any review words as reviewed
+          var reviewWords = getReviewWords(name);
+          if (reviewWords.length > 0) {
+            markWordsReviewed(name, reviewWords.map(function(r) { return r.word; }));
+          }
+        }
+      } catch (e) { /* vocabulary tracking is best-effort */ }
+    }
   },
 
   save_marks: function(params) {

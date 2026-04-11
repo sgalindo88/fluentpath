@@ -1697,6 +1697,11 @@ async function saveProgress(endTime, speakingAudioJson) {
     answers_json:   JSON.stringify(state.answers).substring(0, 5000),
     speaking_audio_json: speakingAudioJson || '',
     submitted_at:   new Date().toLocaleString(),
+    vocabulary_words: JSON.stringify(
+      (state.lessonContent && state.lessonContent.vocabulary && state.lessonContent.vocabulary.words)
+        ? state.lessonContent.vocabulary.words.map(function(w) { return w.word; })
+        : []
+    ),
   };
 
   try {

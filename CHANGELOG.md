@@ -4,6 +4,24 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.32.0] - 2026-04-11
+
+### Added — Vocabulary spaced repetition (SRS)
+
+#### Apps Script (`apps-script.js`)
+- **`Vocabulary Tracker` sheet tab** — new headers: `student_name`, `word`, `level`, `day_introduced`, `last_reviewed`, `review_count`, `next_review_date`
+- **`getReviewWords(studentName)`** — returns up to 3 words due for review today (sorted oldest-due-first)
+- **`saveVocabularyWords(studentName, words, level, dayNumber)`** — writes new vocabulary to the tracker, skipping words already tracked for the student; sets first review date to +1 day
+- **`markWordsReviewed(studentName, words)`** — advances reviewed words to the next SRS interval (1 → 3 → 7 → 14 days) by updating `last_reviewed`, `review_count`, and `next_review_date` directly in the sheet
+- **`SRS_INTERVALS`** — [1, 3, 7, 14] day review schedule
+- **`buildLessonPrompt`** — appends a "SPACED REPETITION" instruction block when review words exist, asking Claude to integrate them into warmup, practice, or writing (not the vocab section)
+- **`save_progress` handler** — now extracts `vocabulary_words` from the POST payload, saves them to the tracker, and marks any pending review words as reviewed
+
+#### Student lesson (`src/scripts/student-lesson.js`)
+- **Save payload** — includes `vocabulary_words` (JSON array of word strings extracted from `state.lessonContent.vocabulary.words`)
+
+---
+
 ## [0.31.0] - 2026-04-11
 
 ### Added — Email notification system
