@@ -4,6 +4,29 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.38.0] - 2026-04-11
+
+### Added — Staging environment
+
+#### Shared config (`src/scripts/config.js`)
+- **`FP.ENV`** — auto-detected from hostname: `'production'` on `sgalindo88.github.io`, `'development'` everywhere else (localhost, DDEV, etc.)
+- Production webhook URL remains the default; dev override goes in `config.local.js`
+
+#### Shared API wrapper (`src/scripts/api.js`)
+- **DEV banner** — fixed blue bar at the top of every page reading "DEV MODE" when `FP.ENV === 'development'`; auto-injected on DOMContentLoaded; not shown in production
+
+#### Local config (`src/scripts/config.local.js`)
+- **Dev webhook URL** — documented how to uncomment and set `FP.WEBHOOK_URL` to a separate "FluentPath - Dev" Apps Script deployment for local development
+
+#### Setup
+1. Create a second Google Sheet ("FluentPath - Dev")
+2. Create a second Apps Script deployment linked to the dev sheet
+3. In `config.local.js`, uncomment `FP.WEBHOOK_URL` and paste the dev deployment URL
+4. Local dev (`npm run dev` / DDEV) → "DEV MODE" banner visible, uses dev sheet
+5. Production (GitHub Pages) → no banner, uses production sheet
+
+---
+
 ## [0.37.0] - 2026-04-11
 
 ### Added — CI/CD with GitHub Actions

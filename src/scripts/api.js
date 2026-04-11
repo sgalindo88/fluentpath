@@ -185,3 +185,22 @@ FP.hideSaveOverlay = function () {
   var el = document.getElementById('fp-save-overlay');
   if (el) el.style.display = 'none';
 };
+
+
+// ══════════════════════════════════════════════════════
+// DEV BANNER — shown in development mode
+// ══════════════════════════════════════════════════════
+
+if (FP.ENV === 'development') {
+  document.addEventListener('DOMContentLoaded', function () {
+    var banner = document.createElement('div');
+    banner.id = 'fp-dev-banner';
+    banner.style.cssText =
+      'position:fixed;top:0;left:0;right:0;z-index:99999;' +
+      'background:#1e4d8c;color:white;text-align:center;' +
+      'padding:3px 12px;font-size:11px;font-weight:700;' +
+      'letter-spacing:0.15em;font-family:monospace;';
+    banner.textContent = 'DEV MODE';
+    document.body.appendChild(banner);
+  });
+}

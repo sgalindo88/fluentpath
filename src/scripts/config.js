@@ -7,7 +7,16 @@
 
 var FP = window.FP || {};
 
+// ── Environment ─────────────────────────────────────────────
+// 'production' on GitHub Pages, 'development' everywhere else.
+// In development mode a visual DEV banner is shown.
+FP.ENV = (typeof location !== 'undefined' && location.hostname === 'sgalindo88.github.io')
+  ? 'production' : 'development';
+
 // ── Endpoints ────────────────────────────────────────────────
+// Production webhook — always set here as the default.
+// For local development, override FP.WEBHOOK_URL in config.local.js
+// to point to a separate "FluentPath - Dev" Apps Script deployment.
 FP.WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
 FP.FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
 
