@@ -75,40 +75,44 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
 english-course/
 ├── index.html                     # Student hub / landing portal
 ├── teacher.html                   # Teacher portal (links to dashboard)
-├── README.md                      # This file
-├── CHANGELOG.md                   # Version history
-├── GOOGLE_SHEETS_SCHEMA.md        # Full database schema documentation
-├── apps-script.js                 # Google Apps Script source (paste into Code.gs)
-├── package.json                   # npm project config (lint, format, dev scripts)
+├── sw.js                          # Service worker (offline resilience)
+├── apps-script.js                 # Google Apps Script backend (deploy via clasp)
+├── appsscript.json                # Apps Script manifest (V8 runtime, OAuth scopes)
+├── package.json                   # npm project (lint, test, dev, clasp scripts)
 ├── eslint.config.mjs              # ESLint 9 flat config
+├── .github/workflows/ci.yml       # GitHub Actions CI (lint + test on push/PR)
 ├── src/
 │   ├── student-initial-test.html  # Placement test (student) — HTML only
 │   ├── student-course.html        # Daily lesson (student) — HTML only
 │   ├── examiner-panel.html        # Teacher dashboard (all-in-one) — HTML only
 │   ├── scripts/
-│   │   ├── hub.js                 # Student hub logic (from index.html)
-│   │   ├── teacher-portal.js      # Teacher portal logic (from teacher.html)
-│   │   ├── student-test.js        # Placement test logic (from student-initial-test.html)
-│   │   ├── student-lesson.js      # Daily lesson logic (from student-course.html)
-│   │   ├── examiner-panel.js      # Teacher dashboard logic (from examiner-panel.html)
-│   │   ├── config.js              # Shared configuration (endpoints, CEFR levels, auth tokens, course constants)
-│   │   ├── config.local.js        # Auth token overrides (gitignored — never committed)
-│   │   ├── api.js                 # Shared fetch wrapper (timeout, error handling, auto-auth)
-│   │   ├── utils.js               # Shared utilities (escHtml, formatDate, formatDuration, timeAgo, ...)
+│   │   ├── hub.js                 # Student hub logic + achievements
+│   │   ├── teacher-portal.js      # Teacher portal logic
+│   │   ├── student-test.js        # Placement test logic
+│   │   ├── student-lesson.js      # Daily lesson logic (timer, pause, SRS)
+│   │   ├── examiner-panel.js      # Teacher dashboard logic (class overview, quick grading)
+│   │   ├── config.js              # Shared config (endpoints, auth, constants, environment)
+│   │   ├── config.local.js        # Auth tokens + dev webhook (gitignored)
+│   │   ├── api.js                 # Fetch wrapper, save overlay, SW registration, dev banner
+│   │   ├── utils.js               # Shared utilities (7 functions)
 │   │   ├── video-call.js          # Jitsi Meet optional video panel
 │   │   ├── i18n.js                # Level-aware Spanish translation
 │   │   └── checkpoint.js          # Session recovery / auto-save
 │   └── styles/
-│       ├── theme.css              # Shared design tokens (CSS variables, font imports)
+│       ├── theme.css              # Shared design tokens (WCAG AA compliant)
 │       ├── mobile.css             # Mobile-first responsive enhancements
-│       ├── hub.css                # Student hub styles (from index.html)
-│       ├── teacher-portal.css     # Teacher portal styles (from teacher.html)
-│       ├── student-test.css       # Placement test styles (from student-initial-test.html)
-│       ├── student-lesson.css     # Daily lesson styles (from student-course.html)
-│       └── examiner-panel.css     # Teacher dashboard styles (from examiner-panel.html)
+│       ├── hub.css                # Student hub + achievement badge styles
+│       ├── teacher-portal.css     # Teacher portal styles
+│       ├── student-test.css       # Placement test styles
+│       ├── student-lesson.css     # Daily lesson + pause overlay styles
+│       └── examiner-panel.css     # Teacher dashboard + class overview styles
+├── tests/
+│   ├── helpers.js                 # Test harness (loads global JS into vitest)
+│   ├── utils.test.js              # 23 tests for utility functions
+│   └── apps-script.test.js        # 22 tests for backend functions
 └── legacy/
-    ├── examiner-marking.html      # Standalone marking tool (superseded by teacher dashboard)
-    └── examiner-marking.css       # Styles for the legacy marking tool
+    ├── examiner-marking.html      # Standalone marking (superseded by dashboard)
+    └── examiner-marking.css       # Legacy marking styles
 ```
 
 ---
@@ -465,39 +469,50 @@ See the header comment in `apps-script.js` for full deployment steps.
 | `fp_cefr_level` | Assigned CEFR level | Course |
 | `fp_last_lesson_day` | Course progress (day number) | Course |
 | `fp_last_lesson_date` | Last lesson date | Course |
+| `fp_course_id` | Active course number (default 1) | Hub |
+| `fp_hub_cache` | Cached hub progress + settings | Hub |
+| `fp_achievements` | Earned achievement IDs | Hub |
 | `fp_ckpt_test` | Placement test checkpoint | checkpoint.js |
 | `fp_ckpt_lesson` | Course lesson checkpoint | checkpoint.js |
-| `fluentpath_teacher` | Full teacher dashboard state | examiner-panel.html |
+| `fluentpath_teacher` | Full teacher dashboard state | examiner-panel.js |
 
 ---
 
 ## Google Sheets Schema
 
-The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md), covering 6 tabs:
+The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md), covering 10 tabs:
 
 | Tab | Purpose |
 |-----|---------|
 | **Initial Test Results** | Raw student test submissions |
 | **Examiner Results** | Graded test results with CEFR levels, individual question scores (`score_q11`--`score_q24`), and per-question notes |
-| **Course Progress** | Completed daily lesson records |
-| **Settings** | Teacher preferences per student (allow_spanish, allow_skip_test, etc.) |
-| **Lesson Approvals** | Approval workflow between student and teacher |
-| **Lesson Marks** | Graded daily lesson scores |
+| **Course Progress** | Completed daily lesson records (with `course_id` for multi-course) |
+| **Settings** | Teacher preferences, difficulty profiles, notification settings, `course_id` |
+| **Lesson Marks** | Graded daily lesson scores (with `course_id`) |
 | **Students** | Registered student names and join dates (auto-populated on first hub visit) |
+| **Lesson Library** | AI-generated lesson cache for recycling |
 | **Attendance** | Per-student attendance JSON and absence notes |
+| **Vocabulary Tracker** | SRS word tracking per student (word, intervals, next review date) |
+| **Error Log** | Server-side error log with timestamp, action, student, message |
 
 ---
 
 ## Technology Stack
 
 - **Frontend:** Pure HTML, CSS, and vanilla JavaScript (no frameworks)
-- **Code Quality:** ESLint 9 + Prettier (run `npm run lint` and `npm run format`)
-- **Styling:** CSS custom properties, Flexbox, CSS Grid, media queries, print stylesheets, shared `mobile.css`
+- **Code Quality:** ESLint 9 + Prettier + vitest (45 tests); CI/CD via GitHub Actions
+- **Backend:** Google Apps Script (web app) with clasp version control (`npm run clasp:deploy`)
+- **Offline:** Service worker with cache-first app shell, stale-while-revalidate API, IndexedDB POST queue
+- **AI:** Claude API (Haiku for lessons, Sonnet for summaries) via server-side proxy
+- **Database:** Google Sheets (10 tabs) with CacheService + TextFinder optimisation
+- **Styling:** CSS custom properties (WCAG AA), Flexbox, CSS Grid, media queries, shared `mobile.css`
 - **Fonts:** Google Fonts (Playfair Display, Source Serif 4)
-- **APIs:** Claude API (lesson generation, summaries), Google Apps Script (data persistence), Formspree (email delivery), Web Speech API (TTS + STT), Jitsi Meet (video calls)
-- **Storage:** localStorage (checkpoints, preferences, teacher dashboard state), Google Sheets (shared persistence)
+- **APIs:** Claude API, Google Apps Script, Formspree, Web Speech API (TTS + STT), Jitsi Meet
+- **Storage:** localStorage (checkpoints, preferences, achievements), Google Sheets (shared persistence)
 - **Translation:** Level-aware Spanish with 4 modes (spanish-primary, tap-to-translate, teacher-gated, english-only)
+- **Email:** Formspree (test results) + MailApp (teacher/student notifications)
 - **Hosting:** GitHub Pages at [sgalindo88.github.io/english-course](https://sgalindo88.github.io/english-course/)
+- **Local Dev:** DDEV + `npm run dev` with auto-detected staging environment
 
 ---
 
