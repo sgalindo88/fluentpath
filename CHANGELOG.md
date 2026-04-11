@@ -4,6 +4,25 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.29.0] - 2026-04-11
+
+### Added — Timer pause and smart auto-pause
+
+#### Student lesson (`src/scripts/student-lesson.js`)
+- **`togglePause()`** / **`pauseLesson()`** / **`resumeLesson()`** — pause/resume the lesson timer; shows a translucent overlay with "Paused — click Resume to continue"
+- **Pause button** — `⏸` button in the top nav next to the timer; toggles to `▶` when paused
+- **Auto-pause on tab hidden** — listens to `visibilitychange`; automatically pauses when the student switches tabs or minimises the browser
+- **`totalPausedTime` tracking** — accumulates seconds spent paused; included in the save payload as `paused_time_min` so the teacher can see active time vs. total elapsed time
+- **Timer display** — shows gold colour when paused (`.nav-timer.paused`)
+- **Cleanup on finish** — resumes if paused (removes overlay), hides pause button on completion screen
+
+#### Styles (`src/styles/student-lesson.css`)
+- **`.nav-pause`** — compact button style for the top nav
+- **`.pause-overlay`** + **`.pause-card`** — full-screen translucent overlay with centred card, title, subtitle, and Resume button
+- **`.nav-timer.paused`** — gold colour state for paused timer
+
+---
+
 ## [0.28.0] - 2026-04-11
 
 ### Added — Unit tests (vitest)

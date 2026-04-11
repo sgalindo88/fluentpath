@@ -1495,18 +1495,27 @@ function saveAnswer(key, value) {
 }
 
 // ══════════════════════════════════════════════════════
-// TIMER
+// TIMER + PAUSE
 // ══════════════════════════════════════════════════════
+var paused = false;
+var totalPausedTime = 0;  // seconds spent paused (reported to teacher)
+var pauseStartedAt = 0;
+
 function startTimer(initialElapsed) {
   state.timeElapsed = initialElapsed || 0;
+  paused = false;
   updateTimerDisplay();
   state.timerInterval = setInterval(() => {
+    if (paused) return;
     state.timeElapsed++;
     updateTimerDisplay();
     if (state.timeElapsed >= LESSON_DURATION) {
       clearInterval(state.timerInterval);
     }
   }, 1000);
+  // Show pause button
+  var pb = document.getElementById('navPause');
+  if (pb) pb.style.display = '';
 }
 
 function updateTimerDisplay() {
@@ -1515,19 +1524,80 @@ function updateTimerDisplay() {
   const s = remaining % 60;
   const el = document.getElementById('navTimer');
   el.textContent = `${m}:${String(s).padStart(2,'0')}`;
-  el.className = 'nav-timer' + (remaining < 600 ? ' warning' : '');
+  var cls = 'nav-timer';
+  if (paused) cls += ' paused';
+  else if (remaining < 600) cls += ' warning';
+  el.className = cls;
 }
+
+function togglePause() {
+  if (paused) {
+    resumeLesson();
+  } else {
+    pauseLesson();
+  }
+}
+
+function pauseLesson() {
+  paused = true;
+  pauseStartedAt = Date.now();
+  updateTimerDisplay();
+  var btn = document.getElementById('navPause');
+  if (btn) { btn.textContent = '▶'; btn.title = 'Resume lesson'; }
+
+  // Show pause overlay
+  var overlay = document.getElementById('fp-pause-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'fp-pause-overlay';
+    overlay.className = 'pause-overlay';
+    overlay.innerHTML =
+      '<div class="pause-card">' +
+        '<div class="pause-title">Paused</div>' +
+        '<div class="pause-sub">Your timer is paused. Click Resume when you\'re ready to continue.</div>' +
+        '<button class="pause-resume" onclick="togglePause()">Resume</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display = 'flex';
+  }
+}
+
+function resumeLesson() {
+  paused = false;
+  if (pauseStartedAt) {
+    totalPausedTime += Math.round((Date.now() - pauseStartedAt) / 1000);
+    pauseStartedAt = 0;
+  }
+  updateTimerDisplay();
+  var btn = document.getElementById('navPause');
+  if (btn) { btn.textContent = '⏸'; btn.title = 'Pause lesson'; }
+
+  var overlay = document.getElementById('fp-pause-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+// Auto-pause when tab is hidden
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && !paused && lessonInProgress) {
+    pauseLesson();
+  }
+});
 
 // ══════════════════════════════════════════════════════
 // FINISH LESSON
 // ══════════════════════════════════════════════════════
 async function finishLesson() {
   lessonInProgress = false;
+  if (paused) resumeLesson(); // ensure overlay is removed
   clearLessonCheckpoint();
   clearInterval(state.timerInterval);
   try { if (recognition) { recognition.stop(); convRecording = false; } } catch(e) {}
   // Stop any active drill recordings
   try { Object.keys(activeDrills).forEach(function(id) { stopDrill(id); }); } catch(e) {}
+
+  var pb = document.getElementById('navPause');
+  if (pb) pb.style.display = 'none';
 
   const endTime = new Date();
   const elapsed = Math.round(state.timeElapsed / 60);
@@ -1617,6 +1687,7 @@ async function saveProgress(endTime, speakingAudioJson) {
     start_time:     state.startTime?.toLocaleTimeString() || '',
     end_time:       endTime.toLocaleTimeString(),
     time_spent_min: Math.round(state.timeElapsed / 60),
+    paused_time_min: Math.round(totalPausedTime / 60),
     topic:          state.lessonContent?.topic || '',
     confidence:     confVal,
     writing_response: writing.substring(0, 2000),
