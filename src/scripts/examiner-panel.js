@@ -53,6 +53,35 @@ const DIFF_AREAS = [
 // ══════════════════════════════════════════════════════
 // SETUP
 // ══════════════════════════════════════════════════════
+
+/** Reset all student-specific state when switching students. Preserves teacher-level settings. */
+function resetStudentState(newStudentName) {
+  ex.studentName = newStudentName;
+  ex.studentLevel = 'B1';
+  ex.studentMonth = 1;
+  ex.studentEmail = '';
+  ex.studentNotes = '';
+  ex.allowSpanish = false;
+  ex.allowSkipTest = false;
+  ex.allowRetakeTest = false;
+  ex.attendance = {};
+  ex.markingData = null;
+  ex.writingScores = {};
+  ex.speakingScores = {};
+  ex.weeklySummaries = {};
+  ex.difficultyProfile = {};
+  ex.focusTags = new Set();
+  ex.lessonRecords = [];
+  ex.aiInstructions = '';
+  ex.pendingLessons = [];
+  ex.currentWeek = 1;
+  ex.ptGraded = null;
+  // Clear per-student note fields from localStorage
+  ['today_notes', 'absence_notes', 'writing_feedback', 'speaking_feedback', 'overall_feedback', 'ai_instructions'].forEach(function(k) {
+    try { localStorage.removeItem('fp_' + k); } catch(e) {}
+  });
+}
+
 function setupExaminer() {
   var student = document.getElementById('setup-student').value.trim();
   if (!student) { alert('Please enter the student\'s name.'); return; }
@@ -600,6 +629,7 @@ function showPanel(id) {
 /** Fetch data for a specific panel on first visit. */
 function loadPanelData(id) {
   switch (id) {
+    case 'classoverview': loadClassOverview(); break;
     case 'placementtest': loadPlacementTest(); break;
     case 'marking':       autoLoadSubmission(); break;
     case 'library':       loadLibraryPanel(); break;
@@ -614,6 +644,102 @@ function reloadPanel(id) {
   panelLoaded[id] = false;
   loadPanelData(id);
   panelLoaded[id] = true;
+}
+
+// ══════════════════════════════════════════════════════
+// CLASS OVERVIEW
+// ══════════════════════════════════════════════════════
+var classData = null;
+var classSortKey = 'name';
+var classSortAsc = true;
+
+async function loadClassOverview() {
+  var container = document.getElementById('class-table-container');
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com')) {
+    container.innerHTML = '<div style="color:var(--muted);font-style:italic;">No webhook configured.</div>';
+    return;
+  }
+  container.innerHTML = '<div style="color:var(--muted);font-style:italic;">Loading class data...</div>';
+  try {
+    var data = await FP.api.get(WEBHOOK_URL + '?action=get_class_overview', { timeout: 30000 });
+    if (data && data.found && Array.isArray(data.students)) {
+      classData = data.students;
+      renderClassTable();
+    } else {
+      container.innerHTML = '<div style="color:var(--muted);">No students found.</div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div style="color:var(--rust);">Could not load class data: ' + escHtml(e.message) + '</div>';
+  }
+}
+
+function renderClassTable() {
+  if (!classData) return;
+  var container = document.getElementById('class-table-container');
+  var filterAttention = document.getElementById('class-filter-attention')?.checked;
+
+  var rows = classData.slice();
+  if (filterAttention) {
+    rows = rows.filter(function(s) { return s.status === 'yellow' || s.status === 'red'; });
+  }
+
+  // Sort
+  rows.sort(function(a, b) {
+    var va = a[classSortKey] || '', vb = b[classSortKey] || '';
+    if (typeof va === 'number' && typeof vb === 'number') return classSortAsc ? va - vb : vb - va;
+    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+    return classSortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
+  if (rows.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted);font-style:italic;">' +
+      (filterAttention ? 'No students need attention right now.' : 'No students registered yet.') + '</div>';
+    return;
+  }
+
+  var arrow = classSortAsc ? ' ▲' : ' ▼';
+  function th(key, label) {
+    return '<th onclick="sortClassTable(\'' + key + '\')">' + label + (classSortKey === key ? arrow : '') + '</th>';
+  }
+
+  var html = '<table class="class-table"><thead><tr>' +
+    th('name', 'Student') +
+    th('level', 'Level') +
+    th('days_completed', 'Progress') +
+    th('last_active', 'Last Active') +
+    th('ungraded', 'Ungraded') +
+    th('attendance_pct', 'Attendance') +
+    '<th>Action</th></tr></thead><tbody>';
+
+  rows.forEach(function(s) {
+    var pct = Math.round((s.days_completed / FP.COURSE_DAYS) * 100);
+    var rowClass = 'clickable class-row-' + escHtml(s.status);
+    html += '<tr class="' + rowClass + '" onclick="switchToStudent(\'' + escHtml(s.name) + '\')">' +
+      '<td><strong>' + escHtml(s.name) + '</strong></td>' +
+      '<td>' + escHtml(s.level || '—') + '</td>' +
+      '<td><div class="class-progress-bar"><div class="class-progress-fill" style="width:' + pct + '%;"></div></div>' + s.days_completed + '/' + FP.COURSE_DAYS + '</td>' +
+      '<td>' + (s.last_active ? formatLessonDate(s.last_active) : '—') + '</td>' +
+      '<td>' + (s.ungraded > 0 ? '<strong style="color:var(--rust);">' + s.ungraded + '</strong>' : '0') + '</td>' +
+      '<td>' + s.attendance_pct + '%</td>' +
+      '<td><button class="btn-secondary" style="font-size:11px;padding:4px 10px;" onclick="event.stopPropagation();switchToStudent(\'' + escHtml(s.name) + '\')">Open</button></td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function sortClassTable(key) {
+  if (classSortKey === key) classSortAsc = !classSortAsc;
+  else { classSortKey = key; classSortAsc = true; }
+  renderClassTable();
+}
+
+function switchToStudent(name) {
+  resetStudentState(name);
+  saveToLocalStorage();
+  // Reload the page with the new student
+  window.location.href = window.location.pathname + '?student=' + encodeURIComponent(name);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1994,8 +2120,10 @@ window.addEventListener('DOMContentLoaded', () => {
   var urlStudent = (urlParams.get('student') || '').trim();
 
   if (urlStudent) {
-    // Student selected from teacher portal — go straight to dashboard
-    ex.studentName = urlStudent;
+    // Student selected from teacher portal or class overview — go straight to dashboard
+    // Always reset student-specific state when loading via URL param to ensure clean data
+    resetStudentState(urlStudent);
+    panelLoaded = {}; // force all panels to reload for the new student
     saveToLocalStorage();
     initApp();
   } else if (hasSaved && ex.studentName) {

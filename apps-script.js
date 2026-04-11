@@ -440,6 +440,7 @@ var GET_HANDLERS = {
   get_audio:             function(p) { return handleGetAudio(p.id); },
   get_errors:            function(_) { return handleGetErrors(); },
   get_student_report:    function(p) { return handleGetStudentReport(p.student); },
+  get_class_overview:    function(_) { return handleGetClassOverview(); },
 };
 
 function doGet(e) {
@@ -585,6 +586,102 @@ function handleGetStudents() {
     }
   }
   return { found: true, students: students };
+}
+
+
+// ── GET: get_class_overview ───────────────────────────
+// Returns a summary row for every registered student (for the Class Overview panel)
+function handleGetClassOverview() {
+  var studentsSheet = getOrCreateSheet('Students', HEADERS['Students']);
+  var studentRows = sheetToObjects(studentsSheet);
+  if (studentRows.length === 0) return { found: true, students: [] };
+
+  // Pre-load all shared sheets once (avoid per-student reads)
+  var examinerRows    = sheetToObjects(getOrCreateSheet('Examiner Results', HEADERS['Examiner Results']));
+  var progressRows    = sheetToObjects(getOrCreateSheet('Course Progress', HEADERS['Course Progress']));
+  var marksRows       = sheetToObjects(getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']));
+  var attendanceRows  = sheetToObjects(getOrCreateSheet('Attendance', HEADERS['Attendance']));
+
+  // Index by student (lowercase), trying multiple possible header names
+  function indexByStudent(rows, nameKeys) {
+    var keys = Array.isArray(nameKeys) ? nameKeys : [nameKeys];
+    var map = {};
+    rows.forEach(function(r) {
+      var n = '';
+      for (var k = 0; k < keys.length; k++) {
+        n = String(r[keys[k]] || '').trim();
+        if (n) break;
+      }
+      if (!n) return;
+      var lower = n.toLowerCase();
+      if (!map[lower]) map[lower] = [];
+      map[lower].push(r);
+    });
+    return map;
+  }
+  var examByStudent    = indexByStudent(examinerRows, ['candidate_name', 'Candidate Name']);
+  var progByStudent    = indexByStudent(progressRows, ['student_name', 'Student Name']);
+  var marksByStudent   = indexByStudent(marksRows, ['student_name', 'Student Name']);
+  var attendByStudent  = indexByStudent(attendanceRows, ['student_name', 'Student Name']);
+
+  var result = [];
+  for (var i = 0; i < studentRows.length; i++) {
+    var name = String(studentRows[i]['student_name'] || studentRows[i]['Student Name'] || '').trim();
+    if (!name) continue;
+    var key = name.toLowerCase().trim();
+
+    // Level
+    var exams = examByStudent[key] || [];
+    var level = '';
+    if (exams.length > 0) {
+      var lastExam = exams[exams.length - 1];
+      level = lastExam['cefr_level'] || lastExam['CEFR Level'] || '';
+    }
+
+    // Course progress
+    var lessons = progByStudent[key] || [];
+    var daysCompleted = lessons.length;
+    var lastActive = '';
+    if (lessons.length > 0) {
+      var dates = lessons.map(function(l) { return l['lesson_date'] || l['Lesson Date'] || l['submitted_at'] || ''; }).filter(Boolean);
+      if (dates.length > 0) lastActive = dates[dates.length - 1];
+    }
+
+    // Ungraded count
+    var marks = marksByStudent[key] || [];
+    var gradedDays = {};
+    marks.forEach(function(m) { gradedDays[String(m['day_number'])] = true; });
+    var ungradedCount = lessons.filter(function(l) { return !gradedDays[String(l['day_number'])]; }).length;
+
+    // Attendance %
+    var attendRows = attendByStudent[key] || [];
+    var attendPct = 0;
+    if (attendRows.length > 0) {
+      try {
+        var aj = JSON.parse(attendRows[attendRows.length - 1]['attendance_json'] || '{}');
+        var total = Object.keys(aj).length;
+        var present = Object.values(aj).filter(function(v) { return v === 'present'; }).length;
+        attendPct = total > 0 ? Math.round(present / total * 100) : 0;
+      } catch (e) { /* parse error */ }
+    }
+
+    // Status: green (on track), yellow (needs attention), red (falling behind)
+    var status = 'green';
+    if (ungradedCount > 0 || daysCompleted === 0) status = 'yellow';
+    if (ungradedCount >= 3 || (daysCompleted === 0 && !level)) status = 'red';
+
+    result.push({
+      name: name,
+      level: level,
+      days_completed: daysCompleted,
+      last_active: lastActive,
+      ungraded: ungradedCount,
+      attendance_pct: attendPct,
+      status: status,
+    });
+  }
+
+  return { found: true, students: result };
 }
 
 

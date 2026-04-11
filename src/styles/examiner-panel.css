@@ -328,3 +328,16 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 .lib-entry-detail { font-size:11px;color:var(--muted);margin-top:3px; }
 .lib-recycled-badge { display:inline-flex;align-items:center;gap:3px;background:#e8f0fd;color:#1e4d8c;font-size:9px;font-weight:700;letter-spacing:0.1em;padding:2px 7px;border-radius:2px;margin-left:6px;vertical-align:middle; }
 .lib-preview-box { background:var(--cream);border:1px solid var(--rule);padding:14px;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;max-height:280px;overflow-y:auto;margin-top:10px;line-height:1.5; }
+
+/* ── CLASS OVERVIEW ── */
+.class-table { width:100%;border-collapse:collapse;font-size:13px; }
+.class-table th { text-align:left;padding:10px 12px;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);font-weight:700;border-bottom:2px solid var(--rule);cursor:pointer;user-select:none;white-space:nowrap; }
+.class-table th:hover { color:var(--ink); }
+.class-table td { padding:10px 12px;border-bottom:1px solid var(--rule); }
+.class-table tr.clickable { cursor:pointer; }
+.class-table tr.clickable:hover { background:var(--cream); }
+.class-row-green td:first-child { border-left:3px solid var(--green,#2e6e45); }
+.class-row-yellow td:first-child { border-left:3px solid var(--gold,#c9933a); }
+.class-row-red td:first-child { border-left:3px solid var(--rust,#b8471e); }
+.class-progress-bar { width:80px;height:6px;background:var(--rule);border-radius:3px;display:inline-block;vertical-align:middle;margin-right:6px; }
+.class-progress-fill { height:100%;border-radius:3px;background:var(--green,#2e6e45); }

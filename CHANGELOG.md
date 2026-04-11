@@ -4,6 +4,32 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.34.0] - 2026-04-11
+
+### Added — Multi-student class overview
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetClassOverview()`** — new GET endpoint (`get_class_overview`) that returns a summary for every registered student: name, CEFR level, days completed, last active date, ungraded count, attendance %, and status colour (green/yellow/red)
+- Reads Students, Examiner Results, Course Progress, Lesson Marks, and Attendance sheets in one pass using pre-indexed maps (no per-student queries)
+
+#### Teacher dashboard HTML (`src/examiner-panel.html`)
+- **Class Overview panel** — new panel before Dashboard with a sortable table, colour-coded rows, and a "Show only students needing attention" filter toggle
+- **Sidebar** — new "CLASS" section with "Class Overview" link at the top of the sidebar navigation
+
+#### Teacher dashboard JS (`src/scripts/examiner-panel.js`)
+- **`loadClassOverview()`** — fetches class data from `get_class_overview`, lazy-loaded on first panel visit
+- **`renderClassTable()`** — builds a sortable HTML table; columns: Student, Level, Progress (bar + count), Last Active, Ungraded, Attendance %; click any column header to sort
+- **`sortClassTable(key)`** — toggles ascending/descending sort on the clicked column
+- **`switchToStudent(name)`** — navigates to the individual dashboard for the clicked student (reloads page with `?student=name`)
+- **Filter toggle** — "Show only students needing attention" checkbox filters to yellow/red status rows
+- **Status logic** — green (on track), yellow (has ungraded work or 0 days), red (3+ ungraded or no level assigned)
+
+#### Styles (`src/styles/examiner-panel.css`)
+- **`.class-table`** — sortable table with hover rows, colour-coded left border per status
+- **`.class-progress-bar`** / **`.class-progress-fill`** — inline progress bar in the Progress column
+
+---
+
 ## [0.33.0] - 2026-04-11
 
 ### Added — Quick grading workflow

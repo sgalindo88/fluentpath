@@ -47,6 +47,11 @@
         <div class="ssi-day" id="sb-student-day">Month 1 · Day —</div>
       </div>
 
+      <div class="sb-section">CLASS</div>
+      <div class="sb-link" id="nav-classoverview" onclick="showPanel('classoverview')">
+        <div class="sb-icon">👥</div> Class Overview
+      </div>
+
       <div class="sb-section">LESSONS</div>
       <div class="sb-link active" id="nav-dashboard" onclick="showPanel('dashboard')">
         <div class="sb-icon">📊</div> Dashboard
@@ -85,6 +90,22 @@
 
     <!-- Main content -->
     <div class="main-content">
+
+      <!-- ══ CLASS OVERVIEW ══ -->
+      <div class="panel" id="panel-classoverview">
+        <div class="panel-header">
+          <div class="panel-eyebrow">ALL STUDENTS</div>
+          <div class="panel-title">Class <em>Overview</em></div>
+          <div class="panel-sub">See all students at a glance. Click a row to open their individual dashboard.</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+          <button class="btn-primary" onclick="loadClassOverview()">Refresh</button>
+          <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="class-filter-attention" onchange="renderClassTable()"> Show only students needing attention
+          </label>
+        </div>
+        <div id="class-table-container" style="font-size:13px;color:var(--muted);font-style:italic;">Loading class data...</div>
+      </div>
 
       <!-- ══ DASHBOARD ══ -->
       <div class="panel active" id="panel-dashboard">
