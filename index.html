@@ -415,21 +415,44 @@ function renderDashboard() {
     msCourseDesc.textContent = 'You have completed ' + courseDays + ' of 20 lessons. Next up: Day ' + nextDay + '.';
     msCourseCard.style.display = 'block';
 
-    // Build lesson history (show last 5, toggle to view all)
+    // Build lesson history sorted by day number
     var historyHtml = '';
     if (d.lessons && d.lessons.length > 0) {
-      var lessons = d.lessons;
+      var lessons = d.lessons.slice().sort(function(a, b) {
+        return parseInt(a.day || 0) - parseInt(b.day || 0);
+      });
       var total = lessons.length;
       var MAX_VISIBLE = 5;
 
+      function formatLessonDate(raw) {
+        if (!raw) return '';
+        var str = String(raw);
+        try {
+          // Handle ISO timestamps (2026-04-10T04:00:00.000Z) and plain dates (2026-04-10)
+          var d = new Date(str.length > 10 ? str : str + 'T00:00:00');
+          if (isNaN(d.getTime())) return str;
+          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        } catch(e) { return str; }
+      }
+
+      function formatTimeSpent(val) {
+        if (!val) return '';
+        var n = parseInt(val, 10);
+        // If it's not a clean number (e.g. "8:53:11 a.m.") it's a time string, not minutes
+        if (isNaN(n) || String(val).includes(':')) return '';
+        return n + 'm';
+      }
+
       function lessonRowHtml(lesson) {
+        var timeStr = formatTimeSpent(lesson.time_spent);
+        var dateStr = formatLessonDate(lesson.date);
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--cream);border-radius:4px;font-size:13px;">' +
           '<div><strong>Day ' + escHtml(String(lesson.day)) + '</strong>' +
           (lesson.topic ? ' <span style="color:var(--muted);">· ' + escHtml(lesson.topic) + '</span>' : '') + '</div>' +
           '<div style="display:flex;gap:12px;align-items:center;">' +
-          (lesson.time_spent ? '<span style="font-size:11px;color:var(--muted);">' + lesson.time_spent + 'm</span>' : '') +
+          (timeStr ? '<span style="font-size:11px;color:var(--muted);">' + timeStr + '</span>' : '') +
           (lesson.confidence ? '<span style="font-size:11px;">' + escHtml(lesson.confidence) + '</span>' : '') +
-          (lesson.date ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(lesson.date) + '</span>' : '') +
+          (dateStr ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(dateStr) + '</span>' : '') +
           '</div></div>';
       }
 
@@ -437,15 +460,15 @@ function renderDashboard() {
         '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">Completed Lessons</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;">';
 
-      // Show last N lessons (most recent at top)
-      var visible = total <= MAX_VISIBLE ? lessons : lessons.slice(-MAX_VISIBLE);
+      // Show first N lessons (Day 1, 2, 3…), hide the rest
+      var visible = total <= MAX_VISIBLE ? lessons : lessons.slice(0, MAX_VISIBLE);
       visible.forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
 
       // Hidden overflow with toggle
       if (total > MAX_VISIBLE) {
         historyHtml += '</div>' +
           '<div id="lesson-history-all" style="display:none;flex-direction:column;gap:6px;margin-top:6px;">';
-        lessons.slice(0, -MAX_VISIBLE).forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
+        lessons.slice(MAX_VISIBLE).forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
         historyHtml += '</div>' +
           '<a href="#" id="lesson-history-toggle" onclick="' +
             "var el=document.getElementById('lesson-history-all');var lnk=document.getElementById('lesson-history-toggle');" +

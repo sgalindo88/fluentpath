@@ -1879,6 +1879,8 @@ function showResultsScreen(submissionOk, submissionMsg) {
 
 // ── DUAL SUBMISSION (Email + Google Sheet) ──
 async function submitResults() {
+  FP.showSaveOverlay('Submitting your test results…');
+
   const missingFormspree = FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID_HERE');
   const missingSheet     = GOOGLE_SHEET_WEBHOOK.includes('YOUR_SCRIPT_ID_HERE');
 
@@ -1965,6 +1967,7 @@ async function submitResults() {
     msg = '⚠️ Submission failed due to a network error. Please inform your examiner directly.';
   }
 
+  FP.hideSaveOverlay();
   showResultsScreen(ok, msg);
 }
 

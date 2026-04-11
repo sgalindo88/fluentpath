@@ -179,7 +179,7 @@ var HEADERS = {
     'lesson_date', 'day_number', 'start_time', 'end_time',
     'time_spent_min', 'topic', 'confidence',
     'writing_response', 'student_notes', 'warmup_response',
-    'speaking_transcript', 'answers_json'
+    'speaking_transcript', 'answers_json', 'speaking_audio_json'
   ],
   'Settings': [
     'student_name', 'teacher_name', 'cefr_level',
@@ -195,6 +195,9 @@ var HEADERS = {
   ],
   'Students': [
     'student_name', 'date_joined'
+  ],
+  'Attendance': [
+    'student_name', 'attendance_json', 'absence_notes', 'updated_at'
   ],
   'Lesson Library': [
     'id', 'level', 'day', 'created_at', 'source_student',
@@ -223,10 +226,16 @@ function doGet(e) {
       result = handleGetTestResults(student);
 
     } else if (action === 'get_latest_submission') {
-      result = handleGetLatestSubmission(student);
+      result = handleGetLatestSubmission(student, (e.parameter.day || '').trim());
+
+    } else if (action === 'get_all_submissions') {
+      result = handleGetAllSubmissions(student);
 
     } else if (action === 'get_students') {
       result = handleGetStudents();
+
+    } else if (action === 'get_attendance') {
+      result = handleGetAttendance(student);
 
     } else if (action === 'generate_lesson') {
       result = handleGenerateLesson(
@@ -242,6 +251,9 @@ function doGet(e) {
 
     } else if (action === 'get_library_entry') {
       result = handleGetLibraryEntry(e.parameter.id);
+
+    } else if (action === 'get_audio') {
+      result = handleGetAudio(e.parameter.id);
 
     } else {
       result = { error: 'Unknown action: ' + action };
@@ -294,20 +306,37 @@ function handleGetProgress(studentName) {
   var target = String(studentName).toLowerCase().trim();
   var lessons = [];
 
+  // Read Lesson Marks to join writing_score + speaking_score by day
+  var marksSheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
+  var marksRows = sheetToObjects(marksSheet);
+  var marksByDay = {};
+  for (var m = 0; m < marksRows.length; m++) {
+    if (String(marksRows[m]['student_name'] || '').toLowerCase().trim() === target) {
+      marksByDay[String(marksRows[m]['day_number'])] = marksRows[m];
+    }
+  }
+
   for (var i = 0; i < progressRows.length; i++) {
     var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
     if (name === target) {
       result.found = true;
+      var dayKey = String(progressRows[i]['day_number'] || '');
+      var dayMarks = marksByDay[dayKey];
       lessons.push({
         day: progressRows[i]['day_number'],
         topic: progressRows[i]['topic'] || '',
         date: progressRows[i]['lesson_date'] || '',
         time_spent: progressRows[i]['time_spent_min'] || '',
-        confidence: progressRows[i]['confidence'] || ''
+        confidence: progressRows[i]['confidence'] || '',
+        writing_score: dayMarks ? (dayMarks['writing_score'] || null) : null,
+        speaking_score: dayMarks ? (dayMarks['speaking_score'] || null) : null,
+        answers_json: progressRows[i]['answers_json'] || ''
       });
     }
   }
 
+  // Sort lessons by day number ascending
+  lessons.sort(function(a, b) { return parseInt(a.day || 0) - parseInt(b.day || 0); });
   result.lessons = lessons;
   result.lessons_completed = lessons.length;
   if (lessons.length > 0) {
@@ -352,6 +381,20 @@ function handleGetStudents() {
     }
   }
   return { found: true, students: students };
+}
+
+
+// ── GET: get_attendance ───────────────────────────────
+// Returns the attendance record for a student
+function handleGetAttendance(studentName) {
+  if (!studentName) return { found: false };
+  var row = findLastByStudent('Attendance', HEADERS['Attendance'], studentName);
+  if (!row) return { found: false };
+  return {
+    found: true,
+    attendance_json: row['attendance_json'] || '{}',
+    absence_notes: row['absence_notes'] || ''
+  };
 }
 
 
@@ -423,7 +466,7 @@ function handleGetTestResults(studentName) {
 // ── GET: get_latest_submission ─────────────────────────
 // Returns the most recent lesson submission (prefers ungraded; falls back to latest graded)
 // Also includes existing marks if the submission has been graded
-function handleGetLatestSubmission(studentName) {
+function handleGetLatestSubmission(studentName, optionalDay) {
   if (!studentName) return { found: false };
 
   // Get all course progress rows for this student
@@ -439,6 +482,30 @@ function handleGetLatestSubmission(studentName) {
     if (String(marksRows[j]['student_name'] || '').toLowerCase().trim() === target) {
       gradedDays[String(marksRows[j]['day_number'])] = marksRows[j];
     }
+  }
+
+  // If a specific day was requested, return that submission directly
+  if (optionalDay) {
+    var requestedDay = String(optionalDay);
+    for (var d = 0; d < progressRows.length; d++) {
+      var dName = String(progressRows[d]['student_name'] || '').toLowerCase().trim();
+      if (dName === target && String(progressRows[d]['day_number'] || '') === requestedDay) {
+        var specific = progressRows[d];
+        specific['found'] = true;
+        var sMarks = gradedDays[requestedDay];
+        if (sMarks) {
+          specific['has_marks'] = true;
+          specific['marks_writing_score'] = sMarks['writing_score'] || '';
+          specific['marks_speaking_score'] = sMarks['speaking_score'] || '';
+          specific['marks_total_score'] = sMarks['total_score'] || '';
+          specific['marks_writing_breakdown'] = sMarks['writing_breakdown'] || '';
+          specific['marks_speaking_breakdown'] = sMarks['speaking_breakdown'] || '';
+          specific['marks_overall_feedback'] = sMarks['overall_feedback'] || '';
+        }
+        return specific;
+      }
+    }
+    return { found: false };
   }
 
   // Find the latest ungraded submission; track latest overall as fallback
@@ -475,6 +542,42 @@ function handleGetLatestSubmission(studentName) {
   }
 
   return latest;
+}
+
+
+// ── GET: get_all_submissions ──────────────────────────
+// Returns a lightweight list of all submitted lessons for a student
+function handleGetAllSubmissions(studentName) {
+  if (!studentName) return { found: false };
+
+  var progressSheet = getOrCreateSheet('Course Progress', HEADERS['Course Progress']);
+  var progressRows = sheetToObjects(progressSheet);
+  var target = String(studentName).toLowerCase().trim();
+
+  var marksSheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
+  var marksRows = sheetToObjects(marksSheet);
+  var gradedDays = {};
+  for (var j = 0; j < marksRows.length; j++) {
+    if (String(marksRows[j]['student_name'] || '').toLowerCase().trim() === target) {
+      gradedDays[String(marksRows[j]['day_number'])] = true;
+    }
+  }
+
+  var submissions = [];
+  for (var i = 0; i < progressRows.length; i++) {
+    var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
+    if (name === target) {
+      var dayNum = String(progressRows[i]['day_number'] || '');
+      submissions.push({
+        day_number: dayNum,
+        topic: progressRows[i]['topic'] || '',
+        lesson_date: progressRows[i]['lesson_date'] || '',
+        has_marks: !!gradedDays[dayNum]
+      });
+    }
+  }
+
+  return { found: true, submissions: submissions };
 }
 
 
@@ -953,9 +1056,12 @@ function handleGetLibrary() {
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     if (String(r['is_active']).trim() === 'false') continue;
-    var key = String(r['level']).trim() + '_' + String(parseInt(r['day'], 10));
+    var lvl = String(r['level'] || '').trim();
+    var dayNum = parseInt(r['day'], 10);
+    if (!lvl || isNaN(dayNum) || dayNum < 1) continue;
+    var key = lvl + '_' + String(dayNum);
     if (!grouped[key]) {
-      grouped[key] = { level: String(r['level']).trim(), day: parseInt(r['day'], 10), count: 0, timesServed: 0, entries: [] };
+      grouped[key] = { level: lvl, day: dayNum, count: 0, timesServed: 0, entries: [] };
     }
     var ts = parseInt(r['times_served'], 10) || 0;
     grouped[key].count++;
@@ -1033,17 +1139,149 @@ function safeAppendRow(sheetName, expectedHeaders, params) {
 }
 
 
+// ── GET: get_audio ────────────────────────────────────
+// Returns a Drive audio file as base64 for inline playback
+function handleGetAudio(fileId) {
+  if (!fileId) return { error: 'No file ID provided' };
+  try {
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    return {
+      found: true,
+      data: Utilities.base64Encode(blob.getBytes()),
+      mime: blob.getContentType() || 'audio/webm'
+    };
+  } catch (err) {
+    return { error: 'Could not read audio file: ' + err.message };
+  }
+}
+
+
+// ══════════════════════════════════════════════════════
+// AUDIO STORAGE — Google Drive helpers
+// ══════════════════════════════════════════════════════
+
+/** Return (or create) a sub-folder by name inside a parent folder */
+function getOrCreateSubfolder(parent, name) {
+  var iter = parent.getFoldersByName(name);
+  if (iter.hasNext()) return iter.next();
+  return parent.createFolder(name);
+}
+
+/** Resolve the destination folder: FluentPath Audios / <student> / Lesson <day> */
+function getAudioFolder(studentName, lessonDay) {
+  var root = DriveApp.getRootFolder();
+  var rootAudio = getOrCreateSubfolder(root, 'FluentPath Audios');
+  var studentFolder = getOrCreateSubfolder(rootAudio, studentName);
+  return getOrCreateSubfolder(studentFolder, 'Lesson ' + lessonDay);
+}
+
+/**
+ * handle action=save_audio  (POST, JSON body)
+ * Body: {
+ *   student_name, day_number,
+ *   recordings: { s1: {data:<base64>, ext:'webm'}, s2: {...}, conversation: {...} },
+ *   scores:     { s1: 0.85, s2: 0.72, ... }
+ * }
+ * Returns: { result:'success', audio_json: '{"s1":"<id>", ...}' }
+ */
+function handleSaveAudio(body) {
+  var studentName = body.student_name || 'Unknown';
+  var dayNumber   = body.day_number   || '0';
+  var recordings  = body.recordings   || {};
+  var scores      = body.scores       || {};
+
+  var keys = Object.keys(recordings);
+  if (keys.length === 0) {
+    return { result: 'error', message: 'No recordings received. The request body may not have been parsed correctly.' };
+  }
+
+  var folder;
+  try {
+    folder = getAudioFolder(studentName, dayNumber);
+  } catch (driveErr) {
+    return { result: 'error', message: 'Drive folder creation failed: ' + driveErr.message + '. Run authorizeScript() in the Apps Script editor and create a new deployment.' };
+  }
+
+  var audioJson = {};
+  var errors = [];
+
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var rec = recordings[key];
+    if (!rec || !rec.data) continue;
+
+    var ext  = rec.ext || 'webm';
+    var mime = ext === 'mp4' ? 'audio/mp4' : 'audio/webm';
+    var filename = key + '.' + ext;
+
+    try {
+      var decoded = Utilities.base64Decode(rec.data);
+      var blob    = Utilities.newBlob(decoded, mime, filename);
+      var file    = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      audioJson[key] = file.getId();
+    } catch (fileErr) {
+      errors.push(key + ': ' + fileErr.message);
+    }
+  }
+
+  // Store accuracy scores alongside file IDs
+  var scoreKeys = Object.keys(scores);
+  for (var si = 0; si < scoreKeys.length; si++) {
+    audioJson[scoreKeys[si] + '_score'] = scores[scoreKeys[si]];
+  }
+
+  var audioJsonStr = JSON.stringify(audioJson);
+
+  var result = { result: 'success', audio_json: audioJsonStr };
+  if (errors.length > 0) result.warnings = errors;
+  return result;
+}
+
+
 function doPost(e) {
   var params = e.parameter;
   var action = (params['action'] || '').trim();
   var sheetName = (params['sheet_name'] || '').trim();
 
+  // JSON-body actions pass action via query string; body is JSON
+  if (!action && e.postData && e.postData.type === 'application/json') {
+    try {
+      var parsed = JSON.parse(e.postData.contents);
+      action = (parsed.action || '').trim();
+    } catch (jsonErr) { /* leave action empty */ }
+  }
+
   try {
-    if (action === 'save_progress') {
+    if (action === 'save_audio') {
+      var audioBody;
+      if (e.postData && e.postData.contents) {
+        try { audioBody = JSON.parse(e.postData.contents); } catch (err) { audioBody = null; }
+      }
+      if (!audioBody || !audioBody.recordings) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ result: 'error', message: 'Could not parse audio request body. postData type: ' + (e.postData ? e.postData.type : 'none') }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify(handleSaveAudio(audioBody)))
+        .setMimeType(ContentService.MimeType.JSON);
+
+    } else if (action === 'save_progress') {
       safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
 
     } else if (action === 'save_marks') {
       safeAppendRow('Lesson Marks', HEADERS['Lesson Marks'], params);
+
+    } else if (action === 'save_attendance') {
+      var attendData = {
+        student_name: params['student_name'] || '',
+        attendance_json: params['attendance_json'] || '{}',
+        absence_notes: params['absence_notes'] || '',
+        updated_at: new Date().toLocaleString()
+      };
+      upsertByStudent('Attendance', HEADERS['Attendance'], params['student_name'], attendData);
 
     } else if (action === 'update_settings') {
       // Merge with existing row so partial updates (e.g. just difficulty)
@@ -1086,4 +1324,24 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ result: 'error', message: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+
+// ══════════════════════════════════════════════════════
+// AUTHORIZATION HELPER
+// Run this function once manually in the Apps Script editor
+// (Run → authorizeScript) whenever a new OAuth scope is added.
+// It touches every service used so the consent dialog covers all of them.
+// ══════════════════════════════════════════════════════
+function authorizeScript() {
+  // SpreadsheetApp — already authorized from initial setup
+  SpreadsheetApp.getActiveSpreadsheet();
+
+  // UrlFetchApp — needed for Claude API calls
+  try { UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true }); } catch (e) {}
+
+  // DriveApp — needed for audio file storage
+  try { DriveApp.getRootFolder(); } catch (e) {}
+
+  Logger.log('Authorization complete. You can now redeploy the web app.');
 }

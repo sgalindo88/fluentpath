@@ -41,11 +41,10 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
            │                   ┌──────────────────────┐
            │                   │  examiner-panel.html  │
            │                   │  (Teacher Dashboard)  │
-           │                   │  - Mark placement test │
-           │                   │  - Approve lessons     │
-           │                   │  - Mark writing/speaking│
-           │                   │  - Track attendance     │
-           │                   │  - Adjust difficulty    │
+           │                   │  - Grade placement test  │
+           │                   │  - Grade lessons         │
+           │                   │  - Track attendance      │
+           │                   │  - Adjust difficulty     │
            │                   └──────────────────────┘
            │
      ┌─────┴──────┐
@@ -207,14 +206,16 @@ english-course/
 - **`tr()` runtime translation** for JS-set text at A1/A2 level
 - **Required + skip** -- all text questions required with "Skip this question" checkbox
 - **Listening stop button** with cumulative play-time tracking
-- **Pronunciation drills** use data-attributes (no inline apostrophe issues); improved error handling with mic permission alerts
+- **Pronunciation drills** use toggle recording (user clicks to start and stop); `continuous: true` mode prevents auto-cutoff; null-safe cleanup in `finishLesson`
 - **Browser compatibility check** -- speaking step detects unsupported browsers, shows bilingual warning, and disables recording buttons
 - **AI lesson generation via Apps Script → Claude API** -- each day's lesson is generated fresh by `claude-haiku-4-5` for the student's level, day, and topic; cached in localStorage by `fp_lesson_<level>_d<day>` so reloads don't re-bill the API
 - **Offline fallback library** -- 5 distinct lesson templates (appointments, shopping, workplace, health, family/community) cycled by `(day - 1) % 5`; an "offline" banner appears when the API is unavailable so the teacher notices
 - **Lesson generation timeout** -- 60-second `FP.api.get` abort prevents infinite loading; falls through to the offline library on error
 - **Session recovery** -- auto-saves lesson content and progress every 5s
 - **Course day tracking** -- uses `fp_last_lesson_day + 1`, not day of month
-- **Lesson complete** links back to hub with "View Progress & Next Lesson"
+- **Lesson complete** links back to hub with "View Progress & Next Lesson" (hidden until save finishes); save overlay blocks navigation during save
+- **Save verification** -- reads back progress from sheet to confirm the save landed; shows warning if not found
+- **Forward-only navigation** -- Back button removed to prevent answer loss
 - **90-minute countdown timer** with visual warning when <10 min remain
 
 ---
@@ -229,9 +230,9 @@ english-course/
 |---|---------|-------|-------------|
 | -- | -- | **Setup** | Fallback student name entry (normally bypassed via teacher portal student picker) |
 | 1 | Lessons | **Dashboard** | Stats grid, progress bars, activity feed, teacher notes |
-| 2 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked) |
-| 4 | Marking | **Mark Placement Test** | Load test from Google Sheets, auto-score reading/listening, manual sliders for writing/speaking, CEFR calculation, save to Sheets |
-| 5 | Marking | **Mark Writing & Speaking** | Daily lesson submission marking (Writing 25pts, Speaking 20pts) |
+| 2 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked), synced to Google Sheets |
+| 4 | Grading | **Grade Placement Test** | Load test from Google Sheets, auto-score reading/listening, manual sliders for writing/speaking, CEFR calculation, save to Sheets |
+| 5 | Grading | **Grade Lessons** | Daily lesson submission grading — Writing tab (warmup + vocab + writing task, 25pts), Speaking tab (transcript + audio drills, 20pts), All Responses tab (listening + comprehension with colour-coded chips), Final Score (all four skills combined) |
 | 6 | Marking | **Weekly Summaries** | 4-week skill assessments + AI-generated narrative summaries |
 | 7 | Course | **Adjust Difficulty** | 6 sliders (vocabulary, grammar, speaking, writing, listening, sentence complexity) + focus area tags |
 | 8 | Course | **Progress Tracker** | Lesson-by-lesson record table, skills snapshot with progress bars |
@@ -253,8 +254,13 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **AI-powered weekly summaries** via Apps Script proxy (server-side Claude API call)
 - **Webhook URL hardcoded** -- no user configuration needed
 - **No approval workflow** -- lessons start directly, approvals panel removed
-- **Auto-populate marking** -- placement test and lesson submissions auto-load when panels open; previously graded scores restored from Google Sheets (individual question scores, breakdowns, notes) with localStorage fallback
-- **Dashboard stats** -- days completed, attendance %, avg lesson time, lessons marked; recent activity feed with last 5 lessons
+- **Auto-populate grading** -- placement test and lesson submissions auto-load when panels open; previously graded scores restored from Google Sheets (individual question scores, breakdowns, notes) with localStorage fallback
+- **Lesson picker** -- dropdown populated from `get_all_submissions` endpoint; jump to any submitted day; shows graded/ungraded status per entry
+- **Graded/ungraded badge** -- pill badge on submission header shows current grading status
+- **All Responses tab** -- listening and comprehension answers displayed as colour-coded chips (green ✓ correct, red ✗ incorrect) matching placement test styling
+- **Combined final score** -- lesson total includes Writing (/25) + Speaking (/20) + Listening + Comprehension auto-scores
+- **Save overlay** -- full-screen blocking overlay during all async saves (grades, attendance, placement test results)
+- **Dashboard stats** -- days completed, attendance %, avg lesson time, lessons graded; recent activity feed with last 5 lessons
 - **Google Sheets sync** -- fetches course progress on init, merges with localStorage, syncs CEFR level changes
 - **Skills snapshot** -- vocabulary, speaking, writing, and listening progress bars derived from marks and weekly summary ratings
 - **Course day tracking** -- uses actual attendance/lesson count, not calendar day
@@ -285,6 +291,7 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **`FP.api.get(url, options)`** -- GET request with 30-second timeout, returns parsed JSON; throws on non-OK response
 - **`FP.api.postForm(url, payload, options)`** -- POST form-urlencoded in `no-cors` mode for Google Apps Script webhooks; auto-encodes payload with optional value length limit (`maxValueLength`, default 2 000)
 - **`FP.api.postJson(url, payload, options)`** -- POST JSON with readable response (Formspree, Apps Script proxy); returns parsed JSON
+- **`FP.showSaveOverlay(msg)`** / **`FP.updateSaveOverlay(msg)`** / **`FP.hideSaveOverlay()`** -- full-screen blocking overlay with spinner; prevents interaction during async saves across all pages
 - All methods use `AbortController` with a configurable timeout (default 30 seconds)
 
 ### `utils.js` -- Shared Utilities
@@ -443,6 +450,7 @@ The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHE
 | **Lesson Approvals** | Approval workflow between student and teacher |
 | **Lesson Marks** | Graded daily lesson scores |
 | **Students** | Registered student names and join dates (auto-populated on first hub visit) |
+| **Attendance** | Per-student attendance JSON and absence notes |
 
 ---
 

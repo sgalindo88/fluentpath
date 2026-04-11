@@ -4,6 +4,172 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.17.0] - 2026-04-11
+
+### Changed — Grading Panel Overhaul
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **"Mark" → "Grade" rename** — all user-facing labels changed: sidebar nav ("Grade Placement Test", "Grade Lessons"), panel headers ("EXAMINER GRADING", "Grade Lessons"), stats ("Lessons Graded"), slider sections ("GRADE: TASK COMPLETION", "GRADE: SPEAKING CRITERIA"), summary ("LESSON TOTAL (graded)"), status messages, and overlay text
+- **Writing tab restructured** — now shows Warm-up Response, Vocabulary Practice, and Writing Task above the grading sliders (previously only showed writing + vocab)
+- **Speaking tab cleaned up** — shows Conversation Transcript and audio players with drill transcripts; removed redundant "Pronunciation Drills" text block that showed "(none)"
+- **All Responses tab → Listening & Comprehension** — displays listening and practice answers as colour-coded chips (green ✓ for correct, red ✗ for incorrect) matching placement test styling; score headers show X/Y totals
+- **Final Score includes all skills** — summary grid expanded from 2 boxes (Writing /25, Speaking /20) to 4 (+ Listening, + Comprehension auto-scored from student answers); grand total dynamically sums all four with variable denominator
+- **Graded/ungraded badge** — new pill badge on the student submission header card showing "GRADED" (green) or "UNGRADED" (amber) based on `has_marks`
+- **Tab switching fix** — `showMarkTab` uses exact text matching via a map instead of `.includes()`, so "Final Score" tab correctly highlights
+- **Email & sheet saves** — `sendResultsEmail` and `saveToSheet` include listening/comprehension scores in totals
+
+#### Student course (`src/student-course.html`)
+- **Per-question correctness tracking** — `selectListeningOpt` and `selectPracticeOpt` now save `_correct` (correct answer index) and `_is_right` (1/0) per question into `answers_json`, enabling green/red chip display in the teacher dashboard
+
+### Added — Save Overlay (all pages)
+
+#### Shared (`src/api.js`)
+- **`FP.showSaveOverlay(msg)`** / **`FP.updateSaveOverlay(msg)`** / **`FP.hideSaveOverlay()`** — full-screen blocking overlay with spinner and message; prevents clicks, navigation, and interaction while an async save is in progress; dynamically created on first use; assigned directly on `FP` (no IIFE) for reliable availability
+
+#### Student course (`src/student-course.html`)
+- **`finishLesson`** — overlay shown from audio upload through save + verification; "View Progress" link hidden until save completes
+- **Save status styling** — bumped from 13px italic to 18px bold with coloured background card
+
+#### Placement test (`src/student-initial-test.html`)
+- **`submitResults`** — overlay blocks interaction during Formspree + Google Sheet dual submission
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **`savePlacementToSheets`**, **`saveAttendance`**, **`saveToSheet`** — each wrapped with overlay during the async POST
+
+#### Examiner marking (`src/examiner-marking.html`)
+- **`saveToSheets`** — overlay during examiner results save
+
+### Fixed — Student Course Bugs
+
+#### Student course (`src/student-course.html`)
+- **Back button removed** — removed the Back button from lesson navigation to prevent students from losing answers when going back; the nav area is now forward-only
+- **Nav hidden during loading** — the Continue button is hidden while the AI lesson is being generated and only appears after content loads
+- **Drill recording is user-controlled** — pronunciation drills now use `continuous: true` and a toggle pattern; the student clicks to start and clicks again to stop, instead of the recording auto-stopping after the first utterance
+- **`saveProgress`** — now shows an informative warning when save fails instead of a misleading "Demo mode" message
+- **`finishLesson`** — added try-catch around recognition/drill cleanup so errors in stopping recordings can't prevent the save from running
+- **`stopDrill`** — added null checks for DOM elements (drill button, transcript, feedback) so calling it after the speaking step DOM is removed doesn't crash
+- **Save verification** — after saving, the lesson completion screen reads back progress from the sheet to confirm the save landed; shows a warning if the day isn't found
+- **Timer resume fix** — `startTimer` accepts optional `initialElapsed` parameter; checkpoint resume no longer has a race condition resetting elapsed time
+
+#### Hub page (`index.html`)
+- **Lesson order** — completed lessons sorted by day number ascending (was showing in sheet-append order)
+- **Date formatting** — raw ISO timestamps (`2026-04-10T04:00:00.000Z`) now formatted as short dates ("10 Apr")
+- **Time display** — filters out malformed time values (clock strings like "8:53:11 a.m.") that leaked into the time_spent field
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetProgress`** — lessons are now sorted by `day_number` ascending so the hub page displays them in correct order
+
+### Fixed — Teacher Dashboard Bugs
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetProgress`** — joins Lesson Marks sheet to include `writing_score`, `speaking_score`, and `answers_json` per lesson in progress data (fixes empty marks in progress tracker and skills snapshot)
+- **`handleGetLatestSubmission`** — accepts optional `day` query param to fetch a specific submission instead of only the latest ungraded one
+- **`handleGetAllSubmissions`** — new GET endpoint returning a lightweight list of all submitted lessons with graded status (supports lesson picker dropdown)
+- **`handleGetLibrary`** — validates `level` is non-empty and `day` is a valid integer ≥ 1; skips malformed entries that produced broken grouping keys
+
+#### Student course (`src/student-course.html`)
+- **`selectListeningOpt`** — tracks `listening_correct` and `listening_total` in `state.answers` for score display in teacher dashboard
+- **`selectPracticeOpt`** — tracks `practice_correct` and `practice_total` in `state.answers`
+- **`saveProgress`** — increased `answers_json` truncation from 3 000 → 5 000 chars; passes `maxValueLength: 5000` to `postForm` to avoid the default 2 000-char limit in `_encodeForm`
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **Lesson picker** — new `<select id="day-picker">` dropdown populated via `get_all_submissions`; `loadSpecificDay()` fetches a chosen day's submission; shows "✓ graded" badge per entry
+- **"All Responses" tab** — new tab between Speaking and Final Score showing warmup response, vocabulary practice, listening answers (with score), and comprehension/practice answers parsed from `answers_json`
+- **Drill transcripts** — `renderSpeakingAudio` now displays the student's spoken text as a styled quote block alongside each drill's audio player (parsed from `answers_json` drill keys)
+- **Progress tracker columns** — added Warmup, Vocab, Listening, and Practice columns; `fetchDashboardData` stores `answersJson` per lesson record; `updateLessonRecord` parses it to show ✓/score/— per activity type
+- **Skills snapshot** — auto-fixes now that `handleGetProgress` returns marks data (no additional code change needed)
+
+### Added — Save Overlay (all pages)
+
+#### Shared (`src/api.js`)
+- **`FP.showSaveOverlay(msg)`** / **`FP.updateSaveOverlay(msg)`** / **`FP.hideSaveOverlay()`** — full-screen blocking overlay with spinner and message; prevents clicks, navigation, and interaction while an async save is in progress; dynamically created on first use so no HTML changes are needed per page
+
+#### Student course (`src/student-course.html`)
+- **`finishLesson`** — overlay shown from audio upload through save + verification; "View Progress" link remains hidden until overlay dismisses
+
+#### Placement test (`src/student-initial-test.html`)
+- **`submitResults`** — overlay blocks interaction during Formspree + Google Sheet dual submission
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **`savePlacementToSheets`**, **`saveAttendance`**, **`saveToSheet`** — each wrapped with overlay during the async POST
+
+#### Examiner marking (`src/examiner-marking.html`)
+- **`saveToSheets`** — overlay during examiner results save
+
+### Fixed — Student Course Bugs
+
+#### Student course (`src/student-course.html`)
+- **Back button removed** — removed the Back button from lesson navigation to prevent students from losing answers when going back; the nav area is now forward-only
+- **Nav hidden during loading** — the Continue button is hidden while the AI lesson is being generated and only appears after content loads
+- **Drill recording is user-controlled** — pronunciation drills now use `continuous: true` and a toggle pattern; the student clicks to start and clicks again to stop, instead of the recording auto-stopping after the first utterance
+- **`saveProgress`** — now shows an informative warning when save fails instead of a misleading "Demo mode" message
+- **`finishLesson`** — added try-catch around recognition/drill cleanup so errors in stopping recordings can't prevent the save from running
+- **`stopDrill`** — added null checks for DOM elements (drill button, transcript, feedback) so calling it after the speaking step DOM is removed doesn't crash
+- **Save verification** — after saving, the lesson completion screen reads back progress from the sheet to confirm the save landed; shows a warning if the day isn't found
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetProgress`** — lessons are now sorted by `day_number` ascending so the hub page displays them in correct order
+
+### Fixed — Attendance Not Persisted to Google Sheets
+
+#### Apps Script (`apps-script.js`)
+- **`Attendance` sheet** — new sheet with columns: `student_name`, `attendance_json`, `absence_notes`, `updated_at`
+- **`handleGetAttendance(student)`** — new GET endpoint returning the stored attendance JSON and absence notes
+- **`save_attendance` POST action** — upserts attendance data per student using `upsertByStudent`
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **`saveAttendance`** — now POSTs attendance map and absence notes to the `save_attendance` endpoint (falls back to localStorage-only when no webhook is configured)
+- **`fetchAttendanceFromSheet`** — new function called during `fetchDashboardData`; loads attendance from the sheet and merges with local state so data survives browser/device changes
+
+---
+
+## [0.16.1] - 2026-04-10
+
+### Fixed — Speaking Audio Upload Errors
+
+#### Apps Script (`apps-script.js`)
+- **`handleSaveAudio`** — wrapped `getAudioFolder()` in try/catch so a DriveApp permission error returns a descriptive message ("Run authorizeScript()…") instead of crashing the entire handler
+- **`handleSaveAudio`** — returns an explicit error when no recordings are found in the request body (helps diagnose parse failures)
+- **`handleGetAudio(fileId)`** — new GET action that reads a Drive file by ID and returns its content as base64 with MIME type; serves as a CORS-safe proxy for audio playback
+- **`doPost` save_audio branch** — validates that the parsed body contains `recordings` before proceeding; returns a diagnostic error including `postData.type` when parsing fails
+- **`get_audio` GET action** — added to `doGet` routing
+
+#### Student course (`src/student-course.html`)
+- **`uploadAudioRecordings`** — logs server-side errors and warnings to the console instead of silently swallowing them
+- **`finishLesson`** — shows a warning message when audio upload fails so students know their written work is still saved
+- **`uploadAudioRecordings`** — added `redirect: 'follow'` to the fetch call for explicit redirect handling
+
+---
+
+## [0.16.0] - 2026-04-10
+
+### Added — Speaking Audio Review (Proposal 1)
+
+#### Student recording (`src/student-course.html`)
+- **`getAudioMimeType()`** — detects the best supported MIME type in priority order: `audio/webm;codecs=opus`, `audio/webm`, `audio/mp4` (Safari), `audio/ogg`; ensures recordings work on iPhone/Safari
+- **`blobToBase64(blob)`** — converts a recorded Blob to a base64 string for upload
+- **`uploadAudioRecordings()`** — encodes all recordings to base64 and POSTs them as JSON to the `save_audio` Apps Script action; returns the `speaking_audio_json` string on success
+- **`startDrill`** — now runs `MediaRecorder` alongside `SpeechRecognition` per drill; stores the resulting Blob in `audioRecordings[drillId]`; stores phonetic word-match score (`drill_${id}_score`) in `state.answers`
+- **`toggleConvRecording`** — now starts/stops `convMediaRecorder` alongside `SpeechRecognition`; stores the conversation Blob in `audioRecordings['conversation']`
+- **`finishLesson`** — shows "Uploading your recordings… please wait." message before saving; uploads audio then calls `saveProgress` with the resulting `speaking_audio_json`
+- **`saveProgress`** — accepts `speakingAudioJson` parameter and includes `speaking_audio_json` field in the Course Progress payload
+
+#### Apps Script (`apps-script.js`)
+- **`speaking_audio_json` column** added to `Course Progress` HEADERS
+- **`getOrCreateSubfolder(parent, name)`** — Drive helper to get or create a named sub-folder
+- **`getAudioFolder(studentName, lessonDay)`** — resolves/creates `FluentPath Audios / <student> / Lesson <day>` folder hierarchy
+- **`handleSaveAudio(body)`** — decodes base64 blobs, saves each to Drive with public viewer sharing, returns a JSON map of `{ drillKey: fileId, drillKey_score: 0.85, conversation: fileId }`; file-level errors are non-fatal (logged, skipped)
+- **`save_audio` POST action** — added to `doPost`; parses JSON body (action passed via query string); returns `{ result, audio_json }`
+- **JSON-body detection** — `doPost` now reads `e.postData.contents` to extract `action` when the body is `application/json` (used by `save_audio` and the existing `ai_summary` action)
+
+#### Teacher marking panel (`src/examiner-panel.html`)
+- **Audio playback section** added at the top of the Speaking card in `panel-marking`; hidden when no audio is present
+- **`fetchAudioBlobUrl(fileId)`** — fetches audio from the `get_audio` Apps Script endpoint, decodes base64, and creates a local blob URL for playback
+- **`renderSpeakingAudio(audioJsonStr)`** — parses `speaking_audio_json`, shows "Loading audio…" placeholders, then fetches each file via `fetchAudioBlobUrl` and renders `<audio>` players with accuracy scores
+- **`displaySubmission`** — calls `renderSpeakingAudio` when populating the marking panel
+
+---
+
 ## [0.15.0] - 2026-04-10
 
 ### Added — Lesson Library & Recycling System

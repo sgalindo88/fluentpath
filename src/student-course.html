@@ -292,9 +292,10 @@ body {
 .lc-stat { background:white; border:1px solid var(--rule); padding:16px; border-top:3px solid var(--gold); }
 .lc-stat-val { font-family:'Playfair Display',serif; font-size:28px; font-weight:700; }
 .lc-stat-lbl { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-top:4px; }
-.save-status { font-size:13px; color:var(--muted); font-style:italic; margin-bottom:20px; }
-.save-status.ok { color:var(--green); }
-.save-status.err { color:var(--rust); }
+.save-status { font-size:18px; color:var(--ink); font-weight:600; margin-bottom:20px; padding:14px 20px; background:var(--cream); border-radius:8px; }
+.save-status.ok { color:var(--green); background:var(--green-bg); }
+.save-status.warn { color:var(--rust); background:#fdecea; }
+.save-status.err { color:var(--rust); background:#fdecea; }
 
 /* theme colors per level */
 .theme-a1 { --level-color:#2e6e45; }
@@ -441,8 +442,8 @@ body {
     </div>
 
     <!-- Nav -->
-    <div class="lesson-nav">
-      <button class="btn-back" onclick="prevStep()" id="btnBack">← Back</button>
+    <div class="lesson-nav" id="lessonNav" style="display:none;">
+      <div></div>
       <button class="btn-next" onclick="nextStep()" id="btnNext">Continue →</button>
     </div>
   </div>
@@ -469,7 +470,7 @@ body {
       </div>
     </div>
     <div class="save-status" id="saveStatus">Saving your progress…</div>
-    <a href="../index.html" class="btn-begin" style="display:inline-block;text-decoration:none;text-align:center;margin-top:16px;">View Progress & Next Lesson →</a>
+    <a href="../index.html" class="btn-begin" id="btnViewProgress" style="display:none;text-decoration:none;text-align:center;margin-top:16px;">View Progress & Next Lesson →</a>
   </div>
 </div>
 
@@ -594,9 +595,7 @@ function tryResumeLesson() {
       document.getElementById('lessonLabel').textContent = 'Day ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme;
 
       // Resume timer from saved elapsed time
-      startTimer();
-      state.timeElapsed = data.timeElapsed || 0;
-      updateTimerDisplay();
+      startTimer(data.timeElapsed || 0);
 
       // Show video call (already initialized in required mode on cover screen)
       if (typeof VideoCall !== 'undefined') {
@@ -605,6 +604,7 @@ function tryResumeLesson() {
 
       buildStepDots();
       renderStep();
+      document.getElementById('lessonNav').style.display = '';
       startLessonAutoSave();
 
       // Update button text
@@ -728,6 +728,7 @@ async function beginLesson() {
 
   buildStepDots();
   renderStep();
+  document.getElementById('lessonNav').style.display = '';
   startLessonAutoSave();
 }
 
@@ -1192,9 +1193,6 @@ function renderStep() {
   document.getElementById('stepTypeLabel').textContent = meta.label;
   document.getElementById('stepTitleLabel').textContent = data.title || meta.title;
 
-  // Back button
-  document.getElementById('btnBack').style.visibility = state.currentStep === 0 ? 'hidden' : 'visible';
-
   updateStepDots();
 
   // Render activity
@@ -1419,6 +1417,13 @@ function selectListeningOpt(qid, chosen, correct) {
     if (fb) { fb.style.display='block'; fb.style.color='var(--rust)'; fb.textContent=`The correct answer was ${String.fromCharCode(65+correct)}.`; }
   }
   saveAnswer(`listening_${qid}`, chosen);
+  saveAnswer(`listening_${qid}_correct`, correct);
+  saveAnswer(`listening_${qid}_is_right`, chosen === correct ? 1 : 0);
+  // Track listening score
+  if (!state.answers['listening_total']) state.answers['listening_total'] = 0;
+  if (!state.answers['listening_correct']) state.answers['listening_correct'] = 0;
+  state.answers['listening_total']++;
+  if (chosen === correct) state.answers['listening_correct']++;
 }
 
 // ── SPEAKING ──
@@ -1426,6 +1431,130 @@ let recognition = null;
 let isRecording = false;
 let currentDrillId = null;
 let convRecording = false;
+
+// Audio recording state (MediaRecorder, per drill + conversation)
+let audioRecordings = {};     // { drillId: Blob, 'conversation': Blob }
+let convMediaRecorder = null; // active MediaRecorder for conversation prompt
+
+// Shared mic stream — acquired once for the whole speaking step so sequential
+// drills don't have to compete for the microphone.
+let speakingStream = null;
+
+/** Get (or create) the shared mic stream. Returns null if unavailable. */
+async function getSpeakingStream() {
+  if (speakingStream && speakingStream.active) return speakingStream;
+  const mime = getAudioMimeType();
+  if (!window.MediaRecorder || !mime) return null;
+  try {
+    speakingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return speakingStream;
+  } catch (e) {
+    console.warn('[FluentPath] Could not acquire mic for audio recording:', e);
+    return null;
+  }
+}
+
+/** Release the shared mic stream (called after lesson is submitted). */
+function releaseSpeakingStream() {
+  if (speakingStream) {
+    speakingStream.getTracks().forEach(t => t.stop());
+    speakingStream = null;
+  }
+}
+
+/** Return the best supported MIME type for audio recording */
+function getAudioMimeType() {
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+  for (const t of types) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+/** Extract file extension from MIME type string */
+function audioExtension(mime) {
+  if (mime.includes('mp4'))  return 'mp4';
+  if (mime.includes('ogg'))  return 'ogg';
+  return 'webm';
+}
+
+/** Convert a Blob to a base64 string (returns Promise<string>) */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // result is data:<mime>;base64,<data>  — strip the prefix
+      const b64 = reader.result.split(',')[1];
+      resolve(b64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Upload all collected audio recordings to Apps Script / Drive.
+ * Returns the speaking_audio_json string to store in Course Progress,
+ * or null if nothing was recorded or upload failed.
+ */
+async function uploadAudioRecordings() {
+  if (!window.MediaRecorder) return null;
+  const mime = getAudioMimeType();
+  const ext  = audioExtension(mime);
+  const keys = Object.keys(audioRecordings);
+  if (keys.length === 0) return null;
+
+  const recordings = {};
+  const scores     = {};
+
+  for (const key of keys) {
+    const blob = audioRecordings[key];
+    if (!blob || blob.size === 0) continue;
+    try {
+      const b64 = await blobToBase64(blob);
+      recordings[key] = { data: b64, ext };
+    } catch (e) {
+      console.warn('[FluentPath] Could not encode audio for', key, e);
+    }
+    // Phonetic accuracy scores stored in state.answers
+    const scoreKey = key === 'conversation' ? null : `drill_${key}_score`;
+    if (scoreKey && state.answers[scoreKey] != null) {
+      scores[key] = state.answers[scoreKey];
+    }
+  }
+
+  if (Object.keys(recordings).length === 0) return null;
+
+  const body = {
+    action: 'save_audio',
+    student_name: state.studentName,
+    day_number:   state.dayNumber,
+    recordings,
+    scores
+  };
+
+  try {
+    // Use text/plain so the browser sends a simple request (no CORS preflight).
+    // Apps Script reads e.postData.contents regardless of content-type.
+    const resp = await fetch(GOOGLE_SHEET_WEBHOOK + '?action=save_audio', {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    });
+    const json = await resp.json();
+    if (json.result === 'error') {
+      console.error('[FluentPath] Audio upload server error:', json.message);
+    }
+    if (json.warnings) {
+      console.warn('[FluentPath] Audio upload warnings:', json.warnings);
+    }
+    return json.audio_json || null;
+  } catch (e) {
+    console.error('[FluentPath] Audio upload failed:', e);
+    return null;
+  }
+}
 
 function renderSpeaking(wrap, data) {
   const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -1467,6 +1596,9 @@ function renderSpeaking(wrap, data) {
   `;
 }
 
+// Active drill recorders: { drillId: { rec, mediaRec, phrase } }
+var activeDrills = {};
+
 function startDrill(id, phrase) {
   if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
     alert('Speech recognition is not available in this browser. Please use Chrome.');
@@ -1476,43 +1608,111 @@ function startDrill(id, phrase) {
   const tEl = document.getElementById(`drill-transcript-${id}`);
   const fEl = document.getElementById(`drill-feedback-${id}`);
 
+  // If already recording this drill, stop it
+  if (activeDrills[id]) {
+    stopDrill(id);
+    return;
+  }
+
+  btn.textContent = tr('⏹ Stop Recording');
+  btn.style.background = 'var(--rust)';
+  tEl.classList.add('show');
+  tEl.textContent = '…';
+
+  const mime = getAudioMimeType();
+  let mediaRec = null;
+  const audioChunks = [];
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const rec = new SR();
-  rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+  rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
 
-  btn.textContent = '⏹ Recording…';
-  btn.style.background = 'var(--rust)';
+  var fullTranscript = '';
 
   rec.onresult = (e) => {
-    const said = e.results[0][0].transcript.trim();
-    tEl.textContent = tr('You said:') + ' "' + said + '"';
-    tEl.classList.add('show');
-    const score = similarity(said.toLowerCase(), phrase.toLowerCase());
-    fEl.classList.add('show');
-    if (score > 0.7) {
-      fEl.className = 'record-feedback show good';
-      fEl.textContent = tr('✓ Great job! Your pronunciation was clear.');
-    } else {
-      fEl.className = 'record-feedback show ok';
-      fEl.textContent = tr('💡 Keep practicing — try again and speak slowly.');
+    var text = '';
+    for (var i = 0; i < e.results.length; i++) {
+      text += e.results[i][0].transcript;
     }
-    saveAnswer(`drill_${id}`, said);
+    fullTranscript = text.trim();
+    tEl.textContent = tr('You said:') + ' "' + fullTranscript + '"';
   };
-  rec.onend = () => { btn.textContent = tr('🎤 Record again'); btn.style.background = 'var(--ink)'; };
-  rec.onerror = (e) => {
-    console.warn('[FluentPath] Speech recognition error:', e.error, e.message);
-    btn.textContent = tr('🎤 Try again');
-    btn.style.background = 'var(--ink)';
-    if (e.error === 'not-allowed') {
+  rec.onend = () => {
+    // Restart if the user hasn't explicitly stopped
+    if (activeDrills[id]) {
+      try { rec.start(); } catch(e) {}
+    }
+  };
+  rec.onerror = (ev) => {
+    if (ev.error === 'not-allowed') {
       alert('Microphone access was denied. Please allow microphone access in your browser settings.');
+      delete activeDrills[id];
+      btn.textContent = tr('🎤 Try again');
+      btn.style.background = 'var(--ink)';
+    } else if (ev.error !== 'aborted' && ev.error !== 'no-speech') {
+      console.warn('[FluentPath] Speech recognition error:', ev.error, ev.message);
     }
   };
+
+  activeDrills[id] = { rec: rec, mediaRec: null, phrase: phrase, getTranscript: () => fullTranscript };
+
   try {
     rec.start();
-  } catch(e) {
-    console.error('[FluentPath] Could not start speech recognition:', e);
+  } catch (err) {
+    console.error('[FluentPath] Could not start speech recognition:', err);
     btn.textContent = tr('🎤 Try again');
     btn.style.background = 'var(--ink)';
+    delete activeDrills[id];
+    return;
+  }
+
+  getSpeakingStream().then(stream => {
+    if (!stream || !activeDrills[id]) return;
+    mediaRec = new MediaRecorder(stream, { mimeType: mime });
+    mediaRec.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
+    mediaRec.onstop = () => {
+      if (audioChunks.length > 0) audioRecordings[id] = new Blob(audioChunks, { type: mime });
+    };
+    activeDrills[id].mediaRec = mediaRec;
+    mediaRec.start();
+  }).catch(() => { /* audio capture unavailable — transcript still works */ });
+}
+
+function stopDrill(id) {
+  const drill = activeDrills[id];
+  if (!drill) return;
+
+  delete activeDrills[id];
+  if (drill.rec) try { drill.rec.stop(); } catch(e) {}
+  if (drill.mediaRec && drill.mediaRec.state !== 'inactive') try { drill.mediaRec.stop(); } catch(e) {}
+
+  const btn = document.getElementById(`drill-btn-${id}`);
+  const tEl = document.getElementById(`drill-transcript-${id}`);
+  const fEl = document.getElementById(`drill-feedback-${id}`);
+
+  if (btn) {
+    btn.textContent = tr('🎤 Record again');
+    btn.style.background = 'var(--ink)';
+  }
+
+  const said = drill.getTranscript();
+  if (said) {
+    if (tEl) { tEl.textContent = tr('You said:') + ' "' + said + '"'; tEl.classList.add('show'); }
+    const score = similarity(said.toLowerCase(), drill.phrase.toLowerCase());
+    if (fEl) {
+      fEl.classList.add('show');
+      if (score > 0.7) {
+        fEl.className = 'record-feedback show good';
+        fEl.textContent = tr('✓ Great job! Your pronunciation was clear.');
+      } else {
+        fEl.className = 'record-feedback show ok';
+        fEl.textContent = tr('💡 Keep practicing — try again and speak slowly.');
+      }
+    }
+    saveAnswer(`drill_${id}`, said);
+    saveAnswer(`drill_${id}_score`, Math.round(score * 100) / 100);
+  } else {
+    if (tEl) tEl.textContent = tr('No speech detected — try again.');
   }
 }
 
@@ -1533,6 +1733,20 @@ function toggleConvRecording() {
     statusEl.textContent = tr('Recording… speak clearly');
     btn.textContent = '⏹';
 
+    // Start MediaRecorder using the shared stream (already granted by the drills).
+    const mime = getAudioMimeType();
+    const audioChunks = [];
+    getSpeakingStream().then(stream => {
+      if (!stream) return;
+      convMediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+      convMediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
+      convMediaRecorder.onstop = () => {
+        // Do NOT stop stream.getTracks() — releaseSpeakingStream() handles cleanup.
+        if (audioChunks.length > 0) audioRecordings['conversation'] = new Blob(audioChunks, { type: mime });
+      };
+      convMediaRecorder.start();
+    }).catch(err => console.warn('[FluentPath] MediaRecorder failed for conversation:', err));
+
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
     recognition.lang = 'en-US'; recognition.interimResults = true; recognition.continuous = true;
@@ -1548,11 +1762,21 @@ function toggleConvRecording() {
       tEl.classList.add('show');
       saveAnswer('speaking_conv', finalText.trim());
     };
-    recognition.onerror = () => { convRecording = false; btn.classList.remove('recording'); box.classList.remove('recording'); btn.textContent = '🎤'; };
+    recognition.onerror = (e) => {
+      if (e.error !== 'aborted' && e.error !== 'no-speech') {
+        console.warn('[FluentPath] Conversation speech recognition error:', e.error, e.message);
+      }
+      convRecording = false;
+      btn.classList.remove('recording'); box.classList.remove('recording');
+      btn.textContent = '🎤';
+      // Do not stop convMediaRecorder here — the user may click stop manually,
+      // and continuous recognition fires onerror transiently without ending the session
+    };
     recognition.start();
   } else {
     convRecording = false;
     recognition?.stop();
+    if (convMediaRecorder && convMediaRecorder.state !== 'inactive') convMediaRecorder.stop();
     btn.classList.remove('recording');
     box.classList.remove('recording');
     btn.textContent = '🎤';
@@ -1606,6 +1830,13 @@ function selectPracticeOpt(qid, chosen, correct) {
     if (fb) { fb.style.display='block'; fb.style.color='var(--rust)'; fb.textContent=`Not quite — the answer was ${String.fromCharCode(65+correct)}.`; }
   }
   saveAnswer(`practice_${qid}`, chosen);
+  saveAnswer(`practice_${qid}_correct`, correct);
+  saveAnswer(`practice_${qid}_is_right`, chosen === correct ? 1 : 0);
+  // Track practice score
+  if (!state.answers['practice_total']) state.answers['practice_total'] = 0;
+  if (!state.answers['practice_correct']) state.answers['practice_correct'] = 0;
+  state.answers['practice_total']++;
+  if (chosen === correct) state.answers['practice_correct']++;
 }
 
 // ── WRITING ──
@@ -1723,15 +1954,6 @@ function nextStep() {
   }
 }
 
-function prevStep() {
-  if (state.currentStep > 0) {
-    state.currentStep--;
-    renderStep();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    if (ckptInterval) saveLessonCheckpoint();
-    document.getElementById('btnNext').textContent = tr('Continue →');
-  }
-}
 
 // ══════════════════════════════════════════════════════
 // ANSWER STORAGE
@@ -1743,8 +1965,9 @@ function saveAnswer(key, value) {
 // ══════════════════════════════════════════════════════
 // TIMER
 // ══════════════════════════════════════════════════════
-function startTimer() {
-  state.timeElapsed = 0;
+function startTimer(initialElapsed) {
+  state.timeElapsed = initialElapsed || 0;
+  updateTimerDisplay();
   state.timerInterval = setInterval(() => {
     state.timeElapsed++;
     updateTimerDisplay();
@@ -1769,7 +1992,9 @@ function updateTimerDisplay() {
 async function finishLesson() {
   clearLessonCheckpoint();
   clearInterval(state.timerInterval);
-  if (recognition) { recognition.stop(); convRecording = false; }
+  try { if (recognition) { recognition.stop(); convRecording = false; } } catch(e) {}
+  // Stop any active drill recordings
+  try { Object.keys(activeDrills).forEach(function(id) { stopDrill(id); }); } catch(e) {}
 
   const endTime = new Date();
   const elapsed = Math.round(state.timeElapsed / 60);
@@ -1789,14 +2014,60 @@ async function finishLesson() {
     localStorage.setItem('fp_last_lesson_date', state.lessonDate);
   } catch(e) { /* localStorage unavailable */ }
 
-  // Save to Google Sheet
-  const saved = await saveProgress(endTime);
+  // Block interaction while saving
+  FP.showSaveOverlay('Saving your lesson — please wait…');
+
+  // Upload audio recordings first (may take a few seconds)
   const statusEl = document.getElementById('saveStatus');
-  if (saved) { statusEl.textContent = '✓ Progress saved to your record.'; statusEl.className = 'save-status ok'; }
-  else        { statusEl.textContent = 'Demo mode — progress not saved to sheet (no webhook configured).'; statusEl.className = 'save-status'; }
+  let speakingAudioJson = null;
+  if (!GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT') && Object.keys(audioRecordings).length > 0) {
+    FP.updateSaveOverlay('Uploading your recordings…');
+    statusEl.textContent = tr('Uploading your recordings… please wait.');
+    statusEl.className = 'save-status';
+    speakingAudioJson = await uploadAudioRecordings();
+    if (!speakingAudioJson) {
+      statusEl.textContent = tr('⚠ Audio upload failed — your written work will still be saved.');
+      statusEl.className = 'save-status warn';
+    }
+  }
+  releaseSpeakingStream();
+
+  // Save to Google Sheet
+  FP.updateSaveOverlay('Saving your progress to Google Sheets…');
+  statusEl.textContent = 'Saving your lesson progress…';
+  statusEl.className = 'save-status';
+  const saved = await saveProgress(endTime, speakingAudioJson);
+  if (saved) {
+    // Verify the save by reading back progress
+    FP.updateSaveOverlay('Verifying save…');
+    try {
+      var verifyUrl = GOOGLE_SHEET_WEBHOOK + '?action=get_progress&student=' + encodeURIComponent(state.studentName);
+      var verifyData = await FP.api.get(verifyUrl, { timeout: 15000 });
+      var found = verifyData && verifyData.lessons && verifyData.lessons.some(function(l) {
+        return String(l.day) === String(state.dayNumber);
+      });
+      if (found) {
+        statusEl.textContent = '✓ Progress saved to your record.';
+        statusEl.className = 'save-status ok';
+      } else {
+        statusEl.textContent = '⚠ Save may not have completed. Check your progress on the home page.';
+        statusEl.className = 'save-status warn';
+        console.warn('[FluentPath] Save verification: day ' + state.dayNumber + ' not found in progress data');
+      }
+    } catch(verifyErr) {
+      // Verification failed but save was sent — show cautious success
+      statusEl.textContent = '✓ Progress saved.';
+      statusEl.className = 'save-status ok';
+    }
+  } else {
+    statusEl.textContent = '⚠ Could not save to Google Sheets. Your progress was saved locally.';
+    statusEl.className = 'save-status warn';
+  }
+  FP.hideSaveOverlay();
+  document.getElementById('btnViewProgress').style.display = 'inline-block';
 }
 
-async function saveProgress(endTime) {
+async function saveProgress(endTime, speakingAudioJson) {
   if (GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT')) return false;
 
   const writing = document.getElementById('writing-resp')?.value || state.answers['writing'] || '';
@@ -1819,14 +2090,18 @@ async function saveProgress(endTime) {
     student_notes:  notes.substring(0, 1000),
     warmup_response: (state.answers['warmup'] || '').substring(0, 500),
     speaking_transcript: (state.answers['speaking_conv'] || '').substring(0, 1000),
-    answers_json:   JSON.stringify(state.answers).substring(0, 3000),
+    answers_json:   JSON.stringify(state.answers).substring(0, 5000),
+    speaking_audio_json: speakingAudioJson || '',
     submitted_at:   new Date().toLocaleString(),
   };
 
   try {
-    await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload);
+    await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload, { maxValueLength: 5000 });
     return true;
-  } catch(e) { return false; }
+  } catch(e) {
+    console.error('[FluentPath] Save progress failed:', e);
+    return false;
+  }
 }
 
 // ══════════════════════════════════════════════════════

@@ -1091,6 +1091,7 @@ async function saveToSheets() {
     notes_q24: document.getElementById('notes-q24').value || '',
   };
 
+  FP.showSaveOverlay('Saving examiner results…');
   showSheetsStatus('Saving…', false);
 
   try {
@@ -1099,6 +1100,7 @@ async function saveToSheets() {
   } catch (err) {
     showSheetsStatus('⚠ Could not reach the webhook. Check the URL and try again.', true);
   }
+  FP.hideSaveOverlay();
 }
 
 function showSheetsStatus(msg, isError) {

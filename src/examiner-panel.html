@@ -388,10 +388,10 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
 
       <div class="sb-section">MARKING</div>
       <div class="sb-link" id="nav-placementtest" onclick="showPanel('placementtest')">
-        <div class="sb-icon">📋</div> Mark Placement Test
+        <div class="sb-icon">📋</div> Grade Placement Test
       </div>
       <div class="sb-link" id="nav-marking" onclick="showPanel('marking')">
-        <div class="sb-icon">✏️</div> Mark Writing & Speaking
+        <div class="sb-icon">✏️</div> Grade Lessons
       </div>
       <div class="sb-link" id="nav-weekly" onclick="showPanel('weekly')">
         <div class="sb-icon">📝</div> Weekly Summaries
@@ -440,7 +440,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           </div>
           <div class="stat-box rust">
             <div class="stat-val" id="stat-marked">0</div>
-            <div class="stat-lbl">Lessons Marked</div>
+            <div class="stat-lbl">Lessons Graded</div>
           </div>
         </div>
 
@@ -475,7 +475,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
               <div class="prog-track"><div class="prog-fill" id="prog-attend" style="width:0%;background:linear-gradient(90deg,var(--green),var(--green))"></div></div>
             </div>
             <div class="prog-row">
-              <div class="prog-labels"><span>Writing Tasks Marked</span><span id="prog-writing-val">0%</span></div>
+              <div class="prog-labels"><span>Writing Tasks Graded</span><span id="prog-writing-val">0%</span></div>
               <div class="prog-track"><div class="prog-fill" id="prog-writing" style="width:0%;background:linear-gradient(90deg,var(--blue),var(--blue))"></div></div>
             </div>
           </div>
@@ -541,17 +541,23 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       <!-- ══ MARKING ══ -->
       <div class="panel" id="panel-marking">
         <div class="panel-header">
-          <div class="panel-eyebrow">EXAMINER MARKING</div>
-          <div class="panel-title">Mark Writing <em>&</em> Speaking</div>
+          <div class="panel-eyebrow">EXAMINER GRADING</div>
+          <div class="panel-title">Grade <em>Lessons</em></div>
           <div class="panel-sub">Automatically loads the latest lesson submission from Google Sheets for your student.</div>
         </div>
 
         <div class="card card-top gold" style="margin-bottom:20px;">
-          <div class="card-label">STUDENT SUBMISSION</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="card-label" style="margin:0;">STUDENT SUBMISSION</div>
+            <span class="pill" id="graded-badge" style="display:none;">—</span>
+          </div>
           <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Fetches the latest ungraded lesson from Google Sheets for <strong id="mark-student-name-display">your student</strong>.</p>
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <button class="btn-primary" onclick="autoLoadSubmission()">Fetch Latest Submission</button>
             <button class="btn-secondary" onclick="loadDemoSubmission()">Load Demo Data</button>
+            <select id="day-picker" style="padding:8px 12px;border:1px solid var(--rule);background:var(--cream);color:var(--ink);font-size:13px;display:none;" onchange="loadSpecificDay(this.value)">
+              <option value="">Jump to lesson…</option>
+            </select>
           </div>
           <div class="send-status" id="load-status"></div>
         </div>
@@ -560,6 +566,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div class="marking-tabs">
             <div class="m-tab active" onclick="showMarkTab('writing')">Writing</div>
             <div class="m-tab" onclick="showMarkTab('speaking')">Speaking</div>
+            <div class="m-tab" onclick="showMarkTab('responses')">All Responses</div>
             <div class="m-tab" onclick="showMarkTab('summary')">Final Score</div>
           </div>
 
@@ -567,18 +574,21 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
           <div class="mark-section active" id="mark-writing">
             <div class="section-score-display">
               <div><div class="ssd-label">WRITING SCORE</div><div class="ssd-val" id="writing-total">0 <span>/ 25</span></div></div>
-              <div style="font-size:12px;color:rgba(245,240,232,0.5);">Auto-updates as you mark</div>
+              <div style="font-size:12px;color:rgba(245,240,232,0.5);">Auto-updates as you grade</div>
             </div>
 
             <div class="card">
-              <div class="card-label">STUDENT'S WRITING RESPONSE</div>
-              <div class="student-response" id="student-writing">No submission loaded.</div>
+              <div class="card-label">WARM-UP RESPONSE</div>
+              <div class="student-response" id="student-warmup" style="font-size:14px;">—</div>
 
-              <div class="card-label" style="margin-top:16px;">VOCABULARY PRACTICE (day)</div>
+              <div class="card-label" style="margin-top:16px;">VOCABULARY PRACTICE</div>
               <div class="student-response" id="student-vocab" style="font-size:13px;">—</div>
 
+              <div class="card-label" style="margin-top:16px;">WRITING TASK</div>
+              <div class="student-response" id="student-writing">No submission loaded.</div>
+
               <hr class="divider">
-              <div class="card-label">MARK: TASK COMPLETION</div>
+              <div class="card-label">GRADE: TASK COMPLETION</div>
               <div class="mark-slider-row">
                 <label>Task achievement</label>
                 <input type="range" class="mark-slider" min="0" max="8" step="1" value="0" oninput="updateWritingScore()" id="s-task">
@@ -612,14 +622,20 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
             </div>
 
             <div class="card">
-              <div class="card-label">STUDENT'S SPEAKING TRANSCRIPT</div>
+              <!-- Audio playback section (populated when speaking_audio_json is present) -->
+              <div id="speaking-audio-section" style="display:none;">
+                <div class="card-label">PRONUNCIATION DRILLS — RECORDINGS</div>
+                <div id="drill-audio-players" style="margin-bottom:16px;"></div>
+                <div class="card-label">CONVERSATION PROMPT — RECORDING</div>
+                <div id="conv-audio-player" style="margin-bottom:16px;"></div>
+                <hr class="divider">
+              </div>
+
+              <div class="card-label">CONVERSATION TRANSCRIPT</div>
               <div class="student-response" id="student-speaking">No submission loaded.</div>
 
-              <div class="card-label" style="margin-top:16px;">PRONUNCIATION DRILL ATTEMPTS</div>
-              <div class="student-response" id="student-drills" style="font-size:13px;">—</div>
-
               <hr class="divider">
-              <div class="card-label">MARK: SPEAKING CRITERIA</div>
+              <div class="card-label">GRADE: SPEAKING CRITERIA</div>
               <div class="mark-slider-row">
                 <label>Fluency & pace</label>
                 <input type="range" class="mark-slider" min="0" max="5" step="1" value="0" oninput="updateSpeakingScore()" id="sp-fluency">
@@ -646,6 +662,24 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
             </div>
           </div>
 
+          <!-- All Responses tab -->
+          <div class="mark-section" id="mark-responses">
+            <div class="card">
+              <div class="section-score-display" style="margin-bottom:20px;">
+                <div><div class="ssd-label">LISTENING</div><div class="ssd-val" id="resp-listen-score">— <span></span></div></div>
+                <div><div class="ssd-label">COMPREHENSION</div><div class="ssd-val" id="resp-practice-score">— <span></span></div></div>
+              </div>
+
+              <div class="card-label">LISTENING ANSWERS</div>
+              <div id="resp-listening" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">—</div>
+
+              <hr class="divider">
+
+              <div class="card-label">COMPREHENSION / PRACTICE ANSWERS</div>
+              <div id="resp-practice" style="display:flex;flex-wrap:wrap;gap:8px;">—</div>
+            </div>
+          </div>
+
           <!-- Summary tab -->
           <div class="mark-section" id="mark-summary">
             <div class="card card-top gold">
@@ -653,9 +687,11 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
                 <div class="stat-box green"><div class="stat-val" id="sum-writing">0 / 25</div><div class="stat-lbl">Writing</div></div>
                 <div class="stat-box blue"><div class="stat-val" id="sum-speaking">0 / 20</div><div class="stat-lbl">Speaking</div></div>
+                <div class="stat-box" style="background:var(--cream);"><div class="stat-val" id="sum-listening" style="color:var(--ink);">—</div><div class="stat-lbl">Listening</div></div>
+                <div class="stat-box" style="background:var(--cream);"><div class="stat-val" id="sum-practice" style="color:var(--ink);">—</div><div class="stat-lbl">Comprehension</div></div>
               </div>
               <div style="margin-top:16px;background:var(--ink);padding:18px;display:flex;justify-content:space-between;align-items:center;">
-                <div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(245,240,232,0.4);">LESSON TOTAL (marked)</div>
+                <div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:rgba(245,240,232,0.4);">LESSON TOTAL (graded)</div>
                 <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--paper);" id="sum-total">0 <span style="font-size:14px;color:var(--gold);">/ 45</span></div></div>
                 <div style="text-align:right;"><div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:rgba(245,240,232,0.4);">CONFIDENCE</div><div style="font-size:18px;color:var(--gold);font-style:italic;" id="sum-confidence">—</div></div>
               </div>
@@ -875,7 +911,7 @@ body { background:var(--paper); color:var(--ink); font-family:'Source Serif 4',G
       <div class="panel" id="panel-placementtest">
         <div class="panel-header">
           <div class="panel-eyebrow">PLACEMENT TEST</div>
-          <div class="panel-title">Mark Placement <em>Test</em></div>
+          <div class="panel-title">Grade Placement <em>Test</em></div>
           <div class="panel-sub">Load a student's placement test from the records, review auto-scored sections, and manually mark writing and speaking.</div>
         </div>
 
@@ -1462,6 +1498,7 @@ async function savePlacementToSheets() {
     notes_q23: document.getElementById('pt-notes-q23').value || '',
     notes_q24: document.getElementById('pt-notes-q24').value || '',
   };
+  FP.showSaveOverlay('Saving placement test results…');
   document.getElementById('pt-save-status').textContent = 'Saving...';
   try {
     await FP.api.postForm(WEBHOOK_URL, payload);
@@ -1472,6 +1509,7 @@ async function savePlacementToSheets() {
     document.getElementById('pt-save-status').textContent = '⚠ Could not reach webhook. Check the URL.';
     document.getElementById('pt-save-status').style.color = 'var(--rust)';
   }
+  FP.hideSaveOverlay();
 }
 
 function initApp() {
@@ -1554,11 +1592,15 @@ async function fetchDashboardData() {
             speakingScore: l.speaking_score != null ? parseInt(l.speaking_score) : null,
             attended: true,
             timeSpent: l.time_spent ? parseInt(l.time_spent) : null,
+            answersJson: l.answers_json || '',
           });
-        } else if (existing.writingScore == null && l.writing_score != null) {
-          existing.writingScore = parseInt(l.writing_score);
-          existing.speakingScore = l.speaking_score != null ? parseInt(l.speaking_score) : existing.speakingScore;
-          existing.timeSpent = l.time_spent ? parseInt(l.time_spent) : existing.timeSpent;
+        } else {
+          if (existing.writingScore == null && l.writing_score != null) {
+            existing.writingScore = parseInt(l.writing_score);
+            existing.speakingScore = l.speaking_score != null ? parseInt(l.speaking_score) : existing.speakingScore;
+            existing.timeSpent = l.time_spent ? parseInt(l.time_spent) : existing.timeSpent;
+          }
+          if (!existing.answersJson && l.answers_json) existing.answersJson = l.answers_json;
         }
       });
       ex.lessonRecords.sort(function(a,b) { return a.day - b.day; });
@@ -1575,8 +1617,43 @@ async function fetchDashboardData() {
     updateDashboardStats();
     updateLessonRecord();
     updateSkillsSnapshot();
+
+    // Fetch attendance from sheet (merge: sheet data fills in if local is empty)
+    fetchAttendanceFromSheet();
   } catch(e) {
     console.warn('[FluentPath] Could not fetch dashboard data from sheet:', e.message);
+  }
+}
+
+async function fetchAttendanceFromSheet() {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com') || !ex.studentName) return;
+  try {
+    var url = WEBHOOK_URL + '?action=get_attendance&student=' + encodeURIComponent(ex.studentName);
+    var data = await FP.api.get(url);
+    if (!data || !data.found) return;
+    var sheetAttendance = {};
+    try { sheetAttendance = JSON.parse(data.attendance_json); } catch(e) {}
+    // Merge: sheet data fills in days not already set locally
+    var localHasData = Object.keys(ex.attendance).length > 0;
+    if (!localHasData) {
+      ex.attendance = sheetAttendance;
+    } else {
+      Object.keys(sheetAttendance).forEach(function(key) {
+        if (!ex.attendance[key] || ex.attendance[key] === 'none') {
+          ex.attendance[key] = sheetAttendance[key];
+        }
+      });
+    }
+    // Restore absence notes if blank locally
+    var notesEl = document.getElementById('absence-notes');
+    if (notesEl && !notesEl.value && data.absence_notes) {
+      notesEl.value = data.absence_notes;
+    }
+    buildAttendanceGrid();
+    updateDashboardStats();
+    saveToLocalStorage();
+  } catch(e) {
+    console.warn('[FluentPath] Could not fetch attendance from sheet:', e.message);
   }
 }
 
@@ -1705,11 +1782,31 @@ function updateAttendanceCounts() {
   document.getElementById('attend-remaining').textContent = 20 - present - absent;
 }
 
-function saveAttendance() {
+async function saveAttendance() {
   saveToLocalStorage();
   const el = document.getElementById('attend-save-status');
-  el.textContent = '✓ Attendance saved.'; el.className = 'send-status ok'; el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
+
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com') || !ex.studentName) {
+    el.textContent = '✓ Attendance saved locally.'; el.className = 'send-status ok'; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 3000);
+    return;
+  }
+
+  FP.showSaveOverlay('Saving attendance…');
+  el.textContent = 'Saving to Google Sheets...'; el.className = 'send-status'; el.style.display = 'block';
+  try {
+    await FP.api.postForm(WEBHOOK_URL, {
+      action: 'save_attendance',
+      student_name: ex.studentName,
+      attendance_json: JSON.stringify(ex.attendance),
+      absence_notes: document.getElementById('absence-notes')?.value || ''
+    });
+    el.textContent = '✓ Attendance saved to Google Sheets.'; el.className = 'send-status ok';
+  } catch(e) {
+    el.textContent = 'Could not save to sheet. Saved locally.'; el.className = 'send-status error';
+  }
+  FP.hideSaveOverlay();
+  setTimeout(() => el.style.display = 'none', 4000);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1850,13 +1947,15 @@ function createManualLesson() {
 }
 
 // ══════════════════════════════════════════════════════
-// MARKING
+// GRADING
 // ══════════════════════════════════════════════════════
 function showMarkTab(tab) {
+  var tabMap = { writing: 'Writing', speaking: 'Speaking', responses: 'All Responses', summary: 'Final Score' };
   document.querySelectorAll('.mark-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.m-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('mark-' + tab).classList.add('active');
-  document.querySelectorAll('.m-tab').forEach(t => { if (t.textContent.toLowerCase().includes(tab)) t.classList.add('active'); });
+  var label = tabMap[tab] || tab;
+  document.querySelectorAll('.m-tab').forEach(t => { if (t.textContent === label) t.classList.add('active'); });
 }
 
 async function autoLoadSubmission() {
@@ -1869,12 +1968,47 @@ async function autoLoadSubmission() {
     if (data && data.found) {
       displaySubmission(data);
       showStatus('load-status', '✓ Loaded Day ' + (data.day_number || '?') + ' submission.', false);
+      // Populate day picker in background
+      populateDayPicker(name, data.day_number);
       return;
     }
   } catch(e) {}
   // Fallback to demo
   showStatus('load-status', 'No ungraded submission found. Showing demo data.', true);
   loadDemoSubmission();
+}
+
+async function populateDayPicker(studentName, currentDay) {
+  try {
+    var url = WEBHOOK_URL + '?action=get_all_submissions&student=' + encodeURIComponent(studentName);
+    var data = await FP.api.get(url);
+    if (!data || !data.found || !Array.isArray(data.submissions)) return;
+    var picker = document.getElementById('day-picker');
+    picker.innerHTML = '<option value="">Jump to lesson…</option>';
+    data.submissions.forEach(function(s) {
+      var opt = document.createElement('option');
+      opt.value = s.day_number;
+      opt.textContent = 'Day ' + s.day_number + ' — ' + (s.topic || 'Untitled') + (s.has_marks ? ' ✓ graded' : '');
+      if (String(s.day_number) === String(currentDay)) opt.selected = true;
+      picker.appendChild(opt);
+    });
+    picker.style.display = 'inline-block';
+  } catch(e) { console.warn('[FluentPath] Could not load day picker:', e.message); }
+}
+
+async function loadSpecificDay(dayNum) {
+  if (!dayNum || !ex.studentName) return;
+  showStatus('load-status', 'Loading Day ' + dayNum + '...', false);
+  try {
+    var url = WEBHOOK_URL + '?action=get_latest_submission&student=' + encodeURIComponent(ex.studentName) + '&day=' + encodeURIComponent(dayNum);
+    var data = await FP.api.get(url);
+    if (data && data.found) {
+      displaySubmission(data);
+      showStatus('load-status', '✓ Loaded Day ' + dayNum + ' submission.', false);
+      return;
+    }
+  } catch(e) {}
+  showStatus('load-status', 'Could not load Day ' + dayNum + '.', true);
 }
 
 function loadDemoSubmission() {
@@ -1901,12 +2035,73 @@ function displaySubmission(data) {
   ex.markingData = data;
   document.getElementById('marking-area').style.display = 'block';
 
-  document.getElementById('student-writing').textContent = data.writing_response || '(no writing submitted)';
-  document.getElementById('student-vocab').textContent = data.vocab_practice || '(none)';
-  document.getElementById('student-speaking').textContent = data.speaking_transcript || '(no speaking transcript)';
+  // Parse answers_json
+  var answers = {};
+  try { if (data.answers_json) answers = JSON.parse(data.answers_json); } catch(e) {}
+  ex.markingData.parsedAnswers = answers;
 
-  const drillText = [data.drill_s1, data.drill_s2, data.drill_s3].filter(Boolean).map((d,i) => `Drill ${i+1}: "${d}"`).join('\n');
-  document.getElementById('student-drills').textContent = drillText || '(none)';
+  // ── Graded badge ──
+  var badge = document.getElementById('graded-badge');
+  badge.style.display = 'inline-block';
+  if (data.has_marks) {
+    badge.textContent = 'GRADED';
+    badge.className = 'pill approved';
+  } else {
+    badge.textContent = 'UNGRADED';
+    badge.className = 'pill pending';
+  }
+
+  // ── Writing tab: warmup, vocab, writing task ──
+  document.getElementById('student-warmup').textContent = data.warmup_response || answers.warmup || '(none)';
+  document.getElementById('student-vocab').textContent = answers.vocab_practice || data.vocab_practice || '(none)';
+  document.getElementById('student-writing').textContent = data.writing_response || '(no writing submitted)';
+
+  // ── Speaking tab: transcript + drills ──
+  document.getElementById('student-speaking').textContent = data.speaking_transcript || '(no speaking transcript)';
+  renderSpeakingAudio(data.speaking_audio_json);
+
+  // ── All Responses tab: listening + practice with chip-style display ──
+  var listenKeys = Object.keys(answers).filter(function(k) { return k.startsWith('listening_') && !k.includes('_correct') && !k.includes('_is_right') && k !== 'listening_correct' && k !== 'listening_total'; }).sort();
+  if (listenKeys.length > 0) {
+    var listenChips = listenKeys.map(function(k) {
+      var val = parseInt(answers[k]);
+      var letter = !isNaN(val) ? String.fromCharCode(65 + val) : '—';
+      var qNum = k.replace('listening_', '');
+      var isRight = answers[k + '_is_right'];
+      var correctness = (isRight !== undefined) ? !!parseInt(isRight) : null;
+      return buildResponseChip('Q' + qNum, letter, correctness);
+    }).join('');
+    document.getElementById('resp-listening').innerHTML = listenChips;
+    if (answers.listening_correct != null && answers.listening_total != null) {
+      document.getElementById('resp-listen-score').innerHTML = answers.listening_correct + ' <span>/ ' + answers.listening_total + '</span>';
+    } else {
+      document.getElementById('resp-listen-score').innerHTML = listenKeys.length + ' <span>answered</span>';
+    }
+  } else {
+    document.getElementById('resp-listening').innerHTML = '<span style="color:var(--muted);">No listening answers recorded.</span>';
+    document.getElementById('resp-listen-score').innerHTML = '— <span></span>';
+  }
+
+  var practiceKeys = Object.keys(answers).filter(function(k) { return k.startsWith('practice_') && !k.includes('_correct') && !k.includes('_is_right') && k !== 'practice_correct' && k !== 'practice_total'; }).sort();
+  if (practiceKeys.length > 0) {
+    var practiceChips = practiceKeys.map(function(k) {
+      var val = parseInt(answers[k]);
+      var letter = !isNaN(val) ? String.fromCharCode(65 + val) : '—';
+      var qNum = k.replace('practice_', '');
+      var isRight = answers[k + '_is_right'];
+      var correctness = (isRight !== undefined) ? !!parseInt(isRight) : null;
+      return buildResponseChip('Q' + qNum, letter, correctness);
+    }).join('');
+    document.getElementById('resp-practice').innerHTML = practiceChips;
+    if (answers.practice_correct != null && answers.practice_total != null) {
+      document.getElementById('resp-practice-score').innerHTML = answers.practice_correct + ' <span>/ ' + answers.practice_total + '</span>';
+    } else {
+      document.getElementById('resp-practice-score').innerHTML = practiceKeys.length + ' <span>answered</span>';
+    }
+  } else {
+    document.getElementById('resp-practice').innerHTML = '<span style="color:var(--muted);">No comprehension answers recorded.</span>';
+    document.getElementById('resp-practice-score').innerHTML = '— <span></span>';
+  }
 
   const confMap = ['Hard 😕', 'OK 😐', 'Good 🙂', 'Great! 😄'];
   document.getElementById('sum-confidence').textContent = data.confidence != null ? confMap[data.confidence] : '—';
@@ -1917,6 +2112,114 @@ function displaySubmission(data) {
   } else {
     // Try restoring from localStorage
     restoreMarksFromLocalStorage();
+  }
+}
+
+function buildResponseChip(label, answer, isCorrect, maxMarks) {
+  var marks = maxMarks || 2;
+  if (isCorrect === undefined || isCorrect === null) {
+    // Unknown correctness — neutral chip
+    return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--cream);border:1px solid var(--rule);font-size:12px;border-radius:3px;">' +
+      '<span style="font-weight:600;">' + escHtml(label) + '</span> ' +
+      '<span style="color:var(--ink);">' + escHtml(answer) + '</span>' +
+      '</div>';
+  }
+  var bg     = isCorrect ? 'var(--green-bg)' : '#fdecea';
+  var border = isCorrect ? 'var(--green)' : 'var(--rust)';
+  var color  = isCorrect ? 'var(--green)' : 'var(--rust)';
+  var icon   = isCorrect ? '✓' : '✗';
+  var score  = isCorrect ? marks + '/' + marks : '0/' + marks;
+  return '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:' + bg + ';border:1px solid ' + border + ';font-size:12px;border-radius:3px;">' +
+    '<span style="color:' + color + ';font-weight:600;">' + icon + '</span> ' +
+    '<span style="font-weight:600;">' + escHtml(label) + '</span> ' +
+    '<span style="color:var(--ink);">' + escHtml(answer) + '</span> ' +
+    '<span style="color:' + color + ';font-size:11px;">' + score + '</span>' +
+    '</div>';
+}
+
+/**
+ * Fetch a Drive audio file via the Apps Script get_audio endpoint
+ * and return a local blob URL for playback.
+ */
+async function fetchAudioBlobUrl(fileId) {
+  var url = WEBHOOK_URL + '?action=get_audio&id=' + encodeURIComponent(fileId);
+  var resp = await FP.api.get(url, { timeout: 60000 });
+  if (!resp || !resp.found || !resp.data) return null;
+  var binary = atob(resp.data);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  var blob = new Blob([bytes], { type: resp.mime || 'audio/webm' });
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Render audio players for pronunciation drills and the conversation prompt.
+ * audioJsonStr: raw string from speaking_audio_json column, e.g.
+ *   '{"s1":"<fileId>","s1_score":0.85,"conversation":"<fileId>"}'
+ */
+function renderSpeakingAudio(audioJsonStr) {
+  const section = document.getElementById('speaking-audio-section');
+  const drillContainer = document.getElementById('drill-audio-players');
+  const convContainer  = document.getElementById('conv-audio-player');
+
+  section.style.display = 'none';
+  drillContainer.innerHTML = '';
+  convContainer.innerHTML  = '';
+
+  if (!audioJsonStr) return;
+  let audio;
+  try { audio = JSON.parse(audioJsonStr); } catch(e) { return; }
+
+  const drillKeys = Object.keys(audio).filter(k => !k.includes('_score') && k !== 'conversation').sort();
+  const convId    = audio['conversation'];
+
+  if (drillKeys.length === 0 && !convId) return;
+  section.style.display = 'block';
+
+  // Parse drill transcripts from answers_json
+  var drillTranscripts = {};
+  if (ex.markingData && ex.markingData.parsedAnswers) {
+    var ans = ex.markingData.parsedAnswers;
+    Object.keys(ans).forEach(function(k) {
+      if (k.startsWith('drill_') && !k.includes('_score')) drillTranscripts[k] = ans[k];
+    });
+  }
+
+  // Build placeholder UI, then fetch audio in background
+  drillKeys.forEach((key, i) => {
+    const score = audio[key + '_score'];
+    const scoreHtml = score != null
+      ? `<span style="margin-left:12px;font-size:12px;color:var(--forest);font-weight:600;">Accuracy: ${Math.round(score * 100)}%</span>`
+      : '';
+    const transcriptKey = 'drill_' + key;
+    const transcript = drillTranscripts[transcriptKey] || (ex.markingData ? ex.markingData[transcriptKey] : '');
+    const transcriptHtml = transcript
+      ? `<blockquote style="margin:6px 0;padding:8px 12px;border-left:3px solid var(--forest);background:rgba(82,107,74,0.08);font-size:13px;font-style:italic;color:var(--ink);">"${escHtml(transcript)}"</blockquote>`
+      : '';
+    drillContainer.insertAdjacentHTML('beforeend', `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">
+          Drill ${i + 1}${scoreHtml}
+        </div>
+        ${transcriptHtml}
+        <div id="audio-drill-${key}" style="font-size:12px;color:var(--muted);">Loading audio…</div>
+      </div>`);
+    fetchAudioBlobUrl(audio[key]).then(blobUrl => {
+      const el = document.getElementById('audio-drill-' + key);
+      if (el) el.innerHTML = blobUrl
+        ? `<audio controls src="${blobUrl}" style="width:100%;max-width:400px;"></audio>`
+        : '<span style="color:var(--red);">Could not load audio.</span>';
+    });
+  });
+
+  if (convId) {
+    convContainer.innerHTML = '<div id="audio-conv" style="font-size:12px;color:var(--muted);">Loading audio…</div>';
+    fetchAudioBlobUrl(convId).then(blobUrl => {
+      const el = document.getElementById('audio-conv');
+      if (el) el.innerHTML = blobUrl
+        ? `<audio controls src="${blobUrl}" style="width:100%;max-width:400px;"></audio>`
+        : '<span style="color:var(--red);">Could not load audio.</span>';
+    });
   }
 }
 
@@ -2042,7 +2345,25 @@ function updateSpeakingScore() {
 function updateSummaryTotal() {
   const w = ex.writingScores.total || 0;
   const s = ex.speakingScores.total || 0;
-  document.getElementById('sum-total').innerHTML = (w + s) + ' <span style="font-size:14px;color:var(--gold);">/ 45</span>';
+
+  // Listening & comprehension auto-scores from student answers
+  var lCorrect = 0, lTotal = 0, pCorrect = 0, pTotal = 0;
+  if (ex.markingData && ex.markingData.parsedAnswers) {
+    var a = ex.markingData.parsedAnswers;
+    lCorrect = parseInt(a.listening_correct) || 0;
+    lTotal   = parseInt(a.listening_total)   || 0;
+    pCorrect = parseInt(a.practice_correct)  || 0;
+    pTotal   = parseInt(a.practice_total)    || 0;
+  }
+
+  var sumListenEl = document.getElementById('sum-listening');
+  var sumPracticeEl = document.getElementById('sum-practice');
+  sumListenEl.textContent  = lTotal > 0 ? lCorrect + ' / ' + lTotal : '—';
+  sumPracticeEl.textContent = pTotal > 0 ? pCorrect + ' / ' + pTotal : '—';
+
+  var grandTotal = w + s + lCorrect + pCorrect;
+  var grandMax   = 45 + lTotal + pTotal;
+  document.getElementById('sum-total').innerHTML = grandTotal + ' <span style="font-size:14px;color:var(--gold);">/ ' + grandMax + '</span>';
 }
 
 // ══════════════════════════════════════════════════════
@@ -2219,20 +2540,46 @@ function updateLessonRecord() {
         <tr style="border-bottom:2px solid var(--rule);">
           <th style="text-align:left;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Day</th>
           <th style="text-align:left;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Topic</th>
+          <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Warmup</th>
+          <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Vocab</th>
+          <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Listening</th>
+          <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Practice</th>
           <th style="text-align:right;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Writing</th>
           <th style="text-align:right;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Speaking</th>
           <th style="text-align:center;padding:8px;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);">Attend</th>
         </tr>
       </thead>
       <tbody>
-        ${ex.lessonRecords.map(r => `
+        ${ex.lessonRecords.map(r => {
+          var aj = {};
+          try { if (r.answersJson) aj = JSON.parse(r.answersJson); } catch(e) {}
+          var hasWarmup = !!(aj.warmup);
+          var hasVocab = !!(aj.vocab_practice);
+          var listenCell = '—';
+          if (aj.listening_correct != null && aj.listening_total != null) {
+            listenCell = aj.listening_correct + '/' + aj.listening_total;
+          } else if (Object.keys(aj).some(function(k) { return k.startsWith('listening_'); })) {
+            listenCell = '✓';
+          }
+          var practiceCell = '—';
+          if (aj.practice_correct != null && aj.practice_total != null) {
+            practiceCell = aj.practice_correct + '/' + aj.practice_total;
+          } else if (Object.keys(aj).some(function(k) { return k.startsWith('practice_'); })) {
+            practiceCell = '✓';
+          }
+          return `
           <tr style="border-bottom:1px solid var(--cream);">
             <td style="padding:8px;font-weight:600;">Day ${escHtml(String(r.day))}</td>
             <td style="padding:8px;font-style:italic;color:var(--muted);">${escHtml(r.topic || '—')}</td>
+            <td style="padding:8px;text-align:center;">${hasWarmup ? '✓' : '—'}</td>
+            <td style="padding:8px;text-align:center;">${hasVocab ? '✓' : '—'}</td>
+            <td style="padding:8px;text-align:center;">${listenCell}</td>
+            <td style="padding:8px;text-align:center;">${practiceCell}</td>
             <td style="padding:8px;text-align:right;">${r.writingScore != null ? r.writingScore + '/25' : '—'}</td>
             <td style="padding:8px;text-align:right;">${r.speakingScore != null ? r.speakingScore + '/20' : '—'}</td>
             <td style="padding:8px;text-align:center;"><span class="pill ${r.attended ? 'approved' : 'absent'}">${r.attended ? 'Present' : 'Absent'}</span></td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>`;
 }
@@ -2284,6 +2631,13 @@ function sendResultsEmail() {
 
   const w = ex.writingScores.total || 0;
   const s = ex.speakingScores.total || 0;
+  const a = (ex.markingData && ex.markingData.parsedAnswers) || {};
+  const lCorrect = parseInt(a.listening_correct) || 0;
+  const lTotal   = parseInt(a.listening_total)   || 0;
+  const pCorrect = parseInt(a.practice_correct)  || 0;
+  const pTotal   = parseInt(a.practice_total)    || 0;
+  const grandTotal = w + s + lCorrect + pCorrect;
+  const grandMax   = 45 + lTotal + pTotal;
   const feedback = document.getElementById('overall-feedback')?.value || '';
   const name = ex.markingData?.student_name || ex.studentName;
 
@@ -2294,9 +2648,9 @@ Here are your results for today's English lesson (Day ${ex.markingData?.day_numb
 LESSON RESULTS
 ──────────────────────────────
 Writing Score:    ${w} / 25
-Speaking Score:   ${s} / 20
+Speaking Score:   ${s} / 20${lTotal > 0 ? '\nListening Score:  ' + lCorrect + ' / ' + lTotal : ''}${pTotal > 0 ? '\nComprehension:    ' + pCorrect + ' / ' + pTotal : ''}
 ──────────────────────────────
-TOTAL:            ${w+s} / 45
+TOTAL:            ${grandTotal} / ${grandMax}
 
 ${feedback ? `TEACHER FEEDBACK\n──────────────────────────────\n${feedback}\n` : ''}
 
@@ -2315,6 +2669,13 @@ async function saveToSheet() {
   }
   const w = ex.writingScores.total || 0;
   const s = ex.speakingScores.total || 0;
+  const ans = (ex.markingData && ex.markingData.parsedAnswers) || {};
+  const lCorrect = parseInt(ans.listening_correct) || 0;
+  const lTotal   = parseInt(ans.listening_total)   || 0;
+  const pCorrect = parseInt(ans.practice_correct)  || 0;
+  const pTotal   = parseInt(ans.practice_total)    || 0;
+  const grandTotal = w + s + lCorrect + pCorrect;
+  const grandMax   = 45 + lTotal + pTotal;
   const payload = {
     action: 'save_marks',
     teacher_name: ex.teacherName,
@@ -2324,15 +2685,16 @@ async function saveToSheet() {
     level: ex.studentLevel,
     writing_score: w + ' / 25',
     speaking_score: s + ' / 20',
-    total_score: (w+s) + ' / 45',
+    total_score: grandTotal + ' / ' + grandMax,
     writing_breakdown: JSON.stringify(ex.writingScores),
     speaking_breakdown: JSON.stringify(ex.speakingScores),
     overall_feedback: document.getElementById('overall-feedback')?.value || '',
     graded_at: new Date().toLocaleString(),
   };
+  FP.showSaveOverlay('Saving lesson grades…');
   try {
     await FP.api.postForm(WEBHOOK_URL, payload);
-    showStatus('sheet-status', '✓ Marks saved to Google Sheet.', false);
+    showStatus('sheet-status', '✓ Grades saved to Google Sheet.', false);
 
     // Update local record
     const day = ex.markingData?.day_number || getCurrentDay();
@@ -2346,6 +2708,7 @@ async function saveToSheet() {
   } catch(e) {
     showStatus('sheet-status', '⚠ Could not reach sheet. Check webhook URL.', true);
   }
+  FP.hideSaveOverlay();
 }
 
 // ══════════════════════════════════════════════════════

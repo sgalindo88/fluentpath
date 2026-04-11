@@ -110,3 +110,56 @@ FP.api = (function () {
 
   return { get: get, postForm: postForm, postJson: postJson };
 })();
+
+
+// ══════════════════════════════════════════════════════
+// SAVE OVERLAY — blocks interaction during async saves
+// ══════════════════════════════════════════════════════
+
+/**
+ * Show a full-screen overlay that blocks all interaction.
+ * @param {string} [message] - text to display (default "Saving…")
+ */
+FP.showSaveOverlay = function (message) {
+  var el = document.getElementById('fp-save-overlay');
+  if (!el) {
+    // Inject keyframes
+    if (!document.getElementById('fp-spin-style')) {
+      var s = document.createElement('style');
+      s.id = 'fp-spin-style';
+      s.textContent = '@keyframes fp-spin{to{transform:rotate(360deg)}}';
+      (document.head || document.documentElement).appendChild(s);
+    }
+    el = document.createElement('div');
+    el.id = 'fp-save-overlay';
+    el.style.cssText =
+      'position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;' +
+      'background:rgba(26,18,8,0.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);';
+    el.innerHTML =
+      '<div style="background:white;border-radius:12px;padding:32px 40px;text-align:center;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
+        '<div style="width:36px;height:36px;border:3px solid #e8e2d9;border-top-color:#b8471e;border-radius:50%;' +
+          'animation:fp-spin 0.8s linear infinite;margin:0 auto 16px;"></div>' +
+        '<div id="fp-save-msg" style="font-size:17px;font-weight:600;color:#1a1208;line-height:1.5;">Saving…</div>' +
+      '</div>';
+    (document.body || document.documentElement).appendChild(el);
+  }
+  document.getElementById('fp-save-msg').textContent = message || 'Saving…';
+  el.style.display = 'flex';
+};
+
+/**
+ * Update the overlay message without hiding it.
+ * @param {string} message
+ */
+FP.updateSaveOverlay = function (message) {
+  var m = document.getElementById('fp-save-msg');
+  if (m) m.textContent = message;
+};
+
+/**
+ * Hide the save overlay.
+ */
+FP.hideSaveOverlay = function () {
+  var el = document.getElementById('fp-save-overlay');
+  if (el) el.style.display = 'none';
+};
