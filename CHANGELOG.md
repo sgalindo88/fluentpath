@@ -4,6 +4,22 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.33.0] - 2026-04-11
+
+### Added — Quick grading workflow
+
+#### Teacher dashboard HTML (`src/examiner-panel.html`)
+- **"Next Ungraded →" button** — added to the marking panel header next to "Fetch Latest Submission"
+- **Keyboard shortcut hints** — shows `Ctrl+S` (save) and `Ctrl+→` (next ungraded) below the buttons
+
+#### Teacher dashboard JS (`src/scripts/examiner-panel.js`)
+- **`goNextUngraded()`** — fetches all submissions (cached after first call), finds the first ungraded submission after the current day, and loads it; shows "All lessons graded!" when none remain
+- **`cachedSubmissions`** — in-memory cache of all submissions; populated on first Next Ungraded click
+- **`invalidateSubmissionCache()`** — clears the cache after saving grades so the next-ungraded logic reflects the change
+- **Keyboard shortcuts** — `Ctrl+S` / `Cmd+S` saves grades to sheet, `Ctrl+→` / `Cmd+→` loads next ungraded; only active when the marking panel is visible
+
+---
+
 ## [0.32.0] - 2026-04-11
 
 ### Added — Vocabulary spaced repetition (SRS)

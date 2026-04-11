@@ -909,6 +909,49 @@ async function autoLoadSubmission() {
   loadDemoSubmission();
 }
 
+// Cache of all submissions for next-ungraded navigation
+var cachedSubmissions = null;
+
+async function goNextUngraded() {
+  var name = ex.studentName;
+  if (!name) { showStatus('load-status', 'Set up a student profile first.', true); return; }
+
+  // Use cached submissions if available, else fetch
+  if (!cachedSubmissions) {
+    showStatus('load-status', 'Loading submissions...', false);
+    try {
+      var url = WEBHOOK_URL + '?action=get_all_submissions&student=' + encodeURIComponent(name);
+      var data = await FP.api.get(url);
+      if (data && data.found && Array.isArray(data.submissions)) {
+        cachedSubmissions = data.submissions;
+      }
+    } catch (e) { /* fall through */ }
+  }
+
+  if (!cachedSubmissions || cachedSubmissions.length === 0) {
+    showStatus('load-status', 'No submissions found.', true);
+    return;
+  }
+
+  // Find the next ungraded submission after the currently loaded day
+  var currentDay = ex.markingData ? parseInt(ex.markingData.day_number || 0) : 0;
+  var ungraded = cachedSubmissions.filter(function(s) { return !s.has_marks; });
+
+  if (ungraded.length === 0) {
+    showStatus('load-status', '✓ All lessons graded!', false);
+    return;
+  }
+
+  // Pick the first ungraded after currentDay, or wrap to the first ungraded overall
+  var next = ungraded.find(function(s) { return parseInt(s.day_number) > currentDay; }) || ungraded[0];
+  loadSpecificDay(next.day_number);
+}
+
+// Invalidate cached submissions after grading so next-ungraded picks up changes
+function invalidateSubmissionCache() {
+  cachedSubmissions = null;
+}
+
 async function populateDayPicker(studentName, currentDay) {
   try {
     var url = WEBHOOK_URL + '?action=get_all_submissions&student=' + encodeURIComponent(studentName);
@@ -1626,6 +1669,7 @@ async function saveToSheet() {
   try {
     await FP.api.postForm(WEBHOOK_URL, payload);
     showStatus('sheet-status', '✓ Grades saved to Google Sheet.', false);
+    invalidateSubmissionCache();
 
     // Update local record
     const day = ex.markingData?.day_number || getCurrentDay();
@@ -2146,3 +2190,24 @@ function updateDashboardLibraryBadge(total, recycled) {
   if (tEl) tEl.textContent = total;
   if (rEl) rEl.textContent = recycled;
 }
+
+// ══════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════
+document.addEventListener('keydown', function(e) {
+  // Only handle when the marking panel is active
+  var markingPanel = document.getElementById('panel-marking');
+  if (!markingPanel || !markingPanel.classList.contains('active')) return;
+
+  // Ctrl+S or Cmd+S → save grades to sheet
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveToSheet();
+  }
+
+  // Ctrl+→ or Cmd+→ → next ungraded
+  if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowRight') {
+    e.preventDefault();
+    goNextUngraded();
+  }
+});

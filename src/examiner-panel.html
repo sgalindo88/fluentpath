@@ -223,11 +223,13 @@
           <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Fetches the latest ungraded lesson from Google Sheets for <strong id="mark-student-name-display">your student</strong>.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <button class="btn-primary" onclick="autoLoadSubmission()">Fetch Latest Submission</button>
+            <button class="btn-secondary" onclick="goNextUngraded()">Next Ungraded →</button>
             <button class="btn-secondary" onclick="loadDemoSubmission()">Load Demo Data</button>
             <select id="day-picker" style="padding:8px 12px;border:1px solid var(--rule);background:var(--cream);color:var(--ink);font-size:13px;display:none;" onchange="loadSpecificDay(this.value)">
               <option value="">Jump to lesson…</option>
             </select>
           </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px;">Keyboard: <kbd style="background:var(--cream);padding:1px 5px;border:1px solid var(--rule);border-radius:3px;font-family:monospace;">Ctrl+S</kbd> save · <kbd style="background:var(--cream);padding:1px 5px;border:1px solid var(--rule);border-radius:3px;font-family:monospace;">Ctrl+→</kbd> next ungraded</div>
           <div class="send-status" id="load-status"></div>
         </div>
 
