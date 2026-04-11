@@ -8,6 +8,8 @@
     "lint:fix": "eslint src/scripts/ --fix",
     "format": "prettier --write src/scripts/ src/styles/ *.html",
     "format:check": "prettier --check src/scripts/ src/styles/ *.html",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "dev": "npx serve ."
   },
   "repository": {
@@ -24,6 +26,7 @@
   "devDependencies": {
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
-    "prettier": "^3.8.2"
+    "prettier": "^3.8.2",
+    "vitest": "^2.1.9"
   }
 }

@@ -4,6 +4,24 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.28.0] - 2026-04-11
+
+### Added — Unit tests (vitest)
+
+#### New files
+- **`tests/helpers.js`** — test harness that loads global-style JS files (`utils.js`, `apps-script.js`) into vitest using indirect `eval`; provides minimal Apps Script API mocks (`SpreadsheetApp`, `CacheService`, etc.)
+- **`tests/utils.test.js`** — 23 tests covering `escHtml` (XSS payloads, edge cases), `formatDate` (long/short/invalid), `formatLessonDate`, `formatTimeSpent` (clock string filtering), `formatDuration`, `formatPlayTime`, `timeAgo` (bilingual output)
+- **`tests/apps-script.test.js`** — 22 tests covering `recycleProbability` (boundary values 0/4/5/9/10), `findLibraryMatch` (strict match, lenient fallback, focus tag overlap, null handling), `nearDuplicateExists` (exact/different/empty/null), `requireParam` (valid/missing/blank/null), `validateScore` (range/non-numeric), `validateDate` (valid/invalid/empty)
+
+#### Config
+- **`package.json`** — added `test` and `test:watch` scripts
+- **`eslint.config.mjs`** — added ES module override for `tests/` directory
+- **vitest 2** installed (compatible with Node 18)
+
+#### Result: **45 tests, all passing**
+
+---
+
 ## [0.27.0] - 2026-04-11
 
 ### Added — beforeunload warning and offline banner

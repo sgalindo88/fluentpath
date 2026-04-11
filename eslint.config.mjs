@@ -77,6 +77,17 @@ export default [
       'no-empty': ['warn', { allowEmptyCatch: true }],
     },
   },
+  // Test files use ES modules
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+      ecmaVersion: 2022,
+    },
+    rules: {
+      'no-undef': 'off',
+    },
+  },
   {
     ignores: [
       'node_modules/',
