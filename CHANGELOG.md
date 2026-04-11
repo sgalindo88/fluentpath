@@ -4,6 +4,39 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.25.0] - 2026-04-11
+
+### Changed — Apps Script: dispatch tables, input validation, caching, error logging
+
+#### Dispatch tables (Step 2.3)
+- **`GET_HANDLERS`** — 12-entry map replacing the `doGet` if-else chain (11 existing + new `get_errors`)
+- **`POST_HANDLERS`** — 8-entry map replacing the `doPost` if-else chain; special-case routing for examiner results (`sheet_name`) and placement test (no action) preserved via `_examiner_results` and `_submit_test` internal keys
+- Adding a new endpoint is now one line in the handler map + the handler function
+
+#### Input validation (Step 2.4)
+- **`requireParam(params, key)`** — throws on missing/blank required parameters
+- **`validateScore(value, min, max)`** — validates numeric score within range
+- **`validateDate(value)`** — validates date string is parseable
+- Applied to: `save_progress` (student_name, day_number, level), `save_marks` (student_name, day_number), `save_attendance` (student_name), `update_settings` (student_name), `_submit_test` (candidate_name), `_examiner_results` (candidate_name), `delete_library_entry` (id)
+
+#### Caching — CacheService (Step 2.1)
+- **`cacheGet(key)`** / **`cachePut(key, value)`** — JSON-safe get/put wrappers with 5-minute TTL
+- **`cacheInvalidateStudent(name)`** — clears all cached data for a student (progress, settings, attendance, test results, submissions); called automatically by all POST handlers that modify student data
+- **`handleGetProgress`** — cached (heaviest endpoint: reads 3 sheets + joins marks)
+- **`handleGetSettings`** — cached (frequent reads from hub + i18n)
+
+#### Targeted reads — TextFinder (Step 2.1)
+- **`findLastByStudent`** — rewritten to use `TextFinder` for O(1) column lookup instead of scanning every row via `sheetToObjects`; reads only the matched row's data instead of loading the entire sheet into memory
+- **`getLibraryEntries`** — reads header once to find column indices, then iterates raw array values instead of converting all rows to objects
+
+#### Error logging (Step 2.5)
+- **`logError(action, student, message, params)`** — writes errors to an "Error Log" sheet tab with timestamp, action, student, message, and truncated params
+- Called automatically in both `doGet` and `doPost` catch blocks
+- **`handleGetErrors`** — new GET endpoint returning the 50 most recent error log entries
+- Added `get_errors` to the `GET_HANDLERS` dispatch table
+
+---
+
 ## [0.24.0] - 2026-04-11
 
 ### Changed — Move legacy file to `legacy/`

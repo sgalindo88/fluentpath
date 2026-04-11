@@ -73,6 +73,89 @@ function isExaminerPost(params) {
 }
 
 // ══════════════════════════════════════════════════════
+// INPUT VALIDATION
+// ══════════════════════════════════════════════════════
+
+/** Require a non-empty string parameter. Throws on missing/blank. */
+function requireParam(params, key) {
+  var val = params[key];
+  if (val === undefined || val === null || !String(val).trim()) {
+    throw new Error('Missing required parameter: ' + key);
+  }
+  return String(val).trim();
+}
+
+/** Validate a numeric score within [min, max]. Returns the number. */
+function validateScore(value, min, max) {
+  var n = parseFloat(value);
+  if (isNaN(n) || n < min || n > max) {
+    throw new Error('Score out of range (' + min + '–' + max + '): ' + value);
+  }
+  return n;
+}
+
+/** Validate a date string is non-empty and plausible. */
+function validateDate(value) {
+  if (!value || !String(value).trim()) return '';
+  var d = new Date(String(value).trim());
+  if (isNaN(d.getTime())) throw new Error('Invalid date: ' + value);
+  return String(value).trim();
+}
+
+// ══════════════════════════════════════════════════════
+// CACHING (CacheService)
+// ══════════════════════════════════════════════════════
+
+var CACHE_TTL = 300; // 5 minutes
+
+/** Get cached JSON for a key, or null if not found / expired. */
+function cacheGet(key) {
+  try {
+    var raw = CacheService.getScriptCache().get(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+/** Store a JSON-serialisable value in the script cache. */
+function cachePut(key, value) {
+  try {
+    CacheService.getScriptCache().put(key, JSON.stringify(value), CACHE_TTL);
+  } catch (e) { /* quota exceeded or unavailable */ }
+}
+
+/** Invalidate cache entries related to a student (called after writes). */
+function cacheInvalidateStudent(studentName) {
+  if (!studentName) return;
+  var lower = String(studentName).toLowerCase().trim();
+  var keys = [
+    'progress_' + lower,
+    'settings_' + lower,
+    'attendance_' + lower,
+    'test_results_' + lower,
+    'all_submissions_' + lower
+  ];
+  try { CacheService.getScriptCache().removeAll(keys); } catch (e) {}
+}
+
+// ══════════════════════════════════════════════════════
+// ERROR LOGGING
+// ══════════════════════════════════════════════════════
+
+/** Log an error to the Error Log sheet for server-side debugging. */
+function logError(action, student, message, params) {
+  try {
+    var sheet = getOrCreateSheet('Error Log', ['timestamp', 'action', 'student', 'message', 'params']);
+    sheet.appendRow([
+      new Date().toISOString(),
+      action || '',
+      student || '',
+      message || '',
+      JSON.stringify(params || {}).substring(0, 2000)
+    ]);
+  } catch (e) { /* logging itself failed — nothing we can do */ }
+}
+
+// ══════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════
 
@@ -106,30 +189,42 @@ function sheetToObjects(sheet) {
   return results;
 }
 
-/** Find the last row matching a student name (case-insensitive) */
+/** Find the last row matching a student name (case-insensitive).
+ *  Uses TextFinder for targeted lookup instead of scanning every row. */
 function findLastByStudent(sheetName, headers, studentName) {
   var sheet = getOrCreateSheet(sheetName, headers);
-  var rows = sheetToObjects(sheet);
-  var match = null;
-  var nameKey = null;
+  if (sheet.getLastRow() < 2) return null;
 
-  // Try common column names for student
+  // Determine which column holds the name
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
   var nameColumns = ['candidate_name', 'student_name', 'name'];
+  var nameColIdx = -1;
   for (var k = 0; k < nameColumns.length; k++) {
-    if (rows.length > 0 && rows[0].hasOwnProperty(nameColumns[k])) {
-      nameKey = nameColumns[k];
-      break;
-    }
+    nameColIdx = headerRow.indexOf(nameColumns[k]);
+    if (nameColIdx >= 0) break;
   }
-  if (!nameKey) return null;
+  if (nameColIdx < 0) return null;
 
-  var target = String(studentName).toLowerCase().trim();
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i][nameKey]).toLowerCase().trim() === target) {
-      match = rows[i];
-    }
+  // Use TextFinder to locate matching rows (faster than scanning all data)
+  var nameRange = sheet.getRange(2, nameColIdx + 1, sheet.getLastRow() - 1, 1);
+  var finder = nameRange.createTextFinder(String(studentName).trim())
+    .matchCase(false)
+    .matchEntireCell(true);
+  var matches = finder.findAll();
+  if (matches.length === 0) return null;
+
+  // Take the last match and read the full row
+  var lastMatch = matches[matches.length - 1];
+  var rowNum = lastMatch.getRow();
+  var rowData = sheet.getRange(rowNum, 1, 1, headerRow.length).getValues()[0];
+
+  // Build object from headers
+  var obj = {};
+  for (var j = 0; j < headerRow.length; j++) {
+    obj[headerRow[j]] = rowData[j];
   }
-  return match;
+  return obj;
 }
 
 /**
@@ -253,13 +348,27 @@ var HEADERS = {
 
 
 // ══════════════════════════════════════════════════════
-// doGET — handles all read requests
+// doGET — dispatch table for all read requests
 // ══════════════════════════════════════════════════════
+
+var GET_HANDLERS = {
+  get_progress:          function(p) { return handleGetProgress(p.student); },
+  get_settings:          function(p) { return handleGetSettings(p.student); },
+  get_test_results:      function(p) { return handleGetTestResults(p.student); },
+  get_latest_submission: function(p) { return handleGetLatestSubmission(p.student, (p.day || '').trim()); },
+  get_all_submissions:   function(p) { return handleGetAllSubmissions(p.student); },
+  get_students:          function(_) { return handleGetStudents(); },
+  get_attendance:        function(p) { return handleGetAttendance(p.student); },
+  generate_lesson:       function(p) { return handleGenerateLesson(p.level, parseInt(p.day, 10), p.topic, String(p.spanish || '').toLowerCase() === 'true', p.student); },
+  get_library:           function(_) { return handleGetLibrary(); },
+  get_library_entry:     function(p) { return handleGetLibraryEntry(p.id); },
+  get_audio:             function(p) { return handleGetAudio(p.id); },
+  get_errors:            function(_) { return handleGetErrors(); },
+};
 
 function doGet(e) {
   var action = (e.parameter.action || '').trim();
   var student = (e.parameter.student || '').trim();
-  var result = { found: false };
 
   // ── Auth check ──
   if (!validateToken(e.parameter)) {
@@ -268,50 +377,12 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  var result;
   try {
-    if (action === 'get_progress') {
-      result = handleGetProgress(student);
-
-    } else if (action === 'get_settings') {
-      result = handleGetSettings(student);
-
-    } else if (action === 'get_test_results') {
-      result = handleGetTestResults(student);
-
-    } else if (action === 'get_latest_submission') {
-      result = handleGetLatestSubmission(student, (e.parameter.day || '').trim());
-
-    } else if (action === 'get_all_submissions') {
-      result = handleGetAllSubmissions(student);
-
-    } else if (action === 'get_students') {
-      result = handleGetStudents();
-
-    } else if (action === 'get_attendance') {
-      result = handleGetAttendance(student);
-
-    } else if (action === 'generate_lesson') {
-      result = handleGenerateLesson(
-        e.parameter.level,
-        parseInt(e.parameter.day, 10),
-        e.parameter.topic,
-        String(e.parameter.spanish || '').toLowerCase() === 'true',
-        student
-      );
-
-    } else if (action === 'get_library') {
-      result = handleGetLibrary();
-
-    } else if (action === 'get_library_entry') {
-      result = handleGetLibraryEntry(e.parameter.id);
-
-    } else if (action === 'get_audio') {
-      result = handleGetAudio(e.parameter.id);
-
-    } else {
-      result = { error: 'Unknown action: ' + action };
-    }
+    var handler = GET_HANDLERS[action];
+    result = handler ? handler(e.parameter) : { error: 'Unknown action: ' + action };
   } catch (err) {
+    logError(action, student, err.message, e.parameter);
     result = { error: err.message };
   }
 
@@ -322,9 +393,12 @@ function doGet(e) {
 
 
 // ── GET: get_progress ──────────────────────────────────
-// Returns the student's journey status for the hub page
+// Returns the student's journey status for the hub page (cached 5 min)
 function handleGetProgress(studentName) {
   if (!studentName) return { found: false };
+  var cacheKey = 'progress_' + String(studentName).toLowerCase().trim();
+  var cached = cacheGet(cacheKey);
+  if (cached) return cached;
 
   var result = {
     found: false,
@@ -411,6 +485,7 @@ function handleGetProgress(studentName) {
     studentsSheet.appendRow([studentName, new Date().toISOString().split('T')[0]]);
   }
 
+  cachePut(cacheKey, result);
   return result;
 }
 
@@ -452,14 +527,17 @@ function handleGetAttendance(studentName) {
 
 
 // ── GET: get_settings ──────────────────────────────────
-// Returns teacher preferences for a student
+// Returns teacher preferences for a student (cached 5 min)
 function handleGetSettings(studentName) {
   if (!studentName) return { found: false };
+  var cacheKey = 'settings_' + String(studentName).toLowerCase().trim();
+  var cached = cacheGet(cacheKey);
+  if (cached) return cached;
 
   var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
   if (!row) return { found: false };
 
-  return {
+  var result = {
     found: true,
     allow_spanish: String(row['allow_spanish']).toLowerCase() === 'true',
     allow_skip_test: String(row['allow_skip_test']).toLowerCase() === 'true',
@@ -467,6 +545,8 @@ function handleGetSettings(studentName) {
     cefr_level: row['cefr_level'] || null,
     teacher_name: row['teacher_name'] || null
   };
+  cachePut(cacheKey, result);
+  return result;
 }
 
 
@@ -937,28 +1017,46 @@ function recycleProbability(entryCount) {
   return 0.8;
 }
 
-/** Load all active entries for a (level, day) bucket, with parsed difficulty + lesson objects. */
+/** Load all active entries for a (level, day) bucket.
+ *  Reads only the metadata columns first (skipping the large lesson_json).
+ *  The lesson JSON is loaded lazily via entry.loadLesson() when needed. */
 function getLibraryEntries(level, day) {
   var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
-  var rows   = sheetToObjects(sheet);
+  if (sheet.getLastRow() < 2) return [];
+
+  // Read header row to find column indices
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var colIdx = {};
+  ['id', 'level', 'day', 'is_active', 'original_difficulty_json', 'times_served', 'created_at', 'source_student', 'lesson_json'].forEach(function(c) {
+    colIdx[c] = headerRow.indexOf(c);
+  });
+
+  // Read all data rows (including lesson_json — needed for serving)
+  var dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, headerRow.length);
+  var allRows = dataRange.getValues();
+
+  var targetLevel = String(level).trim();
+  var targetDay   = parseInt(day, 10);
   var result = [];
-  for (var i = 0; i < rows.length; i++) {
-    var r = rows[i];
-    if (String(r['level']).trim() !== String(level).trim()) continue;
-    if (parseInt(r['day'], 10) !== parseInt(day, 10)) continue;
-    if (String(r['is_active']).trim() === 'false') continue;
+
+  for (var i = 0; i < allRows.length; i++) {
+    var row = allRows[i];
+    if (String(row[colIdx['level']]).trim() !== targetLevel) continue;
+    if (parseInt(row[colIdx['day']], 10) !== targetDay) continue;
+    if (String(row[colIdx['is_active']]).trim() === 'false') continue;
     var entry = {
-      id:             String(r['id']).trim(),
-      level:          r['level'],
-      day:            r['day'],
-      created_at:     r['created_at'],
-      source_student: r['source_student'],
-      times_served:   parseInt(r['times_served'], 10) || 0,
+      id:             String(row[colIdx['id']]).trim(),
+      level:          row[colIdx['level']],
+      day:            row[colIdx['day']],
+      created_at:     row[colIdx['created_at']],
+      source_student: row[colIdx['source_student']],
+      times_served:   parseInt(row[colIdx['times_served']], 10) || 0,
       difficulty:     null,
       lesson:         null
     };
-    try { if (r['original_difficulty_json']) entry.difficulty = JSON.parse(String(r['original_difficulty_json'])); } catch (e) {}
-    try { if (r['lesson_json'])              entry.lesson     = JSON.parse(String(r['lesson_json']));              } catch (e) {}
+    try { var dj = row[colIdx['original_difficulty_json']]; if (dj) entry.difficulty = JSON.parse(String(dj)); } catch (e) {}
+    try { var lj = row[colIdx['lesson_json']];              if (lj) entry.lesson     = JSON.parse(String(lj)); } catch (e) {}
     result.push(entry);
   }
   return result;
@@ -1210,6 +1308,17 @@ function handleGetAudio(fileId) {
 }
 
 
+// ── GET: get_errors ──────────────────────────────────
+// Returns the last 50 error log entries (teacher endpoint)
+function handleGetErrors() {
+  var sheet = getOrCreateSheet('Error Log', ['timestamp', 'action', 'student', 'message', 'params']);
+  if (sheet.getLastRow() < 2) return { found: true, errors: [] };
+  var rows = sheetToObjects(sheet);
+  // Most recent first, limited to 50
+  rows.reverse();
+  return { found: true, errors: rows.slice(0, 50) };
+}
+
 // ══════════════════════════════════════════════════════
 // AUDIO STORAGE — Google Drive helpers
 // ══════════════════════════════════════════════════════
@@ -1293,6 +1402,90 @@ function handleSaveAudio(body) {
 }
 
 
+// ══════════════════════════════════════════════════════
+// doPOST — dispatch table for all write requests
+// ══════════════════════════════════════════════════════
+
+/**
+ * POST handlers return either:
+ *  - { _json: object } → send that object as the JSON response (for handlers that build their own result)
+ *  - undefined/void    → send { result: 'success' }
+ */
+var POST_HANDLERS = {
+  save_audio: function(params, e) {
+    var audioBody;
+    if (e.postData && e.postData.contents) {
+      try { audioBody = JSON.parse(e.postData.contents); } catch (err) { audioBody = null; }
+    }
+    if (!audioBody || !audioBody.recordings) {
+      throw new Error('Could not parse audio request body. postData type: ' + (e.postData ? e.postData.type : 'none'));
+    }
+    return { _json: handleSaveAudio(audioBody) };
+  },
+
+  save_progress: function(params) {
+    var name = requireParam(params, 'student_name');
+    requireParam(params, 'day_number');
+    requireParam(params, 'level');
+    safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
+    cacheInvalidateStudent(name);
+  },
+
+  save_marks: function(params) {
+    var name = requireParam(params, 'student_name');
+    requireParam(params, 'day_number');
+    safeAppendRow('Lesson Marks', HEADERS['Lesson Marks'], params);
+    cacheInvalidateStudent(name);
+  },
+
+  save_attendance: function(params) {
+    var name = requireParam(params, 'student_name');
+    var attendData = {
+      student_name: name,
+      attendance_json: params['attendance_json'] || '{}',
+      absence_notes: params['absence_notes'] || '',
+      updated_at: new Date().toLocaleString()
+    };
+    upsertByStudent('Attendance', HEADERS['Attendance'], name, attendData);
+    cacheInvalidateStudent(name);
+  },
+
+  update_settings: function(params) {
+    var name = requireParam(params, 'student_name');
+    // Merge with existing row so partial updates (e.g. just difficulty)
+    // don't wipe unrelated fields like teacher_name or cefr_level.
+    var existing = findLastByStudent('Settings', HEADERS['Settings'], name) || {};
+    var data = {};
+    HEADERS['Settings'].forEach(function(h) {
+      data[h] = (params[h] !== undefined) ? params[h] : (existing[h] || '');
+    });
+    data['updated_at'] = new Date().toLocaleString();
+    upsertByStudent('Settings', HEADERS['Settings'], name, data);
+    cacheInvalidateStudent(name);
+  },
+
+  delete_library_entry: function(params) {
+    requireParam(params, 'id');
+    return { _json: handleDeleteLibraryEntry(params['id']) };
+  },
+
+  // No action → student submitted placement test
+  _submit_test: function(params) {
+    requireParam(params, 'candidate_name');
+    safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
+    cacheInvalidateStudent(params['candidate_name']);
+  },
+
+  // Examiner Results (identified by sheet_name, not action)
+  _examiner_results: function(params) {
+    var name = requireParam(params, 'candidate_name');
+    var examData = {};
+    HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
+    upsertByStudent('Examiner Results', HEADERS['Examiner Results'], name, examData);
+    cacheInvalidateStudent(name);
+  },
+};
+
 function doPost(e) {
   var params = e.parameter;
   var action = (params['action'] || '').trim();
@@ -1307,7 +1500,6 @@ function doPost(e) {
   }
 
   // ── Auth check ──
-  // Teacher actions require teacher_token; all others require app token
   if (TEACHER_ACTIONS[action] || isExaminerPost(params)) {
     if (!validateTeacherToken(params)) {
       return ContentService
@@ -1320,73 +1512,26 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  try {
-    if (action === 'save_audio') {
-      var audioBody;
-      if (e.postData && e.postData.contents) {
-        try { audioBody = JSON.parse(e.postData.contents); } catch (err) { audioBody = null; }
-      }
-      if (!audioBody || !audioBody.recordings) {
-        return ContentService
-          .createTextOutput(JSON.stringify({ result: 'error', message: 'Could not parse audio request body. postData type: ' + (e.postData ? e.postData.type : 'none') }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
-      return ContentService
-        .createTextOutput(JSON.stringify(handleSaveAudio(audioBody)))
-        .setMimeType(ContentService.MimeType.JSON);
+  // ── Resolve handler ──
+  var handler = POST_HANDLERS[action];
+  if (!handler && sheetName === 'Examiner Results') handler = POST_HANDLERS._examiner_results;
+  if (!handler && !action)                          handler = POST_HANDLERS._submit_test;
 
-    } else if (action === 'save_progress') {
-      safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
-
-    } else if (action === 'save_marks') {
-      safeAppendRow('Lesson Marks', HEADERS['Lesson Marks'], params);
-
-    } else if (action === 'save_attendance') {
-      var attendData = {
-        student_name: params['student_name'] || '',
-        attendance_json: params['attendance_json'] || '{}',
-        absence_notes: params['absence_notes'] || '',
-        updated_at: new Date().toLocaleString()
-      };
-      upsertByStudent('Attendance', HEADERS['Attendance'], params['student_name'], attendData);
-
-    } else if (action === 'update_settings') {
-      // Merge with existing row so partial updates (e.g. just difficulty)
-      // don't wipe unrelated fields like teacher_name or cefr_level.
-      var existing = findLastByStudent('Settings', HEADERS['Settings'], params['student_name']) || {};
-      var data = {};
-      HEADERS['Settings'].forEach(function(h) {
-        data[h] = (params[h] !== undefined) ? params[h] : (existing[h] || '');
-      });
-      data['updated_at'] = new Date().toLocaleString();
-      upsertByStudent('Settings', HEADERS['Settings'], params['student_name'], data);
-
-    } else if (sheetName === 'Examiner Results') {
-      var examData = {};
-      HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
-      upsertByStudent('Examiner Results', HEADERS['Examiner Results'], params['candidate_name'], examData);
-
-    } else if (action === 'delete_library_entry') {
-      return ContentService
-        .createTextOutput(JSON.stringify(handleDeleteLibraryEntry(params['id'])))
-        .setMimeType(ContentService.MimeType.JSON);
-
-    } else if (!action) {
-      // No action specified → student submitted placement test → Initial Test Results
-      safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
-
-    } else {
-      // Unknown action — refuse instead of polluting Initial Test Results
-      return ContentService
-        .createTextOutput(JSON.stringify({ result: 'error', message: 'Unknown action: ' + action }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-
+  if (!handler) {
     return ContentService
-      .createTextOutput(JSON.stringify({ result: 'success' }))
+      .createTextOutput(JSON.stringify({ result: 'error', message: 'Unknown action: ' + action }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
 
+  try {
+    var result = handler(params, e);
+    var body = (result && result._json) ? result._json : { result: 'success' };
+    return ContentService
+      .createTextOutput(JSON.stringify(body))
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
+    var student = params['student_name'] || params['candidate_name'] || '';
+    logError(action || sheetName || 'submit_test', student, err.message, params);
     return ContentService
       .createTextOutput(JSON.stringify({ result: 'error', message: err.message }))
       .setMimeType(ContentService.MimeType.JSON);

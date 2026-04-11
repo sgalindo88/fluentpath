@@ -408,6 +408,10 @@ Print-inspired, academic, warm -- designed to feel calm and professional for adu
 
 **Authentication:** All API requests require an `APP_SECRET` token (set in Script Properties). Teacher-only endpoints (grading, settings, attendance, library management) additionally require a `TEACHER_SECRET`. Tokens are auto-injected by `api.js`. See `src/scripts/config.local.js` for frontend setup.
 
+**Performance:** GET endpoints use `CacheService` (5-minute TTL) for student progress and settings. `TextFinder` is used for targeted row lookups instead of full-sheet scans. POST handlers automatically invalidate the cache for the affected student.
+
+**Validation:** All POST endpoints validate required parameters and return clear error messages for missing/invalid input. Errors are logged server-side in an "Error Log" sheet tab.
+
 Full schema documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHEETS_SCHEMA.md).
 
 ### Claude API (Anthropic) -- via Apps Script Proxy
