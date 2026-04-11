@@ -110,6 +110,7 @@ function syncIndividualKeys(d) {
   if (d.total_score)       localStorage.setItem(FP.KEYS.TEST_SCORE, String(d.total_score));
   if (d.lessons_completed) localStorage.setItem(FP.KEYS.LAST_LESSON_DAY, String(d.lessons_completed));
   if (d.last_lesson_date)  localStorage.setItem(FP.KEYS.LAST_LESSON_DATE, d.last_lesson_date);
+  if (d.course_id)         localStorage.setItem(FP.KEYS.COURSE_ID, String(d.course_id));
 }
 
 /** Build progress object from individual localStorage keys (set by other pages). */
@@ -140,6 +141,8 @@ function renderDashboard() {
   const courseDays = d.lessons_completed || 0;
   const courseStarted = courseDays > 0;
   const courseComplete = courseDays >= COURSE_DAYS;
+  const courseNum = parseInt(d.course_id || '1', 10);
+  const courseLabel = courseNum > 1 ? 'Course ' + courseNum + ' — ' : '';
 
   // Subtitle
   const subtitle = document.getElementById('dashSubtitle');
@@ -205,7 +208,7 @@ function renderDashboard() {
   if (courseComplete) {
     msCourse.classList.add('done');
     msCourse.classList.remove('active');
-    msCourseDesc.textContent = 'You completed all ' + COURSE_DAYS + ' lessons. Well done!';
+    msCourseDesc.textContent = courseLabel + 'You completed all ' + COURSE_DAYS + ' lessons. Well done!';
     msCourseCard.style.display = 'block';
     msCourseCard.innerHTML =
       '<span class="badge badge-done">Complete</span>' +
@@ -215,7 +218,7 @@ function renderDashboard() {
     msCourse.classList.add('active');
     const pct = Math.round((courseDays / COURSE_DAYS) * 100);
     const nextDay = courseDays + 1;
-    msCourseDesc.textContent = 'You have completed ' + courseDays + ' of ' + COURSE_DAYS + ' lessons. Next up: Day ' + nextDay + '.';
+    msCourseDesc.textContent = courseLabel + 'You have completed ' + courseDays + ' of ' + COURSE_DAYS + ' lessons. Next up: Day ' + nextDay + '.';
     msCourseCard.style.display = 'block';
 
     // Build lesson history sorted by day number

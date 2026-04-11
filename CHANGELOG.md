@@ -4,6 +4,37 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.40.0] - 2026-04-11
+
+### Added — Multi-course support
+
+#### Data model
+- **`course_id` column** added to `Course Progress`, `Lesson Marks`, and `Settings` sheet headers
+- Existing data without `course_id` defaults to `'1'` — fully backward compatible
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetProgress`** — now accepts optional `course_id` parameter; reads the active `course_id` from Settings if not provided; filters Course Progress and Lesson Marks by course
+- **`promote_student` POST handler** — increments `course_id` in Settings and sets the new CEFR level; returns `{ result: 'success', course_id, level }`
+- **`TEACHER_ACTIONS`** — added `promote_student` (requires teacher token)
+
+#### Student hub (`src/scripts/hub.js`)
+- **`course_id` stored** in localStorage (`fp_course_id`) from progress response
+- **Course label** — shows "Course 2 — " prefix on milestone descriptions when `course_id > 1`
+
+#### Student lesson (`src/scripts/student-lesson.js`)
+- **Save payload** — includes `course_id` from localStorage (default `'1'`)
+
+#### Teacher dashboard (`src/examiner-panel.html`)
+- **"Course Promotion" card** — new section in Student Profile with level selector and "Promote to Next Course" button
+
+#### Teacher dashboard JS (`src/scripts/examiner-panel.js`)
+- **`promoteStudent()`** — POSTs `promote_student` action, updates local state and sidebar on success
+
+#### Config (`src/scripts/config.js`)
+- **`FP.KEYS.COURSE_ID`** — added `'fp_course_id'` localStorage key
+
+---
+
 ## [0.39.0] - 2026-04-11
 
 ### Added — Gamification and achievement system

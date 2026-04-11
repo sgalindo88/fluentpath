@@ -1708,6 +1708,7 @@ async function saveProgress(endTime, speakingAudioJson) {
         ? state.lessonContent.vocabulary.words.map(function(w) { return w.word; })
         : []
     ),
+    course_id: localStorage.getItem('fp_course_id') || '1',
   };
 
   try {

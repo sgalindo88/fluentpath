@@ -54,4 +54,5 @@ FP.KEYS = {
   HUB_CACHE:        'fp_hub_cache',
   TEACHER_STATE:    'fluentpath_teacher',
   LESSON_MARKS:     'fp_lesson_marks',
+  COURSE_ID:        'fp_course_id',
 };

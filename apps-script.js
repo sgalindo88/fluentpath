@@ -64,7 +64,8 @@ var TEACHER_ACTIONS = {
   'update_settings': true,
   'save_attendance': true,
   'delete_library_entry': true,
-  'ai_summary': true
+  'ai_summary': true,
+  'promote_student': true
 };
 
 /** POST actions that write Examiner Results (no explicit action field) */
@@ -389,7 +390,8 @@ var HEADERS = {
     'lesson_date', 'day_number', 'start_time', 'end_time',
     'time_spent_min', 'topic', 'confidence',
     'writing_response', 'student_notes', 'warmup_response',
-    'speaking_transcript', 'answers_json', 'speaking_audio_json'
+    'speaking_transcript', 'answers_json', 'speaking_audio_json',
+    'course_id'
   ],
   'Settings': [
     'student_name', 'teacher_name', 'cefr_level',
@@ -397,13 +399,15 @@ var HEADERS = {
     'course_month', 'updated_at', 'notes',
     'difficulty_json',
     'teacher_email', 'student_email',
-    'notify_on_test', 'notify_on_submission'
+    'notify_on_test', 'notify_on_submission',
+    'course_id'
   ],
   'Lesson Marks': [
     'graded_at', 'teacher_name', 'student_name',
     'lesson_date', 'day_number', 'level',
     'writing_score', 'speaking_score', 'total_score',
-    'writing_breakdown', 'speaking_breakdown', 'overall_feedback'
+    'writing_breakdown', 'speaking_breakdown', 'overall_feedback',
+    'course_id'
   ],
   'Students': [
     'student_name', 'date_joined'
@@ -427,7 +431,7 @@ var HEADERS = {
 // ══════════════════════════════════════════════════════
 
 var GET_HANDLERS = {
-  get_progress:          function(p) { return handleGetProgress(p.student); },
+  get_progress:          function(p) { return handleGetProgress(p.student, p.course_id); },
   get_settings:          function(p) { return handleGetSettings(p.student); },
   get_test_results:      function(p) { return handleGetTestResults(p.student); },
   get_latest_submission: function(p) { return handleGetLatestSubmission(p.student, (p.day || '').trim()); },
@@ -471,10 +475,19 @@ function doGet(e) {
 
 
 // ── GET: get_progress ──────────────────────────────────
-// Returns the student's journey status for the hub page (cached 5 min)
-function handleGetProgress(studentName) {
+// Returns the student's journey status for the hub page (cached 5 min).
+// Optional course_id filters to a specific course (default: current from Settings, fallback 1).
+function handleGetProgress(studentName, courseId) {
   if (!studentName) return { found: false };
-  var cacheKey = 'progress_' + String(studentName).toLowerCase().trim();
+
+  // Determine active course_id from Settings if not explicitly provided
+  if (!courseId) {
+    var settingsRow = findLastByStudent('Settings', HEADERS['Settings'], studentName);
+    courseId = (settingsRow && settingsRow['course_id']) ? String(settingsRow['course_id']).trim() : '1';
+  }
+  courseId = String(courseId).trim() || '1';
+
+  var cacheKey = 'progress_' + String(studentName).toLowerCase().trim() + '_c' + courseId;
   var cached = cacheGet(cacheKey);
   if (cached) return cached;
 
@@ -486,7 +499,8 @@ function handleGetProgress(studentName) {
     total_score: null,
     lessons_completed: 0,
     last_lesson_date: null,
-    lessons: []
+    lessons: [],
+    course_id: courseId
   };
 
   // Check if placement test was taken
@@ -511,19 +525,22 @@ function handleGetProgress(studentName) {
   var target = String(studentName).toLowerCase().trim();
   var lessons = [];
 
-  // Read Lesson Marks to join writing_score + speaking_score by day
+  // Read Lesson Marks to join writing_score + speaking_score by day (filtered by course_id)
   var marksSheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
   var marksRows = sheetToObjects(marksSheet);
   var marksByDay = {};
   for (var m = 0; m < marksRows.length; m++) {
-    if (String(marksRows[m]['student_name'] || '').toLowerCase().trim() === target) {
-      marksByDay[String(marksRows[m]['day_number'])] = marksRows[m];
-    }
+    if (String(marksRows[m]['student_name'] || '').toLowerCase().trim() !== target) continue;
+    var mCourse = String(marksRows[m]['course_id'] || '1').trim();
+    if (mCourse !== courseId) continue;
+    marksByDay[String(marksRows[m]['day_number'])] = marksRows[m];
   }
 
   for (var i = 0; i < progressRows.length; i++) {
     var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
-    if (name === target) {
+    // Filter by student and course_id (rows without course_id default to '1')
+    var rowCourseId = String(progressRows[i]['course_id'] || '1').trim();
+    if (name === target && rowCourseId === courseId) {
       result.found = true;
       var dayKey = String(progressRows[i]['day_number'] || '');
       var dayMarks = marksByDay[dayKey];
@@ -1872,6 +1889,25 @@ var POST_HANDLERS = {
   delete_library_entry: function(params) {
     requireParam(params, 'id');
     return { _json: handleDeleteLibraryEntry(params['id']) };
+  },
+
+  promote_student: function(params) {
+    var name = requireParam(params, 'student_name');
+    var newLevel = requireParam(params, 'new_level');
+    // Read current settings to get course_id
+    var existing = findLastByStudent('Settings', HEADERS['Settings'], name) || {};
+    var currentCourse = parseInt(existing['course_id'] || '1', 10);
+    var newCourse = currentCourse + 1;
+    // Update settings with new level and incremented course_id
+    var data = {};
+    HEADERS['Settings'].forEach(function(h) { data[h] = existing[h] || ''; });
+    data['student_name'] = name;
+    data['cefr_level'] = newLevel;
+    data['course_id'] = String(newCourse);
+    data['updated_at'] = new Date().toLocaleString();
+    upsertByStudent('Settings', HEADERS['Settings'], name, data);
+    cacheInvalidateStudent(name);
+    return { _json: { result: 'success', course_id: newCourse, level: newLevel } };
   },
 
   // No action → student submitted placement test

@@ -592,6 +592,23 @@
           </div>
         </div>
 
+        <div class="card card-top green">
+          <div class="card-label">COURSE PROMOTION</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">When a student completes all <span id="prof-course-days">20</span> lessons, promote them to the next level. This creates a new course with a fresh 20-day timeline.</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:13px;">New level:</label>
+            <select id="prof-promote-level" style="padding:6px 10px;border:1px solid var(--rule);background:var(--cream);font-size:13px;">
+              <option value="A2">A2 — Elementary</option>
+              <option value="B1">B1 — Intermediate</option>
+              <option value="B2">B2 — Upper-Intermediate</option>
+              <option value="C1">C1 — Advanced</option>
+              <option value="C2">C2 — Proficiency</option>
+            </select>
+            <button class="btn-primary" onclick="promoteStudent()">Promote to Next Course</button>
+          </div>
+          <div class="send-status" id="promote-status"></div>
+        </div>
+
         <div class="card card-top ink">
           <div class="card-label">NOTIFICATIONS</div>
           <div class="pf"><label>Teacher Email</label><input type="email" id="prof-teacher-email" placeholder="teacher@email.com"></div>

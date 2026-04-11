@@ -1824,6 +1824,32 @@ function saveTeacherNotes() {
 // ══════════════════════════════════════════════════════
 // PROFILE
 // ══════════════════════════════════════════════════════
+async function promoteStudent() {
+  var name = ex.studentName;
+  if (!name) { showStatus('promote-status', 'No student selected.', true); return; }
+  var newLevel = document.getElementById('prof-promote-level').value;
+  if (!newLevel) { showStatus('promote-status', 'Select the new level.', true); return; }
+
+  showStatus('promote-status', 'Promoting...', false);
+  try {
+    var result = await FP.api.postJson(
+      WEBHOOK_URL + '?action=promote_student',
+      { student_name: name, new_level: newLevel }
+    );
+    if (result && result.result === 'success') {
+      ex.studentLevel = newLevel;
+      document.getElementById('prof-level').value = newLevel;
+      document.getElementById('sb-student-level').textContent = newLevel + ' · ' + getLevelTheme(newLevel);
+      saveToLocalStorage();
+      showStatus('promote-status', '✓ Promoted to Course ' + result.course_id + ' at level ' + newLevel + '.', false);
+    } else {
+      showStatus('promote-status', '⚠ ' + (result.message || 'Promotion failed.'), true);
+    }
+  } catch (e) {
+    showStatus('promote-status', '⚠ Could not reach server: ' + e.message, true);
+  }
+}
+
 function saveProfile() {
   const student = document.getElementById('prof-student-name').value.trim();
   const level   = document.getElementById('prof-level').value;
