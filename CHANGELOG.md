@@ -4,6 +4,33 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.42.0] - 2026-04-11
+
+### Added — Service worker for offline resilience
+
+#### New file: `sw.js`
+- **App shell caching** — pre-caches all HTML, CSS, and JS files on install; serves cache-first with background update
+- **API GET caching** — stale-while-revalidate strategy for Apps Script responses; returns cached data immediately while refreshing in the background
+- **Google Fonts** — cache-first (rarely change)
+- **POST queue** — failed POST requests stored in IndexedDB (`fp-post-queue`); replayed automatically when connectivity returns via the `online` event
+- **Cache cleanup** — old cache versions deleted on activate
+
+#### Service worker registration (`src/scripts/api.js`)
+- **Auto-registration** — registers `sw.js` from the computed root path on every page load
+- **Update check** — polls for service worker updates every 30 minutes
+- **Online replay** — sends `replay-queue` message to the SW when the browser comes back online
+- **Queue replay listener** — logs replayed request count to console
+
+#### Strategies
+| Request type | Strategy | Fallback |
+|-------------|----------|----------|
+| Local HTML/CSS/JS | Cache-first | 503 "Offline" text |
+| Google Fonts | Cache-first | — |
+| API GET (Apps Script) | Stale-while-revalidate | Cached response or JSON `{ error: "Offline" }` |
+| API POST (Apps Script) | Network-first | Queue in IndexedDB, replay on reconnect |
+
+---
+
 ## [0.41.0] - 2026-04-11
 
 ### Added — clasp for Apps Script version control

@@ -204,3 +204,37 @@ if (FP.ENV === 'development') {
     document.body.appendChild(banner);
   });
 }
+
+
+// ══════════════════════════════════════════════════════
+// SERVICE WORKER — offline resilience
+// ══════════════════════════════════════════════════════
+
+if ('serviceWorker' in navigator) {
+  // Service worker must be at the root to control all pages.
+  // Compute the root-relative path to sw.js from any page depth.
+  var base = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+  var rootBase = base.replace(/src\/$/, '').replace(/legacy\/$/, '');
+  var swPath = rootBase + 'sw.js';
+
+  navigator.serviceWorker.register(swPath).then(function (reg) {
+    // Check for updates every 30 minutes
+    setInterval(function () { reg.update(); }, 30 * 60 * 1000);
+  }).catch(function (err) {
+    console.warn('[FluentPath] Service worker registration failed:', err);
+  });
+
+  // When coming back online, tell the SW to replay queued POSTs
+  window.addEventListener('online', function () {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage('replay-queue');
+    }
+  });
+
+  // Listen for messages from the SW (e.g. queue replayed)
+  navigator.serviceWorker.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'queue-replayed') {
+      console.log('[FluentPath] Replayed ' + event.data.count + ' offline request(s).');
+    }
+  });
+}
