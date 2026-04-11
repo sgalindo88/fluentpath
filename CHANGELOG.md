@@ -4,6 +4,27 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.39.0] - 2026-04-11
+
+### Added — Gamification and achievement system
+
+#### Student hub (`src/scripts/hub.js`)
+- **6 achievements** defined: First Steps (test completed), Level Up (CEFR assigned), Day One (1 lesson), 5-Day Streak (5 lessons), Halfway There (10 lessons), Graduate (20 lessons)
+- **`renderAchievements(d)`** — renders a horizontal badge row below the CTA section; earned badges in full colour, unearned badges greyed out
+- **`showAchievementToast(achievement)`** — animated toast notification at the bottom of the screen when a new achievement is unlocked; auto-dismisses after 3.5 seconds
+- **localStorage tracking** — earned achievement IDs stored in `fp_achievements`; compared on each render to detect newly unlocked achievements
+- Called at the end of `renderDashboard()` so achievements update on every hub visit
+
+#### Student hub HTML (`index.html`)
+- **Achievements container** — `<div id="achievementsSection">` added below the CTA section
+
+#### Styles (`src/styles/hub.css`)
+- **`.achieve-grid`** — flexbox row with wrapping badges
+- **`.achieve-badge`** — card with icon + label; `.earned` (gold border, white bg) vs `.unearned` (greyed out, low opacity)
+- **Toast animation** — `@keyframes fpToastIn` for slide-up entrance
+
+---
+
 ## [0.38.0] - 2026-04-11
 
 ### Added — Staging environment

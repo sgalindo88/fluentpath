@@ -306,6 +306,7 @@ function renderDashboard() {
       '<a class="btn-cta" href="src/student-course.html">Start Day ' + nextDay + ' Lesson</a>';
   }
 
+  renderAchievements(d);
   showScreen('screen-dashboard');
 }
 
@@ -325,6 +326,85 @@ function logout() {
   progress = null;
   document.getElementById('studentName').value = '';
   showScreen('screen-welcome');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Achievements
+   ───────────────────────────────────────────────────────────── */
+
+var ACHIEVEMENTS = [
+  { id: 'first_steps',     icon: '🎯', name: 'First Steps',      test: function(d) { return d.test_completed; } },
+  { id: 'level_up',        icon: '📊', name: 'Level Up',         test: function(d) { return !!d.cefr_level; } },
+  { id: 'day_one',         icon: '📝', name: 'Day One',          test: function(d) { return (d.lessons_completed || 0) >= 1; } },
+  { id: 'five_streak',     icon: '🔥', name: '5-Day Streak',     test: function(d) { return (d.lessons_completed || 0) >= 5; } },
+  { id: 'halfway',         icon: '⭐', name: 'Halfway There',    test: function(d) { return (d.lessons_completed || 0) >= Math.floor(COURSE_DAYS / 2); } },
+  { id: 'graduate',        icon: '🎓', name: 'Graduate',         test: function(d) { return (d.lessons_completed || 0) >= COURSE_DAYS; } },
+];
+
+/** Previously earned achievement IDs (stored in localStorage to detect new ones). */
+var previousAchievements = [];
+try {
+  previousAchievements = JSON.parse(localStorage.getItem('fp_achievements') || '[]');
+} catch (e) { previousAchievements = []; }
+
+function renderAchievements(d) {
+  var section = document.getElementById('achievementsSection');
+  if (!section) return;
+
+  var earned = [];
+  var badges = ACHIEVEMENTS.map(function(a) {
+    var isEarned = a.test(d);
+    if (isEarned) earned.push(a.id);
+    return '<div class="achieve-badge ' + (isEarned ? 'earned' : 'unearned') + '">' +
+      '<div class="achieve-icon">' + a.icon + '</div>' +
+      '<div class="achieve-label">' + escHtml(a.name) + '</div>' +
+      '</div>';
+  }).join('');
+
+  section.style.display = 'block';
+  section.innerHTML =
+    '<div class="achieve-section-title">ACHIEVEMENTS</div>' +
+    '<div class="achieve-grid">' + badges + '</div>';
+
+  // Show toast for newly unlocked achievements
+  var newlyEarned = earned.filter(function(id) { return previousAchievements.indexOf(id) < 0; });
+  if (newlyEarned.length > 0) {
+    newlyEarned.forEach(function(id) {
+      var a = ACHIEVEMENTS.find(function(a) { return a.id === id; });
+      if (a) showAchievementToast(a);
+    });
+    try { localStorage.setItem('fp_achievements', JSON.stringify(earned)); } catch (e) {}
+    previousAchievements = earned;
+  } else if (earned.length > 0) {
+    try { localStorage.setItem('fp_achievements', JSON.stringify(earned)); } catch (e) {}
+  }
+}
+
+function showAchievementToast(achievement) {
+  var toast = document.createElement('div');
+  toast.style.cssText =
+    'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:300;' +
+    'background:var(--ink,#1a1208);color:var(--paper,#f5f0e8);' +
+    'padding:14px 24px;border-radius:8px;font-size:14px;font-weight:600;' +
+    'box-shadow:0 8px 24px rgba(0,0,0,0.3);display:flex;align-items:center;gap:10px;' +
+    'animation:fpToastIn 0.4s ease;font-family:"Source Serif 4",serif;';
+  toast.innerHTML = '<span style="font-size:24px;">' + achievement.icon + '</span>' +
+    '<span>Achievement unlocked: <em>' + escHtml(achievement.name) + '</em></span>';
+  document.body.appendChild(toast);
+
+  // Inject animation if not already present
+  if (!document.getElementById('fp-toast-style')) {
+    var s = document.createElement('style');
+    s.id = 'fp-toast-style';
+    s.textContent = '@keyframes fpToastIn{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
+    document.head.appendChild(s);
+  }
+
+  setTimeout(function() {
+    toast.style.transition = 'opacity 0.4s';
+    toast.style.opacity = '0';
+    setTimeout(function() { toast.remove(); }, 400);
+  }, 3500);
 }
 
 /* ─────────────────────────────────────────────────────────────

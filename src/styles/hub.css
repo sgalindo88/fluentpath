@@ -97,4 +97,31 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700;line-heigh
   .login-card{padding:24px 20px;}
   .dash-header{padding-top:24px;}
   .milestone-card{padding:16px;}
+  .achieve-grid{gap:10px;}
+  .achieve-badge{min-width:70px;padding:10px 8px;}
+  .achieve-icon{font-size:20px;}
+  .achieve-label{font-size:9px;}
 }
+
+/* ── Achievements ── */
+.achieve-section-title {
+  font-size:9px; letter-spacing:0.25em; text-transform:uppercase;
+  color:var(--muted); font-weight:600; margin-bottom:12px;
+}
+.achieve-grid {
+  display:flex; gap:12px; flex-wrap:wrap;
+}
+.achieve-badge {
+  display:flex; flex-direction:column; align-items:center;
+  min-width:80px; padding:12px 10px; border-radius:8px;
+  border:1.5px solid var(--rule); background:var(--cream);
+  text-align:center; transition:all 0.3s;
+}
+.achieve-badge.earned {
+  border-color:var(--gold); background:white;
+}
+.achieve-badge.unearned {
+  opacity:0.35; filter:grayscale(1);
+}
+.achieve-icon { font-size:24px; margin-bottom:4px; }
+.achieve-label { font-size:10px; font-weight:600; color:var(--ink); line-height:1.3; }
