@@ -93,6 +93,7 @@ function tryResumeLesson() {
     messageEs: 'Tienes una lección sin terminar (Día ' + data.dayNumber + '). ¿Quieres continuar donde lo dejaste?',
     savedAt: data._savedAt,
     onResume: function() {
+      lessonInProgress = true;
       // Restore state
       state.studentName = data.studentName;
       state.level = data.level;
@@ -217,7 +218,13 @@ function getCourseDay() {
 // ══════════════════════════════════════════════════════
 // BEGIN LESSON — fetch AI content and render
 // ══════════════════════════════════════════════════════
+// ── beforeunload — warn when lesson is in progress ──
+var lessonInProgress = false;
+function onBeforeUnload(e) { if (lessonInProgress) { e.preventDefault(); } }
+window.addEventListener('beforeunload', onBeforeUnload);
+
 async function beginLesson() {
+  lessonInProgress = true;
   showScreen('screen-lesson');
   state.startTime = new Date();
   startTimer();
@@ -1515,6 +1522,7 @@ function updateTimerDisplay() {
 // FINISH LESSON
 // ══════════════════════════════════════════════════════
 async function finishLesson() {
+  lessonInProgress = false;
   clearLessonCheckpoint();
   clearInterval(state.timerInterval);
   try { if (recognition) { recognition.stop(); convRecording = false; } } catch(e) {}

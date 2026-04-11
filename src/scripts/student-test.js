@@ -112,6 +112,7 @@ function tryResumeTest() {
     messageEs: 'Tienes una prueba sin terminar. ¿Quieres continuar donde lo dejaste?',
     savedAt: data._savedAt,
     onResume: function() {
+      testInProgress = true;
       document.getElementById('candidateName').value = data.candidateName || '';
       document.getElementById('candidateDate').value = data.candidateDate || '';
       state.answers = data.answers || {};
@@ -178,6 +179,11 @@ function updateProgress(id) {
   document.getElementById('progressBar').style.width = pct + '%';
 }
 
+// ── beforeunload — warn when test is in progress ──
+var testInProgress = false;
+function onBeforeUnload(e) { if (testInProgress) { e.preventDefault(); } }
+window.addEventListener('beforeunload', onBeforeUnload);
+
 // ── START ──
 function startTest() {
   const nameEl = document.getElementById('candidateName');
@@ -196,6 +202,7 @@ function startTest() {
   nameEl.style.borderColor = '';
   dateEl.style.borderColor = '';
   if (!dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+  testInProgress = true;
   state.startTime = new Date();
   showScreen('screen-reading-intro');
   startTestAutoSave();
@@ -516,6 +523,7 @@ if (window.speechSynthesis) {
 
 // ── FINAL RESULTS — auto-submit ──
 async function finishTest() {
+  testInProgress = false;
   state.endTime = new Date();
   showScreen('screen-submitting');
   await submitResults();
@@ -651,6 +659,7 @@ async function submitResults() {
 }
 
 function restartTest() {
+  testInProgress = false;
   clearTestCheckpoint();
   // Reset state
   state.answers = {};

@@ -77,6 +77,7 @@ async function fetchProgress(name) {
     // Cache combined state + sync individual keys for other pages
     localStorage.setItem(FP.KEYS.HUB_CACHE, JSON.stringify({ progress: progress, settings: settings }));
     syncIndividualKeys(progress);
+    hideOfflineBanner();
     renderDashboard();
     return;
   }
@@ -91,8 +92,11 @@ async function fetchProgress(name) {
       settings.allow_skip_test = !!cached.settings.allow_skip_test;
       settings.allow_retake_test = !!cached.settings.allow_retake_test;
     }
+    showOfflineBanner();
   } else {
     progress = buildDefaultProgress();
+    // Only show offline banner if we actually tried the network (not first visit with no data)
+    if (!progData) showOfflineBanner();
   }
 
   renderDashboard();
@@ -321,6 +325,30 @@ function logout() {
   progress = null;
   document.getElementById('studentName').value = '';
   showScreen('screen-welcome');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Offline Banner
+   ───────────────────────────────────────────────────────────── */
+function showOfflineBanner() {
+  var existing = document.getElementById('fp-offline-banner');
+  if (existing) { existing.style.display = 'flex'; return; }
+  var banner = document.createElement('div');
+  banner.id = 'fp-offline-banner';
+  banner.style.cssText =
+    'display:flex;align-items:center;justify-content:center;gap:12px;' +
+    'position:fixed;bottom:0;left:0;right:0;z-index:200;' +
+    'background:#fff8e1;border-top:1px solid #c9933a;color:#5a3e0a;' +
+    'padding:10px 16px;font-size:13px;font-family:"Source Serif 4",serif;';
+  banner.innerHTML =
+    '<span>Offline — showing cached data</span>' +
+    '<button onclick="refreshProgress()" style="background:#5a3e0a;color:white;border:none;padding:4px 14px;font-size:12px;cursor:pointer;border-radius:4px;">Retry</button>';
+  document.body.appendChild(banner);
+}
+
+function hideOfflineBanner() {
+  var el = document.getElementById('fp-offline-banner');
+  if (el) el.style.display = 'none';
 }
 
 /* ─────────────────────────────────────────────────────────────

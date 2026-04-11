@@ -4,6 +4,24 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.27.0] - 2026-04-11
+
+### Added — beforeunload warning and offline banner
+
+#### Student lesson (`src/scripts/student-lesson.js`)
+- **`beforeunload` handler** — browser prompts "Leave site?" when the student navigates away during an active lesson; disabled after successful save or on completion screen
+- **`lessonInProgress` flag** — set `true` on `beginLesson()` and checkpoint resume, `false` on `finishLesson()`
+
+#### Placement test (`src/scripts/student-test.js`)
+- **`beforeunload` handler** — same pattern as lesson; warns during active test
+- **`testInProgress` flag** — set `true` on `startTest()` and checkpoint resume, `false` on `finishTest()` and `restartTest()`
+
+#### Student hub (`src/scripts/hub.js`)
+- **Offline banner** — fixed bottom bar with "Offline — showing cached data" and a Retry button; shown when the API call fails and localStorage fallback is used; auto-hidden on successful fetch
+- **`showOfflineBanner()`** / **`hideOfflineBanner()`** — create/show/hide the banner dynamically
+
+---
+
 ## [0.26.0] - 2026-04-11
 
 ### Changed — Lazy-load teacher dashboard panels
