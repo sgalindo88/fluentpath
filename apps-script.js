@@ -441,14 +441,15 @@ var GET_HANDLERS = {
   get_errors:            function(_) { return handleGetErrors(); },
   get_student_report:    function(p) { return handleGetStudentReport(p.student); },
   get_class_overview:    function(_) { return handleGetClassOverview(); },
+  health:                function(_) { return handleHealth(); },
 };
 
 function doGet(e) {
   var action = (e.parameter.action || '').trim();
   var student = (e.parameter.student || '').trim();
 
-  // ── Auth check ──
-  if (!validateToken(e.parameter)) {
+  // ── Auth check (skip for health endpoint — uptime monitors can't authenticate) ──
+  if (action !== 'health' && !validateToken(e.parameter)) {
     return ContentService
       .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -1621,6 +1622,35 @@ function handleGetErrors() {
   rows.reverse();
   return { found: true, errors: rows.slice(0, 50) };
 }
+
+// ── GET: health ──────────────────────────────────────
+// Returns system health status — use with an uptime monitor
+function handleHealth() {
+  var checks = {};
+
+  // Check Google Sheets access
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var students = ss.getSheetByName('Students');
+    checks.sheets = students ? 'ok' : 'ok (no Students tab yet)';
+    checks.sheet_name = ss.getName();
+  } catch (e) {
+    checks.sheets = 'error: ' + e.message;
+  }
+
+  // Check Script Properties
+  var props = PropertiesService.getScriptProperties();
+  checks.claude_key = props.getProperty('CLAUDE_API_KEY') ? 'set' : 'missing';
+  checks.app_secret = props.getProperty('APP_SECRET') ? 'set' : 'missing';
+
+  // Metadata
+  checks.timestamp = new Date().toISOString();
+  checks.status = (checks.sheets === 'ok' && checks.claude_key === 'set' && checks.app_secret === 'set')
+    ? 'healthy' : 'degraded';
+
+  return checks;
+}
+
 
 // ── GET: get_student_report ───────────────────────────
 // Compiles all data for a student into a single report object

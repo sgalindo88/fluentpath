@@ -4,6 +4,23 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.36.0] - 2026-04-11
+
+### Added — Health monitoring endpoint
+
+#### Apps Script (`apps-script.js`)
+- **`handleHealth()`** — new GET endpoint (`?action=health`) returning system status: Google Sheets accessibility, Claude API key status, APP_SECRET status, spreadsheet name, and timestamp
+- **No authentication required** — the health endpoint skips the token check so uptime monitors (UptimeRobot, Better Stack, etc.) can ping it without credentials
+- **Status values**: `healthy` (all checks pass) or `degraded` (any check fails)
+- Added to `GET_HANDLERS` dispatch table
+
+#### Setup
+To monitor uptime, configure a free monitor (e.g., UptimeRobot) to ping:
+`https://script.google.com/macros/s/YOUR_ID/exec?action=health` every 5 minutes.
+Alert on any response where `status` is not `healthy`.
+
+---
+
 ## [0.35.0] - 2026-04-11
 
 ### Added — Keyboard navigation and accessibility
