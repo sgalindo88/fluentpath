@@ -8,35 +8,37 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v2';
+var CACHE_VERSION = 'fp-v3';
+// App shell paths are relative to the service worker's location (project root).
+// This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 var APP_SHELL = [
-  '/',
-  '/index.html',
-  '/teacher.html',
-  '/src/student-initial-test.html',
-  '/src/student-course.html',
-  '/src/examiner-panel.html',
-  '/src/scripts/config.js',
-  '/src/scripts/api.js',
-  '/src/scripts/utils.js',
-  '/src/scripts/checkpoint.js',
-  '/src/scripts/hub.js',
-  '/src/scripts/teacher-portal.js',
-  '/src/scripts/student-test.js',
-  '/src/scripts/student-lesson.js',
-  '/src/scripts/examiner-panel.js',
-  '/src/scripts/video-call.js',
-  '/src/scripts/i18n.js',
-  '/src/styles/theme.css',
-  '/src/styles/mobile.css',
-  '/src/styles/hub.css',
-  '/src/styles/teacher-portal.css',
-  '/src/styles/student-test.css',
-  '/src/styles/student-lesson.css',
-  '/src/styles/examiner-panel.css',
+  './',
+  './index.html',
+  './teacher.html',
+  './src/student-initial-test.html',
+  './src/student-course.html',
+  './src/examiner-panel.html',
+  './src/scripts/config.js',
+  './src/scripts/api.js',
+  './src/scripts/utils.js',
+  './src/scripts/checkpoint.js',
+  './src/scripts/hub.js',
+  './src/scripts/teacher-portal.js',
+  './src/scripts/student-test.js',
+  './src/scripts/student-lesson.js',
+  './src/scripts/examiner-panel.js',
+  './src/scripts/video-call.js',
+  './src/scripts/i18n.js',
+  './src/styles/theme.css',
+  './src/styles/mobile.css',
+  './src/styles/hub.css',
+  './src/styles/teacher-portal.css',
+  './src/styles/student-test.css',
+  './src/styles/student-lesson.css',
+  './src/styles/examiner-panel.css',
 ];
 
-var API_CACHE = 'fp-api-v2';
+var API_CACHE = 'fp-api-v3';
 var POST_QUEUE_DB = 'fp-post-queue';
 var POST_QUEUE_STORE = 'requests';
 
