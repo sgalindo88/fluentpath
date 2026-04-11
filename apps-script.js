@@ -138,6 +138,75 @@ function cacheInvalidateStudent(studentName) {
 }
 
 // ══════════════════════════════════════════════════════
+// EMAIL NOTIFICATIONS
+// ══════════════════════════════════════════════════════
+
+/**
+ * Load notification settings for a student from the Settings sheet.
+ * Returns { teacherEmail, studentEmail, notifyOnTest, notifyOnSubmission }
+ */
+function getNotificationSettings(studentName) {
+  var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
+  if (!row) return null;
+  return {
+    teacherEmail:       String(row['teacher_email'] || '').trim(),
+    studentEmail:       String(row['student_email'] || '').trim(),
+    notifyOnTest:       String(row['notify_on_test']).toLowerCase() === 'true',
+    notifyOnSubmission: String(row['notify_on_submission']).toLowerCase() === 'true',
+  };
+}
+
+/**
+ * Send a notification email. Silently fails if MailApp is unavailable or
+ * the email is empty — notifications are best-effort, never blocking.
+ */
+function sendNotificationEmail(to, subject, htmlBody) {
+  if (!to) return;
+  try {
+    MailApp.sendEmail({ to: to, subject: subject, htmlBody: htmlBody });
+  } catch (e) {
+    logError('notification', to, 'Email send failed: ' + e.message, { subject: subject });
+  }
+}
+
+/** Notify the teacher that a student submitted a placement test. */
+function notifyTeacherTestSubmitted(studentName) {
+  var ns = getNotificationSettings(studentName);
+  if (!ns || !ns.notifyOnTest || !ns.teacherEmail) return;
+  sendNotificationEmail(
+    ns.teacherEmail,
+    'FluentPath: ' + studentName + ' submitted placement test',
+    '<p><strong>' + studentName + '</strong> has submitted their placement test and is awaiting grading.</p>' +
+    '<p><a href="https://sgalindo88.github.io/fluentpath/teacher.html">Open Dashboard</a></p>'
+  );
+}
+
+/** Notify the teacher that a student completed a lesson. */
+function notifyTeacherLessonSubmitted(studentName, dayNumber) {
+  var ns = getNotificationSettings(studentName);
+  if (!ns || !ns.notifyOnSubmission || !ns.teacherEmail) return;
+  sendNotificationEmail(
+    ns.teacherEmail,
+    'FluentPath: ' + studentName + ' completed Day ' + dayNumber,
+    '<p><strong>' + studentName + '</strong> has completed Day ' + dayNumber + ' and is ready for grading.</p>' +
+    '<p><a href="https://sgalindo88.github.io/fluentpath/teacher.html">Open Dashboard</a></p>'
+  );
+}
+
+/** Notify the student that their placement test has been graded. */
+function notifyStudentTestGraded(studentName, cefrLevel) {
+  var ns = getNotificationSettings(studentName);
+  if (!ns || !ns.studentEmail) return;
+  sendNotificationEmail(
+    ns.studentEmail,
+    'FluentPath: Your placement test has been graded',
+    '<p>Your teacher has reviewed your placement test.</p>' +
+    '<p>Your level: <strong>' + (cefrLevel || 'TBD') + '</strong></p>' +
+    '<p><a href="https://sgalindo88.github.io/fluentpath/">View your progress</a></p>'
+  );
+}
+
+// ══════════════════════════════════════════════════════
 // ERROR LOGGING
 // ══════════════════════════════════════════════════════
 
@@ -326,7 +395,9 @@ var HEADERS = {
     'student_name', 'teacher_name', 'cefr_level',
     'allow_spanish', 'allow_skip_test', 'allow_retake_test',
     'course_month', 'updated_at', 'notes',
-    'difficulty_json'
+    'difficulty_json',
+    'teacher_email', 'student_email',
+    'notify_on_test', 'notify_on_submission'
   ],
   'Lesson Marks': [
     'graded_at', 'teacher_name', 'student_name',
@@ -1483,10 +1554,11 @@ var POST_HANDLERS = {
 
   save_progress: function(params) {
     var name = requireParam(params, 'student_name');
-    requireParam(params, 'day_number');
+    var day = requireParam(params, 'day_number');
     requireParam(params, 'level');
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
+    notifyTeacherLessonSubmitted(name, day);
   },
 
   save_marks: function(params) {
@@ -1529,9 +1601,10 @@ var POST_HANDLERS = {
 
   // No action → student submitted placement test
   _submit_test: function(params) {
-    requireParam(params, 'candidate_name');
+    var name = requireParam(params, 'candidate_name');
     safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
-    cacheInvalidateStudent(params['candidate_name']);
+    cacheInvalidateStudent(name);
+    notifyTeacherTestSubmitted(name);
   },
 
   // Examiner Results (identified by sheet_name, not action)
@@ -1541,6 +1614,7 @@ var POST_HANDLERS = {
     HEADERS['Examiner Results'].forEach(function(h) { examData[h] = params[h] || ''; });
     upsertByStudent('Examiner Results', HEADERS['Examiner Results'], name, examData);
     cacheInvalidateStudent(name);
+    notifyStudentTestGraded(name, params['cefr_level']);
   },
 };
 

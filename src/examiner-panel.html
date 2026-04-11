@@ -569,6 +569,19 @@
           </div>
         </div>
 
+        <div class="card card-top ink">
+          <div class="card-label">NOTIFICATIONS</div>
+          <div class="pf"><label>Teacher Email</label><input type="email" id="prof-teacher-email" placeholder="teacher@email.com"></div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Notify on test submission</div><div class="toggle-desc">Email the teacher when this student submits a placement test</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-notify-test"><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Notify on lesson completion</div><div class="toggle-desc">Email the teacher when this student completes a daily lesson</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-notify-submission"><span class="slider"></span></label>
+          </div>
+        </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
           <button class="btn-secondary" onclick="exportProfile('json')">Download Report (JSON)</button>

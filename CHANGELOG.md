@@ -4,6 +4,29 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.31.0] - 2026-04-11
+
+### Added — Email notification system
+
+#### Apps Script (`apps-script.js`)
+- **`getNotificationSettings(studentName)`** — reads `teacher_email`, `student_email`, `notify_on_test`, `notify_on_submission` from the Settings sheet
+- **`sendNotificationEmail(to, subject, htmlBody)`** — best-effort email via `MailApp.sendEmail`; silently logs failures to Error Log instead of blocking the request
+- **`notifyTeacherTestSubmitted(studentName)`** — emails the teacher when a student submits a placement test
+- **`notifyTeacherLessonSubmitted(studentName, dayNumber)`** — emails the teacher when a student completes a daily lesson
+- **`notifyStudentTestGraded(studentName, cefrLevel)`** — emails the student when their test has been graded and a CEFR level assigned
+- **Settings headers** extended with `teacher_email`, `student_email`, `notify_on_test`, `notify_on_submission`
+- **Notification triggers** added to `_submit_test`, `save_progress`, and `_examiner_results` POST handlers
+
+#### Teacher dashboard (`src/scripts/examiner-panel.js`)
+- **State extended** — `ex.teacherEmail`, `ex.notifyOnTest`, `ex.notifyOnSubmission` added to state object and persisted to localStorage
+- **Profile form** — reads/writes notification fields on `initApp` and `saveProfile`
+- **`update_settings` payload** — includes `teacher_email`, `student_email`, `notify_on_test`, `notify_on_submission`
+
+#### Teacher dashboard HTML (`src/examiner-panel.html`)
+- **Notifications card** — new "NOTIFICATIONS" section in the Student Profile panel with teacher email input and two toggle switches (notify on test, notify on lesson)
+
+---
+
 ## [0.30.0] - 2026-04-11
 
 ### Added — Student data export and daily backup

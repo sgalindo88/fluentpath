@@ -29,6 +29,9 @@ let ex = {
   pendingLessons: [],
   currentWeek: 1,
   ptGraded: null,       // saved placement test grading state (sliders, notes, scores)
+  teacherEmail: '',
+  notifyOnTest: false,
+  notifyOnSubmission: false,
 };
 
 const FOCUS_OPTIONS = [
@@ -439,6 +442,9 @@ function initApp() {
   document.getElementById('prof-allow-spanish').checked      = !!ex.allowSpanish;
   document.getElementById('prof-allow-skip-test').checked    = !!ex.allowSkipTest;
   document.getElementById('prof-allow-retake-test').checked  = !!ex.allowRetakeTest;
+  document.getElementById('prof-teacher-email').value        = ex.teacherEmail || '';
+  document.getElementById('prof-notify-test').checked        = !!ex.notifyOnTest;
+  document.getElementById('prof-notify-submission').checked  = !!ex.notifyOnSubmission;
 
   buildAttendanceGrid();
   buildDifficultyGrid();
@@ -1654,14 +1660,17 @@ function saveProfile() {
   if (!student) { showStatus('profile-save-status', 'Student name is required.', true); return; }
   if (!level)   { showStatus('profile-save-status', 'Student level is required.', true); return; }
 
-  ex.studentName      = student;
-  ex.studentEmail     = document.getElementById('prof-email').value;
-  ex.studentLevel     = level;
-  ex.studentMonth     = parseInt(document.getElementById('prof-month').value);
-  ex.studentNotes     = document.getElementById('prof-notes').value;
-  ex.allowSpanish     = document.getElementById('prof-allow-spanish').checked;
-  ex.allowSkipTest    = document.getElementById('prof-allow-skip-test').checked;
-  ex.allowRetakeTest  = document.getElementById('prof-allow-retake-test').checked;
+  ex.studentName         = student;
+  ex.studentEmail        = document.getElementById('prof-email').value;
+  ex.studentLevel        = level;
+  ex.studentMonth        = parseInt(document.getElementById('prof-month').value);
+  ex.studentNotes        = document.getElementById('prof-notes').value;
+  ex.allowSpanish        = document.getElementById('prof-allow-spanish').checked;
+  ex.allowSkipTest       = document.getElementById('prof-allow-skip-test').checked;
+  ex.allowRetakeTest     = document.getElementById('prof-allow-retake-test').checked;
+  ex.teacherEmail        = document.getElementById('prof-teacher-email').value;
+  ex.notifyOnTest        = document.getElementById('prof-notify-test').checked;
+  ex.notifyOnSubmission  = document.getElementById('prof-notify-submission').checked;
 
   saveToLocalStorage();
   document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
@@ -1681,6 +1690,10 @@ function saveProfile() {
       course_month: ex.studentMonth,
       notes: ex.studentNotes,
       difficulty_json: buildDifficultyJson(),
+      teacher_email: ex.teacherEmail || '',
+      student_email: ex.studentEmail || '',
+      notify_on_test: ex.notifyOnTest || false,
+      notify_on_submission: ex.notifyOnSubmission || false,
     }).catch(function() {
       showStatus('profile-save-status', 'Saved locally. Could not sync to Google Sheet.', true);
     });
@@ -1801,6 +1814,7 @@ function saveToLocalStorage() {
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
       ptGraded: ex.ptGraded || null,
+      teacherEmail: ex.teacherEmail, notifyOnTest: ex.notifyOnTest, notifyOnSubmission: ex.notifyOnSubmission,
     };
     localStorage.setItem('fluentpath_teacher', JSON.stringify(toSave));
   } catch(e) {}
