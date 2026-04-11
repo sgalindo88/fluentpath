@@ -571,7 +571,8 @@
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-primary" onclick="saveProfile()">Save Profile</button>
-          <button class="btn-secondary" onclick="exportProfile()">Export Data</button>
+          <button class="btn-secondary" onclick="exportProfile('json')">Download Report (JSON)</button>
+          <button class="btn-secondary" onclick="exportProfile('csv')">Download Report (CSV)</button>
         </div>
         <div class="send-status" id="profile-save-status"></div>
       </div>

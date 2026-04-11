@@ -4,6 +4,27 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.30.0] - 2026-04-11
+
+### Added — Student data export and daily backup
+
+#### Apps Script (`apps-script.js`)
+- **`handleGetStudentReport(studentName)`** — new GET endpoint (`get_student_report`) that compiles all data for a student: placement test results, settings, attendance, course submissions, and lesson marks into a single JSON response
+- **`getMarksForStudent(studentName)`** — helper that returns all Lesson Marks rows for a student
+- **`dailyBackup()`** — time-triggered function that copies the entire spreadsheet to a "FluentPath Backups" folder in Google Drive; prunes old copies to keep only the 7 most recent
+- Added `get_student_report` to the `GET_HANDLERS` dispatch table
+
+#### Teacher dashboard (`src/scripts/examiner-panel.js`)
+- **`exportProfile(format)`** — rewritten to fetch a full server-side report via `get_student_report`, with fallback to local `ex` data if the server is unavailable
+- **`downloadReportJSON()`** — downloads the report as pretty-printed JSON
+- **`downloadReportCSV()`** — flattens the report into Section/Field/Value rows and downloads as CSV
+- Both formats include: student info, settings, placement test scores, course submissions, and lesson marks
+
+#### Teacher dashboard HTML (`src/examiner-panel.html`)
+- **Export buttons** — "Export Data" button replaced with "Download Report (JSON)" and "Download Report (CSV)"
+
+---
+
 ## [0.29.0] - 2026-04-11
 
 ### Added — Timer pause and smart auto-pause

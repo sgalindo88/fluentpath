@@ -1687,12 +1687,97 @@ function saveProfile() {
   }
 }
 
-function exportProfile() {
-  const data = { ...ex, pendingLessons: undefined };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
+async function exportProfile(format) {
+  var name = ex.studentName;
+  if (!name) { showStatus('profile-save-status', 'No student selected.', true); return; }
+  showStatus('profile-save-status', 'Generating report...', false);
+
+  var report = null;
+  // Try fetching a full report from the server
+  if (WEBHOOK_URL && WEBHOOK_URL.includes('script.google.com')) {
+    try {
+      report = await FP.api.get(WEBHOOK_URL + '?action=get_student_report&student=' + encodeURIComponent(name), { timeout: 30000 });
+    } catch (e) { /* fallback to local data */ }
+  }
+
+  // Fallback: local data if server unavailable
+  if (!report || !report.found) {
+    report = {
+      student: name,
+      generated_at: new Date().toISOString(),
+      settings: { cefr_level: ex.studentLevel },
+      attendance: { attendance_json: JSON.stringify(ex.attendance) },
+      course_progress: { submissions: ex.lessonRecords },
+      marks: [],
+      placement_test: {},
+    };
+  }
+
+  var safeName = (name || 'student').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+  var dateStr = new Date().toISOString().split('T')[0];
+
+  if (format === 'csv') {
+    downloadReportCSV(report, safeName, dateStr);
+  } else {
+    downloadReportJSON(report, safeName, dateStr);
+  }
+  showStatus('profile-save-status', '✓ Report downloaded.', false);
+}
+
+function downloadReportJSON(report, safeName, dateStr) {
+  var blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `fluentpath-${(ex.studentName||'student').replace(/\s/g,'-')}-export.json`;
+  a.download = 'fluentpath-' + safeName + '-' + dateStr + '.json';
+  a.click();
+}
+
+function downloadReportCSV(report, safeName, dateStr) {
+  var rows = [['Section', 'Field', 'Value']];
+
+  // Student info
+  rows.push(['Student', 'Name', report.student || '']);
+  rows.push(['Student', 'Generated', report.generated_at || '']);
+  if (report.settings) {
+    rows.push(['Settings', 'CEFR Level', report.settings.cefr_level || '']);
+    rows.push(['Settings', 'Allow Spanish', String(report.settings.allow_spanish || false)]);
+  }
+
+  // Placement test
+  if (report.placement_test && report.placement_test.found) {
+    var pt = report.placement_test;
+    rows.push(['Placement Test', 'Reading Score', pt.reading_score || '']);
+    rows.push(['Placement Test', 'Listening Score', pt.listening_score || '']);
+    rows.push(['Placement Test', 'Writing Score', pt.writing_score || '']);
+    rows.push(['Placement Test', 'Speaking Score', pt.speaking_score || '']);
+    rows.push(['Placement Test', 'Total', pt.total_score || '']);
+    rows.push(['Placement Test', 'CEFR Level', pt.cefr_level || '']);
+  }
+
+  // Course progress (submissions)
+  var subs = (report.course_progress && report.course_progress.submissions) || [];
+  subs.forEach(function(s) {
+    rows.push(['Lesson', 'Day ' + (s.day_number || s.day || '?'), 'Topic: ' + (s.topic || '')]);
+  });
+
+  // Marks
+  var marks = report.marks || [];
+  marks.forEach(function(m) {
+    rows.push(['Marks', 'Day ' + (m.day_number || '?'), 'Writing: ' + (m.writing_score || '-') + ', Speaking: ' + (m.speaking_score || '-')]);
+  });
+
+  // Build CSV string
+  var csv = rows.map(function(r) {
+    return r.map(function(cell) {
+      var s = String(cell).replace(/"/g, '""');
+      return '"' + s + '"';
+    }).join(',');
+  }).join('\n');
+
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fluentpath-' + safeName + '-' + dateStr + '.csv';
   a.click();
 }
 

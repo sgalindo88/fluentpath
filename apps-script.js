@@ -364,6 +364,7 @@ var GET_HANDLERS = {
   get_library_entry:     function(p) { return handleGetLibraryEntry(p.id); },
   get_audio:             function(p) { return handleGetAudio(p.id); },
   get_errors:            function(_) { return handleGetErrors(); },
+  get_student_report:    function(p) { return handleGetStudentReport(p.student); },
 };
 
 function doGet(e) {
@@ -1317,6 +1318,63 @@ function handleGetErrors() {
   // Most recent first, limited to 50
   rows.reverse();
   return { found: true, errors: rows.slice(0, 50) };
+}
+
+// ── GET: get_student_report ───────────────────────────
+// Compiles all data for a student into a single report object
+function handleGetStudentReport(studentName) {
+  if (!studentName) return { error: 'Missing student name' };
+  return {
+    found: true,
+    student: studentName,
+    generated_at: new Date().toISOString(),
+    placement_test: handleGetTestResults(studentName),
+    settings: handleGetSettings(studentName),
+    attendance: handleGetAttendance(studentName),
+    course_progress: handleGetAllSubmissions(studentName),
+    marks: getMarksForStudent(studentName),
+  };
+}
+
+/** Return all lesson marks rows for a student. */
+function getMarksForStudent(studentName) {
+  var sheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
+  if (sheet.getLastRow() < 2) return [];
+  var rows = sheetToObjects(sheet);
+  var target = String(studentName).toLowerCase().trim();
+  return rows.filter(function(r) {
+    return String(r['student_name'] || '').toLowerCase().trim() === target;
+  });
+}
+
+// ── DAILY BACKUP ─────────────────────────────────────
+// Run this as a time-driven trigger (Edit → Triggers → Add → dailyBackup → Day timer).
+// Copies the entire spreadsheet to a "FluentPath Backups" folder in Drive.
+// Keeps only the last 7 backups.
+function dailyBackup() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var root = DriveApp.getRootFolder();
+  var folder = getOrCreateSubfolder(root, 'FluentPath Backups');
+  var dateSuffix = new Date().toISOString().split('T')[0];
+  var backupName = 'FluentPath Backup ' + dateSuffix;
+
+  // Copy the spreadsheet
+  var copy = ss.copy(backupName);
+  copy.moveTo(folder);
+
+  // Prune old backups: keep only the 7 most recent
+  var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  var all = [];
+  while (files.hasNext()) {
+    var f = files.next();
+    all.push({ file: f, date: f.getDateCreated() });
+  }
+  all.sort(function(a, b) { return b.date - a.date; });
+  for (var i = 7; i < all.length; i++) {
+    all[i].file.setTrashed(true);
+  }
+
+  Logger.log('Backup created: ' + backupName + ' (' + all.length + ' total, kept 7)');
 }
 
 // ══════════════════════════════════════════════════════
