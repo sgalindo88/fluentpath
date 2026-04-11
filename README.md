@@ -481,7 +481,8 @@ The full database schema is documented in [`GOOGLE_SHEETS_SCHEMA.md`](GOOGLE_SHE
 
 ## Technology Stack
 
-- **Frontend:** Pure HTML, CSS, and vanilla JavaScript (no frameworks or build tools)
+- **Frontend:** Pure HTML, CSS, and vanilla JavaScript (no frameworks)
+- **Code Quality:** ESLint 9 + Prettier (run `npm run lint` and `npm run format`)
 - **Styling:** CSS custom properties, Flexbox, CSS Grid, media queries, print stylesheets, shared `mobile.css`
 - **Fonts:** Google Fonts (Playfair Display, Source Serif 4)
 - **APIs:** Claude API (lesson generation, summaries), Google Apps Script (data persistence), Formspree (email delivery), Web Speech API (TTS + STT), Jitsi Meet (video calls)

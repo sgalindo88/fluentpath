@@ -1,0 +1,83 @@
+import js from '@eslint/js';
+import prettier from 'eslint-config-prettier';
+
+export default [
+  js.configs.recommended,
+  prettier,
+  {
+    languageOptions: {
+      ecmaVersion: 2020,
+      sourceType: 'script',
+      globals: {
+        // Browser globals
+        window: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        fetch: 'readonly',
+        AbortController: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        console: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
+        prompt: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        event: 'readonly',
+        HTMLElement: 'readonly',
+        SpeechRecognition: 'readonly',
+        SpeechSynthesisUtterance: 'readonly',
+        MediaRecorder: 'readonly',
+        Audio: 'readonly',
+        Date: 'readonly',
+        Promise: 'readonly',
+        Set: 'readonly',
+        Map: 'readonly',
+        URL: 'readonly',
+        Blob: 'readonly',
+        FileReader: 'readonly',
+        URLSearchParams: 'readonly',
+        Node: 'readonly',
+        MutationObserver: 'readonly',
+        Object: 'readonly',
+        Array: 'readonly',
+        JSON: 'readonly',
+        Math: 'readonly',
+        String: 'readonly',
+        Number: 'readonly',
+        parseInt: 'readonly',
+        parseFloat: 'readonly',
+        isNaN: 'readonly',
+        encodeURIComponent: 'readonly',
+        decodeURIComponent: 'readonly',
+        // FluentPath globals (shared across pages via script tags)
+        FP: 'writable',
+        escHtml: 'writable',
+        Checkpoint: 'writable',
+        VideoCall: 'writable',
+        I18n: 'writable',
+      },
+    },
+    rules: {
+      // Many functions are called from HTML onclick attributes, not from JS.
+      // We can't track those references, so disable unused-vars for top-level functions.
+      'no-unused-vars': 'off',
+      'no-undef': 'warn',
+      'no-redeclare': 'off',
+      'no-empty': ['warn', { allowEmptyCatch: true }],
+    },
+  },
+  {
+    ignores: [
+      'node_modules/',
+      'apps-script.js',
+      'legacy/',
+      'future_updates/',
+      '*.md',
+    ],
+  },
+];

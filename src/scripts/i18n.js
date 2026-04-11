@@ -216,7 +216,6 @@ const I18n = (() => {
     'Skip this writing task':       'Saltar esta tarea de escritura',
     'Type your answer here…':       'Escribe tu respuesta aquí…',
     'Write your sentences here…':   'Escribe tus oraciones aquí…',
-    'Write your response here…':    'Escribe tu respuesta aquí…',
     'Any notes for your teacher or yourself? What was hard? What was easy?':
       '¿Notas para tu profesor o para ti? ¿Qué fue difícil? ¿Qué fue fácil?',
     'Jot down a few ideas before speaking…':
@@ -698,9 +697,7 @@ const I18n = (() => {
     teacherApprovalChecked = true;
     const name = localStorage.getItem('fp_student_name') || '';
     if (!name) return;
-    const webhook = (typeof WEBHOOK_URL !== 'undefined' && WEBHOOK_URL)
-      || (typeof GOOGLE_SHEET_WEBHOOK !== 'undefined' && GOOGLE_SHEET_WEBHOOK)
-      || '';
+    const webhook = (FP && FP.WEBHOOK_URL) || '';
     if (!webhook || webhook.includes('YOUR_')) return;
     try {
       const url = webhook + '?action=get_settings&student=' + encodeURIComponent(name);

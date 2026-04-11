@@ -4,6 +4,25 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.22.0] - 2026-04-11
+
+### Added — ESLint and Prettier
+
+#### New files
+- **`eslint.config.mjs`** — ESLint 9 flat config targeting browser globals, FluentPath shared globals (`FP`, `escHtml`, `Checkpoint`, `VideoCall`, `I18n`), and rules tuned for a multi-file `<script>` tag codebase (onclick-called functions, shared globals via writable)
+- **`.prettierrc`** — single quotes, trailing commas, 120-char line width
+- **`package.json`** — npm scripts: `lint`, `lint:fix`, `format`, `format:check`, `dev`
+
+#### Bug fixes found by ESLint
+- **`src/scripts/i18n.js`** — removed duplicate `'Write your response here…'` key in translation strings; simplified webhook detection to use `FP.WEBHOOK_URL` directly instead of checking for page-level `WEBHOOK_URL` / `GOOGLE_SHEET_WEBHOOK` globals
+- **`src/scripts/student-lesson.js`** — fixed undefined `progressBar` reference on lesson completion screen; now uses `document.getElementById('progressBar')` consistently
+
+#### Result
+- `npm run lint` passes with **0 errors, 0 warnings**
+- Prettier config ready — run `npm run format` for a dedicated formatting pass
+
+---
+
 ## [0.21.0] - 2026-04-11
 
 ### Changed — Extract CSS from HTML files into `src/styles/`

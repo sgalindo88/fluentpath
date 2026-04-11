@@ -1529,7 +1529,7 @@ async function finishLesson() {
   document.getElementById('stat-day').textContent = state.dayNumber + ' / 20';
 
   showScreen('screen-complete');
-  progressBar.style.width = '100%';
+  document.getElementById('progressBar').style.width = '100%';
 
   // Save progress to localStorage so the hub page can track status
   try {
