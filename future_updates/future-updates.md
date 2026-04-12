@@ -66,3 +66,26 @@ Ideas, enhancements, and design alternatives we've discussed but deferred. Each 
 - **Option (b) is good enough.** Refusing to recycle custom-instructed lessons is a small library-size cost in exchange for a clean guarantee: no recycled lesson ever bleeds another student's custom context.
 
 **When to revisit:** If usage data shows that >30% of generated lessons have non-empty `aiInstructions` (so we're losing meaningful library contributions), AND we can prototype a similarity check cheap enough not to dominate the cost of recycling.
+
+---
+
+## Video Call Requests — Platform Picker and Saved Defaults
+
+**Status:** Deferred 2026-04-12 in favour of a simple free-text link input (the call-request system V1).
+
+**What it is:** When the teacher sends a call link in response to a student request, enhance the interface with either:
+- A **dropdown picker** ("Zoom" / "WhatsApp" / "Google Meet" / "Other") that sets an icon/label the student sees alongside the link
+- **Saved default links** stored in the teacher's settings (e.g. "My Zoom room" and "My WhatsApp number") — click one to send instantly, or fall back to a free-text field for one-off links
+
+**Why it's appealing:**
+- Students see at a glance which platform they're about to open — reduces confusion ("is this a Zoom link or WhatsApp?")
+- Teachers don't have to paste the same Zoom link 20 times a week
+- Could track per-student preferred platform based on usage history
+- Platform icon in the student's banner would feel more polished than a bare "Join Call" button
+
+**Why we deferred it:**
+- **Free-text input covers 95% of cases.** Teachers just paste whatever link they already have open in another tab.
+- **Saving default links adds UI surface** — need edit/delete controls, a settings section, validation, etc. Not worth it until the teacher is sending 5+ call links per day.
+- **Platform detection can be automatic.** If we want the icon, a simple regex on the URL (`zoom.us`, `meet.google.com`, `wa.me`, `whatsapp.com`) can infer the platform without asking the teacher to choose.
+
+**When to revisit:** When the teacher reports that pasting the same link repeatedly is a real friction, OR when we have multiple teachers each with their own default room.

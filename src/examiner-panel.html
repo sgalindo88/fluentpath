@@ -115,6 +115,9 @@
           <div class="panel-sub" id="dash-student-summary">Here's where your student stands today.</div>
         </div>
 
+        <!-- Pending call requests (hidden when empty) -->
+        <div id="dash-call-requests" style="display:none;margin-bottom:24px;"></div>
+
         <div class="stat-grid">
           <div class="stat-box gold">
             <div class="stat-val" id="stat-days-done">0</div>
@@ -592,6 +595,11 @@
           </div>
         </div>
 
+        <div class="card card-top blue">
+          <div class="card-label">VIDEO CALL</div>
+          <div id="prof-call-request-content" style="font-size:13px;color:var(--muted);font-style:italic;">No pending call request.</div>
+        </div>
+
         <div class="card card-top green">
           <div class="card-label">COURSE PROMOTION</div>
           <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">When a student completes all <span id="prof-course-days">20</span> lessons, promote them to the next level. This creates a new course with a fresh 20-day timeline.</p>
@@ -619,6 +627,10 @@
           <div class="toggle-row">
             <div><div class="toggle-label">Notify on lesson completion</div><div class="toggle-desc">Email the teacher when this student completes a daily lesson</div></div>
             <label class="toggle-switch"><input type="checkbox" id="prof-notify-submission"><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Notify on video call request</div><div class="toggle-desc">Email the teacher when this student requests a video call</div></div>
+            <label class="toggle-switch"><input type="checkbox" id="prof-notify-call" checked><span class="slider"></span></label>
           </div>
         </div>
 
@@ -817,6 +829,5 @@
 <script src="scripts/api.js"></script>
 <script src="scripts/utils.js"></script>
 <script src="scripts/examiner-panel.js"></script>
-<script src="scripts/video-call.js"></script>
 </body>
 </html>

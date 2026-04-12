@@ -447,3 +447,12 @@ function hideOfflineBanner() {
     fetchProgress(saved);
   }
 })();
+
+/* ─────────────────────────────────────────────────────────────
+   Initialize video call request button
+   ───────────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof CallRequest !== 'undefined') {
+    CallRequest.init({ page: 'hub' });
+  }
+});

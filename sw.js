@@ -8,7 +8,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v5';
+var CACHE_VERSION = 'fp-v7';
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 var APP_SHELL = [
@@ -27,7 +27,7 @@ var APP_SHELL = [
   './src/scripts/student-test.js',
   './src/scripts/student-lesson.js',
   './src/scripts/examiner-panel.js',
-  './src/scripts/video-call.js',
+  './src/scripts/call-request.js',
   './src/scripts/i18n.js',
   './src/styles/theme.css',
   './src/styles/mobile.css',

@@ -65,7 +65,10 @@ var TEACHER_ACTIONS = {
   'save_attendance': true,
   'delete_library_entry': true,
   'ai_summary': true,
-  'promote_student': true
+  'promote_student': true,
+  'send_call_link': true
+  // Note: update_call_status is student-callable too (they can dismiss)
+  // Note: request_video_call is student-callable (only needs app token)
 };
 
 /** POST actions that write Examiner Results (no explicit action field) */
@@ -150,10 +153,12 @@ function getNotificationSettings(studentName) {
   var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
   if (!row) return null;
   return {
-    teacherEmail:       String(row['teacher_email'] || '').trim(),
-    studentEmail:       String(row['student_email'] || '').trim(),
-    notifyOnTest:       String(row['notify_on_test']).toLowerCase() === 'true',
-    notifyOnSubmission: String(row['notify_on_submission']).toLowerCase() === 'true',
+    teacherEmail:        String(row['teacher_email'] || '').trim(),
+    studentEmail:        String(row['student_email'] || '').trim(),
+    notifyOnTest:        String(row['notify_on_test']).toLowerCase() === 'true',
+    notifyOnSubmission:  String(row['notify_on_submission']).toLowerCase() === 'true',
+    notifyOnCallRequest: String(row['notify_on_call_request']).toLowerCase() !== 'false', // default ON
+    cefrLevel:           String(row['cefr_level'] || '').trim(),
   };
 }
 
@@ -191,6 +196,29 @@ function notifyTeacherLessonSubmitted(studentName, dayNumber) {
     'FluentPath: ' + studentName + ' completed Day ' + dayNumber,
     '<p><strong>' + studentName + '</strong> has completed Day ' + dayNumber + ' and is ready for grading.</p>' +
     '<p><a href="https://sgalindo88.github.io/fluentpath/teacher.html">Open Dashboard</a></p>'
+  );
+}
+
+/** Notify the teacher that a student has requested a video call. */
+function notifyTeacherCallRequest(studentName, page, dayNumber) {
+  var ns = getNotificationSettings(studentName);
+  if (!ns || !ns.notifyOnCallRequest || !ns.teacherEmail) return;
+  var pageLabel = page === 'hub' ? 'the student hub'
+                : page === 'test' ? 'the placement test'
+                : page === 'lesson' ? ('Day ' + (dayNumber || '?') + ' lesson')
+                : page;
+  var ts = new Date().toLocaleString();
+  var cefr = ns.cefrLevel ? ' (level ' + ns.cefrLevel + ')' : '';
+  sendNotificationEmail(
+    ns.teacherEmail,
+    'FluentPath: ' + studentName + ' requested a video call',
+    '<p><strong>' + studentName + '</strong>' + cefr + ' has requested a video call.</p>' +
+    '<ul>' +
+      '<li>Page: ' + pageLabel + '</li>' +
+      '<li>Requested at: ' + ts + '</li>' +
+    '</ul>' +
+    '<p><a href="https://sgalindo88.github.io/fluentpath/src/examiner-panel.html?student=' +
+      encodeURIComponent(studentName) + '">Open ' + studentName + '\'s dashboard</a></p>'
   );
 }
 
@@ -399,7 +427,7 @@ var HEADERS = {
     'course_month', 'updated_at', 'notes',
     'difficulty_json',
     'teacher_email', 'student_email',
-    'notify_on_test', 'notify_on_submission',
+    'notify_on_test', 'notify_on_submission', 'notify_on_call_request',
     'course_id'
   ],
   'Lesson Marks': [
@@ -422,6 +450,10 @@ var HEADERS = {
   'Vocabulary Tracker': [
     'student_name', 'word', 'level', 'day_introduced',
     'last_reviewed', 'review_count', 'next_review_date'
+  ],
+  'Video Call Requests': [
+    'id', 'student_name', 'requested_at', 'page', 'day_number',
+    'call_link', 'link_sent_at', 'status'
   ]
 };
 
@@ -446,6 +478,8 @@ var GET_HANDLERS = {
   get_student_report:    function(p) { return handleGetStudentReport(p.student); },
   get_class_overview:    function(_) { return handleGetClassOverview(); },
   health:                function(_) { return handleHealth(); },
+  get_active_call_request: function(p) { return handleGetActiveCallRequest(p.student); },
+  get_call_requests:     function(_) { return handleGetCallRequests(); },
 };
 
 function doGet(e) {
@@ -1640,6 +1674,110 @@ function handleGetErrors() {
   return { found: true, errors: rows.slice(0, 50) };
 }
 
+// ══════════════════════════════════════════════════════
+// VIDEO CALL REQUESTS
+// ══════════════════════════════════════════════════════
+
+/** Student requests a video call. Returns the request id. */
+function handleRequestVideoCall(studentName, page, dayNumber) {
+  var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
+  var id = Utilities.getUuid();
+  var row = {
+    id: id,
+    student_name: studentName,
+    requested_at: new Date().toISOString(),
+    page: page || 'hub',
+    day_number: dayNumber || '',
+    call_link: '',
+    link_sent_at: '',
+    status: 'pending'
+  };
+  safeAppendRow('Video Call Requests', HEADERS['Video Call Requests'], row);
+  notifyTeacherCallRequest(studentName, page, dayNumber);
+  return { result: 'success', id: id };
+}
+
+/** Get the active (pending or sent) call request for a student. */
+function handleGetActiveCallRequest(studentName) {
+  if (!studentName) return { found: false };
+  var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
+  if (sheet.getLastRow() < 2) return { found: false };
+  var rows = sheetToObjects(sheet);
+  var target = String(studentName).toLowerCase().trim();
+  // Find most recent active request (pending or sent, not done/dismissed)
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var r = rows[i];
+    if (String(r['student_name'] || '').toLowerCase().trim() !== target) continue;
+    var status = String(r['status'] || '').trim();
+    if (status === 'pending' || status === 'sent') {
+      return {
+        found: true,
+        id: r['id'],
+        status: status,
+        call_link: r['call_link'] || '',
+        requested_at: r['requested_at'],
+        link_sent_at: r['link_sent_at'] || ''
+      };
+    }
+  }
+  return { found: false };
+}
+
+/** Get all call requests (for teacher dashboard). */
+function handleGetCallRequests() {
+  var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
+  if (sheet.getLastRow() < 2) return { found: true, requests: [] };
+  var rows = sheetToObjects(sheet);
+  // Only return non-done/dismissed, most recent first
+  var active = rows.filter(function(r) {
+    var s = String(r['status'] || '').trim();
+    return s === 'pending' || s === 'sent';
+  });
+  active.reverse();
+  return { found: true, requests: active };
+}
+
+/** Teacher sends a call link to a pending request. */
+function handleSendCallLink(requestId, callLink) {
+  if (!requestId || !callLink) throw new Error('Missing requestId or callLink');
+  var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var idCol = headerRow.indexOf('id');
+  if (idCol < 0) throw new Error('id column not found');
+  var finder = sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1)
+    .createTextFinder(String(requestId).trim())
+    .matchEntireCell(true);
+  var match = finder.findNext();
+  if (!match) throw new Error('Request not found: ' + requestId);
+  var rowNum = match.getRow();
+  var linkCol = headerRow.indexOf('call_link') + 1;
+  var sentCol = headerRow.indexOf('link_sent_at') + 1;
+  var statusCol = headerRow.indexOf('status') + 1;
+  sheet.getRange(rowNum, linkCol).setValue(callLink);
+  sheet.getRange(rowNum, sentCol).setValue(new Date().toISOString());
+  sheet.getRange(rowNum, statusCol).setValue('sent');
+  return { result: 'success' };
+}
+
+/** Update call request status (mark done / dismissed). */
+function handleUpdateCallStatus(requestId, newStatus) {
+  if (!requestId || !newStatus) throw new Error('Missing requestId or newStatus');
+  if (['done', 'dismissed'].indexOf(newStatus) < 0) throw new Error('Invalid status');
+  var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var idCol = headerRow.indexOf('id');
+  var finder = sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1)
+    .createTextFinder(String(requestId).trim())
+    .matchEntireCell(true);
+  var match = finder.findNext();
+  if (!match) throw new Error('Request not found: ' + requestId);
+  sheet.getRange(match.getRow(), headerRow.indexOf('status') + 1).setValue(newStatus);
+  return { result: 'success' };
+}
+
+
 // ── GET: health ──────────────────────────────────────
 // Returns system health status — use with an uptime monitor
 function handleHealth() {
@@ -1908,6 +2046,25 @@ var POST_HANDLERS = {
     upsertByStudent('Settings', HEADERS['Settings'], name, data);
     cacheInvalidateStudent(name);
     return { _json: { result: 'success', course_id: newCourse, level: newLevel } };
+  },
+
+  request_video_call: function(params) {
+    var name = requireParam(params, 'student_name');
+    var page = params['page'] || 'hub';
+    var day = params['day_number'] || '';
+    return { _json: handleRequestVideoCall(name, page, day) };
+  },
+
+  send_call_link: function(params) {
+    var id = requireParam(params, 'id');
+    var link = requireParam(params, 'call_link');
+    return { _json: handleSendCallLink(id, link) };
+  },
+
+  update_call_status: function(params) {
+    var id = requireParam(params, 'id');
+    var status = requireParam(params, 'status');
+    return { _json: handleUpdateCallStatus(id, status) };
   },
 
   // No action → student submitted placement test

@@ -121,11 +121,6 @@ function tryResumeLesson() {
       // Resume timer from saved elapsed time
       startTimer(data.timeElapsed || 0);
 
-      // Show video call (already initialized in required mode on cover screen)
-      if (typeof VideoCall !== 'undefined') {
-        VideoCall.show();
-      }
-
       buildStepDots();
       renderStep();
       document.getElementById('lessonNav').style.display = '';
@@ -153,7 +148,6 @@ function showScreen(id) {
 // ══════════════════════════════════════════════════════
 // LEVEL SELECTION
 // ══════════════════════════════════════════════════════
-var vcInitDone = false;
 function selectLevel(card) {
   document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
   card.classList.add('selected');
@@ -162,16 +156,6 @@ function selectLevel(card) {
   // Update translation mode for the selected level
   if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
 
-  // Init video call as optional floating button when level is selected
-  var name = document.getElementById('studentName').value.trim();
-  if (name && !vcInitDone && typeof VideoCall !== 'undefined') {
-    vcInitDone = true;
-    VideoCall.init({
-      studentName: name,
-      date: document.getElementById('lessonDate').value || new Date().toISOString().split('T')[0],
-      role: 'student'
-    });
-  }
 }
 
 function lockLevelGrid(levelCode) {
@@ -1753,4 +1737,9 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   tryResumeLesson();
+
+  // Initialize video call request button
+  if (typeof CallRequest !== 'undefined') {
+    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber });
+  }
 });

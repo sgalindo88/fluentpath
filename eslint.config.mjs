@@ -65,8 +65,8 @@ export default [
         timeAgo: 'readonly',
         cleanupLocalStorage: 'readonly',
         Checkpoint: 'writable',
-        VideoCall: 'writable',
         I18n: 'writable',
+        CallRequest: 'writable',
       },
     },
     rules: {

@@ -723,7 +723,7 @@ function restartTest() {
   showScreen('screen-cover');
 }
 
-// Set today's date on load and init required video call
+// Set today's date on load
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
 
@@ -734,24 +734,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   tryResumeTest();
 
-  // Init video call as optional floating button when student enters their name
-  var vcInitDone = false;
-  function initVideoCall() {
-    var name = nameField.value.trim();
-    if (!name || vcInitDone) return;
-    vcInitDone = true;
-    if (typeof VideoCall !== 'undefined') {
-      VideoCall.init({
-        studentName: name,
-        date: document.getElementById('candidateDate').value,
-        role: 'student'
-      });
-    }
+  // Initialize video call request button (re-init when student enters name)
+  function initCallRequest() {
+    if (typeof CallRequest !== 'undefined') CallRequest.init({ page: 'test' });
   }
-  nameField.addEventListener('blur', initVideoCall);
-  nameField.addEventListener('keydown', function(e) {
-    if (e.key === 'Tab' || e.key === 'Enter') setTimeout(initVideoCall, 100);
-  });
-  // If name was pre-filled from hub, auto-init video call
-  if (savedName) setTimeout(initVideoCall, 200);
+  initCallRequest();
+  nameField.addEventListener('blur', initCallRequest);
 });

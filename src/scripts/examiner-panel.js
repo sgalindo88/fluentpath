@@ -32,6 +32,7 @@ let ex = {
   teacherEmail: '',
   notifyOnTest: false,
   notifyOnSubmission: false,
+  notifyOnCallRequest: true,
 };
 
 const FOCUS_OPTIONS = [
@@ -474,20 +475,13 @@ function initApp() {
   document.getElementById('prof-teacher-email').value        = ex.teacherEmail || '';
   document.getElementById('prof-notify-test').checked        = !!ex.notifyOnTest;
   document.getElementById('prof-notify-submission').checked  = !!ex.notifyOnSubmission;
+  document.getElementById('prof-notify-call').checked        = ex.notifyOnCallRequest !== false;
 
   buildAttendanceGrid();
   buildDifficultyGrid();
   buildFocusTags();
   updateDashboardStats();
   updateLessonRecord();
-
-  // Launch video call panel so the teacher can join the student's call
-  if (typeof VideoCall !== 'undefined' && ex.studentName) {
-    var vcDate = new Date().toISOString().split('T')[0];
-    if (!VideoCall.init({ studentName: ex.studentName, date: vcDate, role: 'teacher' })) {
-      VideoCall.updateRoom(ex.studentName, vcDate);
-    }
-  }
 
   document.getElementById('pt-student-name-btn').textContent = ex.studentName || 'Student';
   document.getElementById('mark-student-name-display').textContent = ex.studentName || 'your student';
@@ -507,6 +501,12 @@ function initApp() {
   // Fetch course progress from Google Sheets (updates dashboard stats, attendance, lesson records)
   // This is the only network call on init — panel-specific data loads lazily on first visit.
   fetchDashboardData();
+  // Load pending call requests
+  loadCallRequests();
+  // Refresh call requests when tab becomes visible
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) loadCallRequests();
+  });
 }
 
 async function fetchDashboardData() {
@@ -1824,6 +1824,113 @@ function saveTeacherNotes() {
 // ══════════════════════════════════════════════════════
 // PROFILE
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// VIDEO CALL REQUESTS
+// ══════════════════════════════════════════════════════
+
+var callRequestsCache = [];
+
+/** Load all pending/sent call requests — call this periodically or on demand. */
+async function loadCallRequests() {
+  if (!WEBHOOK_URL || !WEBHOOK_URL.includes('script.google.com')) return;
+  try {
+    var data = await FP.api.get(WEBHOOK_URL + '?action=get_call_requests');
+    callRequestsCache = (data && data.requests) || [];
+    renderDashboardCallRequests();
+    renderProfileCallRequest();
+  } catch (e) {
+    console.warn('[FluentPath] Could not load call requests:', e.message);
+  }
+}
+
+/** Render the pending-requests reminder on the Dashboard panel. */
+function renderDashboardCallRequests() {
+  var container = document.getElementById('dash-call-requests');
+  if (!container) return;
+  // Only show requests in pending status (not yet responded to)
+  var pending = callRequestsCache.filter(function(r) { return r.status === 'pending'; });
+  if (pending.length === 0) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+  var items = pending.map(function(r) {
+    var when = r.requested_at ? formatLessonDate(r.requested_at) : '';
+    return '<li style="padding:6px 0;font-size:13px;">' +
+      '<strong>' + escHtml(r.student_name) + '</strong>' +
+      ' requested a call' + (r.page ? ' from ' + escHtml(r.page) : '') +
+      (when ? ' · ' + escHtml(when) : '') +
+      ' · <a href="#" onclick="event.preventDefault();switchToStudent(\'' + escHtml(r.student_name) + '\')" style="color:var(--blue);text-decoration:underline;">open dashboard</a>' +
+      '</li>';
+  }).join('');
+  container.style.display = 'block';
+  container.innerHTML =
+    '<div class="card card-top blue" style="background:#eaf0fb;">' +
+      '<div class="card-label" style="color:var(--blue);">📹 PENDING VIDEO CALL REQUESTS</div>' +
+      '<ul style="margin:8px 0 0;padding-left:20px;">' + items + '</ul>' +
+    '</div>';
+}
+
+/** Render the call request card inside the Student Profile panel for the current student. */
+function renderProfileCallRequest() {
+  var el = document.getElementById('prof-call-request-content');
+  if (!el || !ex.studentName) return;
+  var target = ex.studentName.toLowerCase().trim();
+  var request = callRequestsCache.find(function(r) {
+    return String(r.student_name || '').toLowerCase().trim() === target &&
+      (r.status === 'pending' || r.status === 'sent');
+  });
+
+  if (!request) {
+    el.innerHTML = 'No pending call request.';
+    return;
+  }
+
+  var when = request.requested_at ? formatLessonDate(request.requested_at) : '';
+  if (request.status === 'pending') {
+    el.innerHTML =
+      '<div style="color:var(--ink);font-style:normal;">' +
+        '<p style="margin-bottom:12px;"><strong>' + escHtml(ex.studentName) + '</strong> requested a video call' +
+          (when ? ' on ' + escHtml(when) : '') + '.</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+          '<input type="text" id="call-link-input-' + escHtml(request.id) + '" placeholder="Paste Zoom/WhatsApp/Meet link" style="flex:1;min-width:240px;padding:8px 10px;border:1px solid var(--rule);font-size:13px;">' +
+          '<button class="btn-primary" onclick="sendCallLink(\'' + escHtml(request.id) + '\')">Send Link</button>' +
+          '<button class="btn-secondary" onclick="markCallDone(\'' + escHtml(request.id) + '\')">Mark as Done</button>' +
+        '</div>' +
+        '<div class="send-status" id="call-status-' + escHtml(request.id) + '"></div>' +
+      '</div>';
+  } else if (request.status === 'sent') {
+    el.innerHTML =
+      '<div style="color:var(--ink);font-style:normal;">' +
+        '<p style="margin-bottom:8px;">✓ Call link sent to <strong>' + escHtml(ex.studentName) + '</strong>.</p>' +
+        '<p style="font-size:12px;margin-bottom:12px;word-break:break-all;"><a href="' + escHtml(request.call_link) + '" target="_blank">' + escHtml(request.call_link) + '</a></p>' +
+        '<button class="btn-secondary" onclick="markCallDone(\'' + escHtml(request.id) + '\')">Mark as Done</button>' +
+        '<div class="send-status" id="call-status-' + escHtml(request.id) + '"></div>' +
+      '</div>';
+  }
+}
+
+async function sendCallLink(requestId) {
+  var input = document.getElementById('call-link-input-' + requestId);
+  var link = (input.value || '').trim();
+  if (!link) { showStatus('call-status-' + requestId, 'Please paste a call link first.', true); return; }
+  if (!/^https?:\/\//i.test(link)) { showStatus('call-status-' + requestId, 'Link must start with http:// or https://', true); return; }
+  try {
+    await FP.api.postForm(WEBHOOK_URL, { action: 'send_call_link', id: requestId, call_link: link });
+    showStatus('call-status-' + requestId, '✓ Link sent to student.', false);
+    setTimeout(loadCallRequests, 500);
+  } catch (e) {
+    showStatus('call-status-' + requestId, '⚠ Could not send: ' + e.message, true);
+  }
+}
+
+async function markCallDone(requestId) {
+  try {
+    await FP.api.postForm(WEBHOOK_URL, { action: 'update_call_status', id: requestId, status: 'done' });
+    setTimeout(loadCallRequests, 500);
+  } catch (e) { /* silent */ }
+}
+
 async function promoteStudent() {
   var name = ex.studentName;
   if (!name) { showStatus('promote-status', 'No student selected.', true); return; }
@@ -1867,6 +1974,7 @@ function saveProfile() {
   ex.teacherEmail        = document.getElementById('prof-teacher-email').value;
   ex.notifyOnTest        = document.getElementById('prof-notify-test').checked;
   ex.notifyOnSubmission  = document.getElementById('prof-notify-submission').checked;
+  ex.notifyOnCallRequest = document.getElementById('prof-notify-call').checked;
 
   saveToLocalStorage();
   document.getElementById('sb-student-name').textContent = ex.studentName || 'No student yet';
@@ -1890,6 +1998,7 @@ function saveProfile() {
       student_email: ex.studentEmail || '',
       notify_on_test: ex.notifyOnTest || false,
       notify_on_submission: ex.notifyOnSubmission || false,
+      notify_on_call_request: ex.notifyOnCallRequest !== false,
     }).catch(function() {
       showStatus('profile-save-status', 'Saved locally. Could not sync to Google Sheet.', true);
     });
@@ -2010,7 +2119,7 @@ function saveToLocalStorage() {
       difficultyProfile: ex.difficultyProfile, lessonRecords: ex.lessonRecords,
       aiInstructions: ex.aiInstructions, focusTags: [...ex.focusTags],
       ptGraded: ex.ptGraded || null,
-      teacherEmail: ex.teacherEmail, notifyOnTest: ex.notifyOnTest, notifyOnSubmission: ex.notifyOnSubmission,
+      teacherEmail: ex.teacherEmail, notifyOnTest: ex.notifyOnTest, notifyOnSubmission: ex.notifyOnSubmission, notifyOnCallRequest: ex.notifyOnCallRequest,
     };
     localStorage.setItem('fluentpath_teacher', JSON.stringify(toSave));
   } catch(e) {}

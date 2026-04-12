@@ -4,6 +4,51 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.44.0] - 2026-04-12
+
+### Changed — Replace Jitsi with Video Call Request System
+
+The old Jitsi Meet integration (auto-launched floating video panel) has been replaced with a student-initiated call request system where the teacher responds with their preferred link (Zoom, WhatsApp, Meet, etc.).
+
+#### Student flow
+- **"Request a Video Call" button** — floating bottom-right corner on hub, placement test, and daily lesson pages
+- Click → POST `request_video_call` → email sent to teacher → button becomes "Request pending…" with a manual Refresh link
+- When teacher sends a link: green **banner at top of page** with "Join Call" + Dismiss button; floating button transforms to "Join Teacher's Call"
+- Polling on page load + tab focus + manual refresh (no continuous polling)
+- Student can Dismiss to clear their request at any time
+
+#### Teacher flow
+- **Dashboard panel** — blue reminder card at top showing all pending call requests with student name, page, and "open dashboard" link
+- **Student Profile panel** — new blue "VIDEO CALL" card shows pending request + paste-link input + Send Link / Mark as Done buttons
+- Sent links are visible in the card as a clickable link; teacher can Mark as Done to clear
+- **Email notification** (opt-in, default ON) includes: student name, page (hub/test/lesson day), CEFR level, timestamp, deep link to that student's dashboard
+
+#### Backend (`apps-script.js`)
+- **New sheet tab** `Video Call Requests` with columns: id, student_name, requested_at, page, day_number, call_link, link_sent_at, status (pending/sent/done/dismissed)
+- **`handleRequestVideoCall`** — creates a request, triggers email notification
+- **`handleGetActiveCallRequest`** — student polls for most recent pending/sent request
+- **`handleGetCallRequests`** — teacher dashboard fetches all active requests
+- **`handleSendCallLink`** — teacher attaches a link to a pending request
+- **`handleUpdateCallStatus`** — marks done (teacher) or dismissed (student)
+- **`notifyTeacherCallRequest`** — email helper with full context + deep link
+- Added `notify_on_call_request` column to Settings (default ON)
+- New endpoints: `request_video_call`, `send_call_link`, `update_call_status`, `get_active_call_request`, `get_call_requests`
+
+#### Frontend
+- **New file `src/scripts/call-request.js`** — `CallRequest.init({page, dayNumber})` module manages button state, banner, polling, and dismissal
+- **Wired into** `hub.js`, `student-test.js`, `student-lesson.js` on DOMContentLoaded
+- **Teacher dashboard** — `loadCallRequests`, `renderDashboardCallRequests`, `renderProfileCallRequest`, `sendCallLink`, `markCallDone` functions added to `examiner-panel.js`
+- **New toggle** "Notify on video call request" in Student Profile → Notifications card
+
+#### Removed (Jitsi cleanup)
+- Deleted `src/scripts/video-call.js`
+- Removed `<script src="video-call.js">` from `student-course.html`, `student-initial-test.html`, `examiner-panel.html`
+- Removed all `VideoCall.init` / `VideoCall.show` / `VideoCall.updateRoom` calls from `student-lesson.js`, `student-test.js`, `examiner-panel.js`
+- Removed `VideoCall` from ESLint globals; added `CallRequest`
+- Updated service worker cache list (bumped to v6) — `video-call.js` replaced with `call-request.js`
+
+---
+
 ## [0.43.0] - 2026-04-11
 
 ### Fixed — Quick wins from suggestions audit
