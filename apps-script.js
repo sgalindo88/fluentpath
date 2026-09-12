@@ -143,18 +143,30 @@ function stripJsonFences(text) {
 
 /**
  * Validate the request token against Script Properties.
- * - APP_SECRET  → required for all requests (student + teacher)
- * - TEACHER_SECRET → required only for teacher/write endpoints
  *
- * Setup: Project Settings → Script Properties → Add:
- *   APP_SECRET:     (random 32-char string shared with the frontend)
- *   TEACHER_SECRET: (separate secret known only to the teacher)
+ * - APP_SECRET → required on every request. This is a shared, PUBLIC value
+ *   (it ships in config.js): a speed bump against drive-by traffic, not an
+ *   authorization boundary. Real authorization is the per-user session — see
+ *   the SEC-5 audit table above TEACHER_ACTIONS.
+ * - TEACHER_SECRET → legacy grace-window only. Once AUTH_ENFORCED=true, teacher
+ *   authority comes from a teacher session and this property is unused.
+ *
+ * Both now fail CLOSED when unset (SEC-1). Diagnose a missing secret with
+ * ?action=health, which reports app_secret: 'missing' and status: 'degraded'.
  */
 function validateToken(params) {
   var props = PropertiesService.getScriptProperties();
   var appSecret = props.getProperty('APP_SECRET');
-  // If no APP_SECRET is configured yet, skip validation (first-run grace)
-  if (!appSecret) return true;
+  // SEC-1: fail CLOSED. A missing APP_SECRET is a misconfiguration, not a grace
+  // period — the web app is deployed "Anyone", so returning true here would open
+  // the entire backend (including the paid AI proxy) to the internet. Diagnose a
+  // missing secret via ?action=health, which reports app_secret: 'missing'.
+  if (!appSecret) {
+    logMisconfig('APP_SECRET',
+      'APP_SECRET is not set in Script Properties — all requests are being denied. ' +
+      'Set it in Project Settings -> Script Properties.');
+    return false;
+  }
   var token = String(params['token'] || '').trim();
   return token === appSecret;
 }
@@ -182,12 +194,58 @@ function validateTeacherToken(params) {
   // the teacher can create the first accounts (and so we never lock out).
   if (!authEnforced()) {
     var teacherSecret = PropertiesService.getScriptProperties().getProperty('TEACHER_SECRET');
-    if (!teacherSecret) return true; // first-run grace (matches pre-auth behavior)
+    // SEC-1: fail CLOSED. Previously a missing TEACHER_SECRET authorized every
+    // teacher action — which, combined with the publicly-reachable legacy
+    // examiner page, let anyone write grades. Deleting TEACHER_SECRET (cutover
+    // runbook Stage I1) is now safe: it closes the grace path instead of opening it.
+    if (!teacherSecret) {
+      logMisconfig('TEACHER_SECRET',
+        'TEACHER_SECRET is not set and AUTH_ENFORCED is off — teacher actions are being denied. ' +
+        'Either set TEACHER_SECRET or (preferred) set AUTH_ENFORCED=true and use a teacher session.');
+      return false;
+    }
     var token = String(params['teacher_token'] || '').trim();
     return token === teacherSecret;
   }
   return false;
 }
+
+/**
+ * SEC-5 — write-path authorization audit (AUTH_ENFORCED = true).
+ *
+ * APP_TOKEN is committed in config.js and shipped to every browser, so it is a
+ * speed bump, NOT an authorization boundary. Audited 2026-09-09: no mutating
+ * action authorizes on the app token alone.
+ *
+ *   action                 auth required
+ *   ─────────────────────  ────────────────────────────────────────────
+ *   login                  app token only — bootstraps a session; throttled 10/15min
+ *   logout                 app token only — revokes a token the caller already holds
+ *   request_reset          app token only — throttled 3/hr, emails the account owner
+ *   reset_password         app token + a valid signed, single-use reset token
+ *   create_checkout        student session
+ *   save_progress          student session + enforceCourseAccess
+ *   save_audio             student session
+ *   request_video_call     student session
+ *   update_call_status     student or teacher session
+ *   _submit_test           student session   (default POST branch — see SEC-7)
+ *   create_account         TEACHER session
+ *   save_marks             TEACHER session
+ *   save_attendance        TEACHER session
+ *   update_settings        TEACHER session
+ *   delete_library_entry   TEACHER session
+ *   promote_student        TEACHER session
+ *   send_call_link         TEACHER session
+ *   ai_summary             TEACHER session + rate limit 30/hr
+ *   _examiner_results      TEACHER session   (matched via isExaminerPost)
+ *
+ * For student sessions doPost overwrites student_name/candidate_name from the
+ * session, so a student can never write as someone else regardless of payload.
+ * The four sessionless actions are the auth bootstrap and are individually
+ * throttled or token-gated.
+ *
+ * Keep this table in step with TEACHER_ACTIONS and SESSIONLESS_POST below.
+ */
 
 /** Actions that require teacher-level auth */
 var TEACHER_ACTIONS = {
@@ -551,15 +609,32 @@ function handleStripeWebhook(e) {
   try {
     var raw = (e && e.postData && e.postData.contents) || '';
     var event = JSON.parse(raw);
-    // If a signature was forwarded (e.g. via a proxy), honor it; absence is
-    // expected on bare Apps Script and is not by itself a rejection.
+
+    // SEC-4: when STRIPE_WEBHOOK_SECRET is configured, a signature is REQUIRED —
+    // previously a missing `sig` skipped verification entirely, so anyone could
+    // POST a forged event. Verification only degrades to re-fetch-only when no
+    // secret is set at all (bare Apps Script can't read request headers, so the
+    // signature has to arrive as a query param from a proxy).
+    var webhookSecret = PropertiesService.getScriptProperties().getProperty('STRIPE_WEBHOOK_SECRET');
     var sig = (e && e.parameter && e.parameter['sig']) || '';
-    if (sig && !verifyStripeSignature(raw, sig)) {
-      return ContentService.createTextOutput('ignored');
+    if (webhookSecret) {
+      if (!sig || !verifyStripeSignature(raw, sig)) {
+        logError('stripe_webhook', '', 'Rejected event: missing or invalid signature', {});
+        return ContentService.createTextOutput('ignored');
+      }
     }
+
     if (event && event.type === 'checkout.session.completed') {
       var obj = event.data && event.data.object;
-      if (obj && obj.id) fulfillCheckout(obj.id);
+      if (obj && obj.id) {
+        // SEC-4: replay defence. Stripe retries on any non-2xx and an attacker
+        // can resend a captured event; fulfilment is idempotent today only by
+        // luck of upsert semantics, so skip ids we've already processed.
+        if (stripeEventAlreadyProcessed(obj.id)) {
+          return ContentService.createTextOutput('ok');
+        }
+        if (fulfillCheckout(obj.id)) markStripeEventProcessed(obj.id);
+      }
     }
   } catch (err) {
     logError('stripe_webhook', '', err.message, {});
@@ -567,28 +642,81 @@ function handleStripeWebhook(e) {
   return ContentService.createTextOutput('ok');
 }
 
-/** Per-email login throttle (10 attempts / 15 min). login is internet-reachable. */
-function loginRateLimited(email) {
+/**
+ * Has this checkout session already been fulfilled in the last 6 hours?
+ * A cheap replay guard, not the trust anchor: fulfillCheckout is itself
+ * idempotent (it re-fetches from Stripe, requires payment_status === 'paid',
+ * and preserves the original paid_at), so a replay past the cache window is
+ * harmless — it just re-writes the same values and wastes a Stripe API call.
+ */
+function stripeEventAlreadyProcessed(sessionId) {
+  try {
+    if (CacheService.getScriptCache().get('stripe_evt_' + sessionId)) return true;
+  } catch (e) { /* cache unavailable — fall through to the sheet check */ }
+  return false;
+}
+
+/** Record a fulfilled checkout session so a replay is a no-op. */
+function markStripeEventProcessed(sessionId) {
+  try {
+    CacheService.getScriptCache().put('stripe_evt_' + sessionId, '1', 6 * 60 * 60);
+  } catch (e) { /* best effort */ }
+}
+
+/**
+ * Generic CacheService counter throttle.
+ * Returns true when `key` has already been used `max` times inside `windowSec`.
+ * Fails OPEN (returns false) if the cache is unavailable — a throttle outage
+ * must never lock a paying student out of their lesson.
+ *
+ * Note the window is per-key and starts on first use; it does not slide.
+ */
+function rateLimited(key, max, windowSec) {
   try {
     var cache = CacheService.getScriptCache();
-    var key = 'login_rl_' + String(email).toLowerCase().trim();
     var count = parseInt(cache.get(key) || '0', 10);
-    if (count >= 10) return true;
-    cache.put(key, String(count + 1), 15 * 60);
+    if (count >= max) return true;
+    cache.put(key, String(count + 1), windowSec);
     return false;
   } catch (e) { return false; }
 }
 
+/** Per-email login throttle (10 attempts / 15 min). login is internet-reachable. */
+function loginRateLimited(email) {
+  return rateLimited('login_rl_' + String(email).toLowerCase().trim(), 10, 15 * 60);
+}
+
 /** Per-email reset-request throttle (3 reset emails / hour). */
 function resetRateLimited(email) {
-  try {
-    var cache = CacheService.getScriptCache();
-    var key = 'reset_rl_' + String(email).toLowerCase().trim();
-    var count = parseInt(cache.get(key) || '0', 10);
-    if (count >= 3) return true;
-    cache.put(key, String(count + 1), 60 * 60);
-    return false;
-  } catch (e) { return false; }
+  return rateLimited('reset_rl_' + String(email).toLowerCase().trim(), 3, 60 * 60);
+}
+
+// ── SEC-2: AI proxy throttles ────────────────────────
+// generate_lesson and ai_summary call PAID providers. They are gated only by the
+// APP_TOKEN, which is committed in config.js and shipped to every browser — so
+// without a cap, anyone can extract it and run unbounded generations on our bill.
+var AI_LESSON_MAX_PER_HOUR  = 10; // per student — a 20-day course needs 1/day
+var AI_SUMMARY_MAX_PER_HOUR = 30; // per teacher — batch-drafting weekly summaries
+
+/**
+ * Identify the caller for rate-limiting. Prefers the server-resolved session
+ * (which a client cannot forge); falls back to the requested student name, and
+ * finally to a shared bucket so an anonymous flood is still capped collectively.
+ */
+function rateLimitSubject(session, fallbackName) {
+  if (session && session.student_name) return 's:' + String(session.student_name).toLowerCase().trim();
+  if (session && session.email)        return 'e:' + String(session.email).toLowerCase().trim();
+  var name = String(fallbackName || '').toLowerCase().trim();
+  return name ? 'n:' + name : 'anon';
+}
+
+/** Throttle a paid AI call. Throws a clear error when the cap is hit. */
+function enforceAiRateLimit(kind, subject, max) {
+  if (rateLimited('ai_rl_' + kind + '_' + subject, max, 60 * 60)) {
+    throw new Error(
+      'Rate limit exceeded: too many ' + kind + ' requests in the last hour (max ' +
+      max + '). Please wait and try again.');
+  }
 }
 
 /** Email a password-reset link (to the correct site for the account's role). */
@@ -621,10 +749,20 @@ function paramOrBody(params, body, key) {
 /** POST actions reachable without an existing session (login bootstraps one). */
 var SESSIONLESS_POST = { 'login': true, 'logout': true, 'request_reset': true, 'reset_password': true };
 
+/**
+ * POST actions that must NOT hold the script lock (BE-1).
+ * ai_summary spends 5-15s inside a paid provider call; serializing every other
+ * write behind it would be worse than the race it would prevent (it writes nothing).
+ */
+var UNLOCKED_POST = { 'ai_summary': true };
+
 /** GET actions that require a TEACHER session once AUTH_ENFORCED is on. */
 var TEACHER_GET_ACTIONS = {
   'get_students': true, 'get_library': true, 'get_call_requests': true,
-  'get_class_overview': true, 'get_errors': true, 'get_student_report': true
+  'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
+  // SEC-3: only the examiner panel reads recordings; no student page calls this.
+  // Teacher-only means a student session cannot read another student's audio.
+  'get_audio': true
 };
 
 // ══════════════════════════════════════════════════════
@@ -678,17 +816,31 @@ function cachePut(key, value) {
   } catch (e) { /* quota exceeded or unavailable */ }
 }
 
-/** Invalidate cache entries related to a student (called after writes). */
+/**
+ * Highest course_id the progress cache invalidates.
+ * A course is one CEFR level (promote_student increments course_id from 1), so
+ * six is the real ceiling; this leaves headroom for re-runs and repeats.
+ */
+var MAX_CACHED_COURSE_ID = 12;
+
+/**
+ * Invalidate cache entries related to a student (called after writes).
+ *
+ * BE-2: handleGetProgress caches under 'progress_<name>_c<courseId>' but this
+ * only removed the bare 'progress_<name>', so progress was never actually
+ * invalidated and the hub served up to CACHE_TTL (5 min) of stale data after a
+ * save_progress or promote_student. Remove every course variant.
+ */
 function cacheInvalidateStudent(studentName) {
   if (!studentName) return;
   var lower = String(studentName).toLowerCase().trim();
   var keys = [
-    'progress_' + lower,
-    'settings_' + lower,
-    'attendance_' + lower,
-    'test_results_' + lower,
-    'all_submissions_' + lower
+    'progress_' + lower,   // legacy/no-course-suffix entries
+    'settings_' + lower
   ];
+  for (var c = 1; c <= MAX_CACHED_COURSE_ID; c++) {
+    keys.push('progress_' + lower + '_c' + c);
+  }
   try { CacheService.getScriptCache().removeAll(keys); } catch (e) {}
 }
 
@@ -802,6 +954,69 @@ function logError(action, student, message, params) {
       JSON.stringify(params || {}).substring(0, 2000)
     ]);
   } catch (e) { /* logging itself failed — nothing we can do */ }
+}
+
+/**
+ * Log a configuration problem once per hour per key.
+ * A missing secret denies EVERY request, so an unthrottled logError here would
+ * append a row per request and bloat the Error Log. Always emits to Cloud
+ * Logging; writes to the sheet at most once an hour.
+ */
+function logMisconfig(key, message) {
+  try {
+    console.error('[FluentPath config] ' + key + ': ' + message);
+  } catch (e) { /* console unavailable */ }
+  try {
+    var cache = CacheService.getScriptCache();
+    var ck = 'misconfig_' + key;
+    if (cache.get(ck)) return;
+    cache.put(ck, '1', 60 * 60);
+  } catch (e) { /* cache unavailable — fall through and log once */ }
+  logError('config', '', message, { property: key });
+}
+
+// ══════════════════════════════════════════════════════
+// CONCURRENCY (LockService)
+// ══════════════════════════════════════════════════════
+
+/**
+ * BE-1: serialize mutating work behind the script lock.
+ *
+ * Every write path here is read-then-write (upsertByStudent scans for a row
+ * then updates it; safeAppendRow appends; incrementTimesServed reads a column
+ * then sets a cell). Without a lock, two concurrent saves for one student
+ * interleave and produce duplicate rows, last-writer-wins field loss, or lost
+ * counter increments.
+ *
+ * Reentrant: nested calls reuse the lock already held by this execution rather
+ * than deadlocking or double-releasing.
+ */
+var _scriptLockDepth = 0;
+
+function withScriptLock(fn, timeoutMs) {
+  // Already inside a locked section in this execution — just run.
+  if (_scriptLockDepth > 0) {
+    _scriptLockDepth++;
+    try { return fn(); } finally { _scriptLockDepth--; }
+  }
+
+  // Degrade gracefully if LockService is unavailable (never block a save on it).
+  if (typeof LockService === 'undefined') return fn();
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(timeoutMs || 10000);
+  } catch (e) {
+    throw new Error('Server busy — another save is in progress. Please try again in a moment.');
+  }
+
+  _scriptLockDepth++;
+  try {
+    return fn();
+  } finally {
+    _scriptLockDepth--;
+    try { lock.releaseLock(); } catch (e) { /* already released */ }
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1037,7 +1252,11 @@ var GET_HANDLERS = {
   get_all_submissions:   function(p) { return handleGetAllSubmissions(p.student); },
   get_students:          function(_) { return handleGetStudents(); },
   get_attendance:        function(p) { return handleGetAttendance(p.student); },
-  generate_lesson:       function(p, session) { enforceCourseAccess(session, p.student); return handleGenerateLesson(p.level, parseInt(p.day, 10), p.topic, String(p.spanish || '').toLowerCase() === 'true', p.student); },
+  generate_lesson:       function(p, session) {
+    enforceCourseAccess(session, p.student);
+    enforceAiRateLimit('lesson', rateLimitSubject(session, p.student), AI_LESSON_MAX_PER_HOUR);
+    return handleGenerateLesson(p.level, parseInt(p.day, 10), p.topic, String(p.spanish || '').toLowerCase() === 'true', p.student);
+  },
   get_library:           function(_) { return handleGetLibrary(); },
   get_library_entry:     function(p) { return handleGetLibraryEntry(p.id); },
   get_audio:             function(p) { return handleGetAudio(p.id); },
@@ -1203,7 +1422,17 @@ function handleGetProgress(studentName, courseId) {
     }
   }
   if (!alreadyRegistered) {
-    studentsSheet.appendRow([studentName, new Date().toISOString().split('T')[0]]);
+    // BE-1/BE-5: a write inside a cached read handler. Re-check membership under
+    // the lock so two concurrent first-calls can't both append the same student.
+    withScriptLock(function () {
+      var fresh = studentsSheet.getLastRow() > 1
+        ? studentsSheet.getRange(2, 1, studentsSheet.getLastRow() - 1, 1).getValues()
+        : [];
+      for (var r = 0; r < fresh.length; r++) {
+        if (String(fresh[r][0]).toLowerCase().trim() === target) return;
+      }
+      studentsSheet.appendRow([studentName, new Date().toISOString().split('T')[0]]);
+    });
   }
 
   cachePut(cacheKey, result);
@@ -2048,38 +2277,46 @@ function findClosestEntry(entries, difficulty) {
  * Returns true if written, false if skipped (duplicate exists).
  */
 function addToLibrary(level, day, lesson, difficulty, sourceStudent) {
-  var entries = getLibraryEntries(level, day);
-  if (nearDuplicateExists(entries, difficulty || {})) return false;
+  // BE-1: read-then-append. Reached from the generate_lesson GET, so it is not
+  // covered by the POST router's lock — take it here, around the check+append
+  // only, never around the AI call that produced `lesson`.
+  return withScriptLock(function () {
+    var entries = getLibraryEntries(level, day);
+    if (nearDuplicateExists(entries, difficulty || {})) return false;
 
-  var id = 'lib_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-  safeAppendRow('Lesson Library', HEADERS['Lesson Library'], {
-    id:                       id,
-    level:                    String(level),
-    day:                      String(day),
-    created_at:               new Date().toISOString(),
-    source_student:           sourceStudent || '',
-    original_difficulty_json: JSON.stringify(difficulty || {}),
-    lesson_json:              JSON.stringify(lesson),
-    is_active:                'true',
-    times_served:             '0'
+    var id = 'lib_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+    safeAppendRow('Lesson Library', HEADERS['Lesson Library'], {
+      id:                       id,
+      level:                    String(level),
+      day:                      String(day),
+      created_at:               new Date().toISOString(),
+      source_student:           sourceStudent || '',
+      original_difficulty_json: JSON.stringify(difficulty || {}),
+      lesson_json:              JSON.stringify(lesson),
+      is_active:                'true',
+      times_served:             '0'
+    });
+    return true;
   });
-  return true;
 }
 
 /** Increment the times_served counter for a library entry by id. */
 function incrementTimesServed(entryId) {
-  var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
-  var actual = ensureSheetHeaders(sheet, HEADERS['Lesson Library']);
-  var idCol  = actual.indexOf('id');
-  var tsCol  = actual.indexOf('times_served');
-  if (idCol < 0 || tsCol < 0 || sheet.getLastRow() < 2) return;
-  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, actual.length).getValues();
-  for (var i = 0; i < data.length; i++) {
-    if (String(data[i][idCol]).trim() === String(entryId).trim()) {
-      sheet.getRange(i + 2, tsCol + 1).setValue((parseInt(data[i][tsCol], 10) || 0) + 1);
-      return;
+  // BE-1: read-then-write on a counter — concurrent serves silently lose increments.
+  return withScriptLock(function () {
+    var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+    var actual = ensureSheetHeaders(sheet, HEADERS['Lesson Library']);
+    var idCol  = actual.indexOf('id');
+    var tsCol  = actual.indexOf('times_served');
+    if (idCol < 0 || tsCol < 0 || sheet.getLastRow() < 2) return;
+    var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, actual.length).getValues();
+    for (var i = 0; i < data.length; i++) {
+      if (String(data[i][idCol]).trim() === String(entryId).trim()) {
+        sheet.getRange(i + 2, tsCol + 1).setValue((parseInt(data[i][tsCol], 10) || 0) + 1);
+        return;
+      }
     }
-  }
+  });
 }
 
 /**
@@ -2202,10 +2439,62 @@ function safeAppendRow(sheetName, expectedHeaders, params) {
 
 // ── GET: get_audio ────────────────────────────────────
 // Returns a Drive audio file as base64 for inline playback
+/**
+ * Resolve (and cache) the id of the "FluentPath Audios" root folder.
+ * Returns null when the folder does not exist yet (no audio has been saved).
+ */
+function getAudioRootFolderId() {
+  try {
+    var cached = CacheService.getScriptCache().get('audio_root_id');
+    if (cached) return cached;
+  } catch (e) { /* cache unavailable — resolve live */ }
+
+  var iter = DriveApp.getRootFolder().getFoldersByName('FluentPath Audios');
+  if (!iter.hasNext()) return null;
+  var id = iter.next().getId();
+  try { CacheService.getScriptCache().put('audio_root_id', id, 6 * 60 * 60); } catch (e) {}
+  return id;
+}
+
+/**
+ * True when `file` lives anywhere under the FluentPath Audios tree.
+ * The real tree is only 3 deep (Audios / <student> / Lesson <n>), but Drive
+ * allows multiple parents, so this walks breadth-first with a visited set and
+ * a hard step cap rather than assuming a single chain.
+ */
+function isUnderAudioRoot(file) {
+  var rootId = getAudioRootFolderId();
+  if (!rootId) return false;
+
+  var queue = [];
+  var parents = file.getParents();
+  while (parents.hasNext()) queue.push(parents.next());
+
+  var seen = {};
+  var steps = 0;
+  while (queue.length > 0 && steps++ < 50) {
+    var folder = queue.shift();
+    var id = folder.getId();
+    if (id === rootId) return true;
+    if (seen[id]) continue;
+    seen[id] = true;
+    var up = folder.getParents();
+    while (up.hasNext()) queue.push(up.next());
+  }
+  return false;
+}
+
 function handleGetAudio(fileId) {
   if (!fileId) return { error: 'No file ID provided' };
   try {
     var file = DriveApp.getFileById(fileId);
+    // SEC-3: the script runs as the owner, so returning bytes for an arbitrary
+    // caller-supplied id is a data-exfiltration primitive (any Drive file the
+    // owner can read). Only serve files inside the FluentPath Audios tree.
+    if (!isUnderAudioRoot(file)) {
+      logError('get_audio', '', 'Rejected read outside the FluentPath Audios folder', { id: fileId });
+      return { error: 'Audio file not found' };
+    }
     var blob = file.getBlob();
     return {
       found: true,
@@ -2598,8 +2887,13 @@ var POST_HANDLERS = {
       'line_items[0][quantity]': '1',
       'client_reference_id': session.student_name,
       'customer_email': session.email,
-      'success_url': base + '/?paid=1',
-      'cancel_url': base + '/?paid=0'
+      // PAY-1: `base` is https://fluentpath.ca, whose "/" serves index.html —
+      // the public brochure, which has no ?paid=1 handler. The unlock poller
+      // (handlePaidReturn) lives in hub.js and only runs on app.html, so a
+      // student who just paid saw the brochure again with no confirmation and
+      // no unlock. Point both URLs at the app.
+      'success_url': base + '/app.html?paid=1',
+      'cancel_url': base + '/app.html?paid=0'
     };
     var resp = UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'post',
@@ -2663,7 +2957,8 @@ var POST_HANDLERS = {
 
   // Teacher weekly-summary AI draft (gated by TEACHER_ACTIONS). Prompt arrives as
   // a JSON body { prompt }; routes through the pluggable AI provider.
-  ai_summary: function(params, e) {
+  ai_summary: function(params, e, session) {
+    enforceAiRateLimit('summary', rateLimitSubject(session, params['student_name']), AI_SUMMARY_MAX_PER_HOUR);
     var prompt;
     if (e && e.postData && e.postData.contents) {
       try { prompt = JSON.parse(e.postData.contents).prompt; } catch (parseErr) { prompt = null; }
@@ -2855,7 +3150,13 @@ function doPost(e) {
   }
 
   try {
-    var result = handler(params, e, session);
+    // BE-1: POST handlers are all mutating, so serialize them behind the script
+    // lock. UNLOCKED_POST exempts handlers whose work is a slow outbound call —
+    // holding a global lock across a 5-15s AI request would stall every student
+    // save behind one teacher drafting a summary.
+    var result = UNLOCKED_POST[action]
+      ? handler(params, e, session)
+      : withScriptLock(function () { return handler(params, e, session); });
     var body = (result && result._json) ? result._json : { result: 'success' };
     return ContentService
       .createTextOutput(JSON.stringify(body))

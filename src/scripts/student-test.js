@@ -538,8 +538,11 @@ async function finishTest() {
   await submitResults();
 }
 
-function showResultsScreen(submissionOk, submissionMsg) {
-  clearTestCheckpoint();
+function showResultsScreen(submissionOk, submissionMsg, verified) {
+  // DATA-2: keep the checkpoint until the save is CONFIRMED. Clearing it here
+  // unconditionally is what turned a failed submission into 40 minutes of lost
+  // work with nothing left to retry from.
+  if (verified) clearTestCheckpoint();
   // Time summary
   const duration = state.endTime && state.startTime ? state.endTime - state.startTime : null;
   const timeSummary = document.getElementById('timeSummary');
@@ -560,12 +563,23 @@ function showResultsScreen(submissionOk, submissionMsg) {
     banner.style.color = 'var(--rust)';
     banner.style.display = 'block';
     banner.textContent = submissionMsg;
+    // Give the student a way out rather than a dead end.
+    const retry = document.createElement('button');
+    retry.id = 'retrySubmitBtn';
+    retry.textContent = 'Retry submission';
+    retry.setAttribute('onclick', 'retrySubmission()');
+    retry.style.cssText =
+      'display:block;margin:12px auto 0;padding:10px 24px;font-size:14px;cursor:pointer;' +
+      'background:var(--rust);color:white;border:none;border-radius:4px;font-family:inherit;';
+    banner.appendChild(retry);
   }
 
-  // Save progress to localStorage so the hub page can track status
+  // Save progress to localStorage so the hub page can track status.
+  // Only mark the test complete once the save is confirmed — otherwise the hub
+  // would advance the student past a placement test that never arrived.
   try {
     localStorage.setItem('fp_student_name', document.getElementById('candidateName').value.trim());
-    localStorage.setItem('fp_test_completed', 'true');
+    if (verified) localStorage.setItem('fp_test_completed', 'true');
     localStorage.setItem('fp_test_date', document.getElementById('candidateDate').value);
     localStorage.setItem('fp_test_submitted_at', new Date().toISOString());
   } catch(e) { /* localStorage unavailable */ }
@@ -622,7 +636,15 @@ async function submitResults() {
     q24_speaking_notes:     state.textAnswers['q24'] || '(blank)',
   };
 
-  const results = { email: 'skipped', sheet: 'skipped' };
+  // DATA-2: remember when this attempt began so the verify step can tell THIS
+  // submission apart from an older one (a re-take must not verify against the
+  // previous attempt's row). Allow 2 minutes of client/sheet clock skew.
+  // Pinned for the whole test session so a retry re-verifies against the FIRST
+  // attempt — a save that actually landed is then confirmed, not duplicated.
+  if (!state.submitAttemptStartedAt) state.submitAttemptStartedAt = Date.now() - 120000;
+  const attemptStartedAt = state.submitAttemptStartedAt;
+
+  const results = { email: 'skipped', sheet: 'skipped', verified: false };
 
   // ── Formspree (email) ──
   if (!missingFormspree) {
@@ -633,43 +655,111 @@ async function submitResults() {
   }
 
   // ── Google Sheet (form-encoded + no-cors — required for Apps Script) ──
+  // NOTE: postForm uses mode:'no-cors', so the response is opaque and it
+  // resolves true even on a 500, an auth rejection or a quota error. 'sent' here
+  // means SENT, NOT SAVED — only verifySubmission below can confirm a save.
   if (!missingSheet) {
     try {
       await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload);
-      results.sheet = 'ok';
+      results.sheet = 'sent';
     } catch { results.sheet = 'error'; }
+
+    if (results.sheet === 'sent') {
+      FP.updateSaveOverlay('Confirming your results were saved…');
+      results.verified = await verifySubmission(attemptStartedAt);
+    }
   }
 
   // ── Determine outcome message then show results screen ──
-  const anyOk = results.email === 'ok' || results.sheet === 'ok';
-  const allOk = (missingFormspree || results.email === 'ok') && (missingSheet || results.sheet === 'ok');
+  // DATA-2: the ONLY thing that counts as saved is a verified read-back. The
+  // checkpoint is kept unless we confirmed the save, so a failed submission can
+  // be retried instead of losing 40 minutes of work.
   const bothUnconfigured = missingFormspree && missingSheet;
 
   let ok, msg;
   if (bothUnconfigured) {
     ok = false;
     msg = '⚠️ Submission endpoints not configured. Please ask your examiner to set up the test.';
-  } else if (allOk && anyOk) {
-    const parts = [];
-    if (results.email === 'ok') parts.push('emailed to your examiner');
-    if (results.sheet === 'ok') parts.push('saved to the examiner\'s Google Sheet');
+  } else if (results.verified) {
     ok = true;
-    msg = 'Your results have been ' + parts.join(' and ') + '.';
-  } else if (anyOk) {
-    ok = true;
-    msg = 'Results partially submitted. Your examiner has been notified.';
+    msg = results.email === 'ok'
+      ? 'Your results have been saved and emailed to your examiner.'
+      : 'Your results have been saved.';
+  } else if (results.email === 'ok') {
+    ok = false;
+    msg = '⚠️ We emailed your results to your examiner, but could not confirm they were saved. ' +
+          'Please tap "Retry submission" — your answers are still saved on this device.';
   } else {
     ok = false;
-    msg = '⚠️ Submission failed due to a network error. Please inform your examiner directly.';
+    msg = '⚠️ We could not confirm your results were saved. Please tap "Retry submission". ' +
+          'Your answers are still saved on this device — do not close this page.';
   }
 
   FP.hideSaveOverlay();
-  showResultsScreen(ok, msg);
+  showResultsScreen(ok, msg, results.verified);
+}
+
+/**
+ * DATA-2: confirm the submission actually reached the sheet.
+ *
+ * postForm is fire-and-forget (no-cors), so this reads the student's test
+ * results back and checks that a row exists whose submitted_at is newer than
+ * the moment this attempt began. Matching on presence alone would pass for a
+ * re-take whose new save failed but whose old row is still there.
+ *
+ * Retries a few times because Apps Script writes and the sheet read can lag.
+ */
+async function verifySubmission(attemptStartedAt) {
+  const who = (function () {
+    try { return localStorage.getItem('fp_student_name') || ''; } catch (e) { return ''; }
+  })() || (document.getElementById('candidateName').value || '').trim();
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+    try {
+      const data = await FP.api.get(
+        GOOGLE_SHEET_WEBHOOK + '?action=get_test_results&student=' + encodeURIComponent(who),
+        { timeout: 15000 });
+      if (data && data.found && data.submitted_at) {
+        // submitted_at may come back as the string we sent or as a Sheets-coerced
+        // date; Date parses both. NaN fails the comparison, which is correct.
+        const landed = new Date(data.submitted_at).getTime();
+        if (landed >= attemptStartedAt) return true;
+      }
+    } catch (e) {
+      console.warn('[FluentPath] Submission verify attempt ' + (attempt + 1) + ' failed:', e.message);
+    }
+  }
+  return false;
+}
+
+/**
+ * DATA-2: re-send the submission from the results screen.
+ *
+ * Checks first whether the original attempt actually landed — verification can
+ * fail on a read blip even though the write succeeded, and re-posting blindly
+ * would append a duplicate row to Initial Test Results.
+ */
+async function retrySubmission() {
+  const btn = document.getElementById('retrySubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
+
+  if (state.submitAttemptStartedAt) {
+    FP.showSaveOverlay('Checking whether your results arrived…');
+    const alreadyLanded = await verifySubmission(state.submitAttemptStartedAt);
+    FP.hideSaveOverlay();
+    if (alreadyLanded) {
+      showResultsScreen(true, 'Your results have been saved.', true);
+      return;
+    }
+  }
+  await submitResults();
 }
 
 function restartTest() {
   testInProgress = false;
   clearTestCheckpoint();
+  state.submitAttemptStartedAt = null; // DATA-2: a new attempt gets a new verify window
   // Reset state
   state.answers = {};
   state.textAnswers = {};

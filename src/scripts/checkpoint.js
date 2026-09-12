@@ -20,6 +20,24 @@ const Checkpoint = (() => {
   const PREFIX = 'fp_ckpt_';
   const VERSION = 2; // increment when checkpoint structure changes
 
+  /**
+   * DATA-1: scope every checkpoint to the logged-in student.
+   *
+   * Keys used to be 'fp_ckpt_<key>_<slot>', shared by whoever was on the
+   * device — so two students on one phone/tablet could be offered each other's
+   * half-finished test or lesson to "resume". Returns '' when nobody is logged
+   * in, which keeps pre-login behaviour unchanged.
+   */
+  function scope() {
+    try {
+      var who = (localStorage.getItem('fp_student_name') || '').toLowerCase().trim();
+      return who ? who.replace(/[^a-z0-9]+/g, '-') + '_' : '';
+    } catch (e) { return ''; }
+  }
+
+  /** Fully-qualified base key for the current student. */
+  function baseKey(key) { return PREFIX + scope() + key; }
+
   /* ── Core API (double-buffer) ──────────────────────────── */
   // Alternates writes between _a and _b slots. On load, picks the
   // newest valid slot. A crash during save corrupts at most one slot.
@@ -32,7 +50,7 @@ const Checkpoint = (() => {
       data._version = VERSION;
       var slot = writeSlot[key] === 'b' ? 'a' : 'b';
       writeSlot[key] = slot;
-      localStorage.setItem(PREFIX + key + '_' + slot, JSON.stringify(data));
+      localStorage.setItem(baseKey(key) + '_' + slot, JSON.stringify(data));
     } catch (e) { /* quota exceeded or unavailable */ }
   }
 
@@ -57,23 +75,31 @@ const Checkpoint = (() => {
 
   function _loadSlot(key, slot) {
     try {
-      var raw = localStorage.getItem(PREFIX + key + '_' + slot);
+      var raw = localStorage.getItem(baseKey(key) + '_' + slot);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
 
   function _loadLegacy(key) {
     try {
-      var raw = localStorage.getItem(PREFIX + key);
+      var raw = localStorage.getItem(baseKey(key));
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
 
   function clear(key) {
     try {
-      localStorage.removeItem(PREFIX + key + '_a');
-      localStorage.removeItem(PREFIX + key + '_b');
-      localStorage.removeItem(PREFIX + key); // legacy single-key
+      var base = baseKey(key);
+      localStorage.removeItem(base + '_a');
+      localStorage.removeItem(base + '_b');
+      localStorage.removeItem(base); // legacy single-key
+      // Also drop any unscoped keys written before checkpoints were
+      // student-scoped, so they can't linger and be offered to someone else.
+      if (base !== PREFIX + key) {
+        localStorage.removeItem(PREFIX + key + '_a');
+        localStorage.removeItem(PREFIX + key + '_b');
+        localStorage.removeItem(PREFIX + key);
+      }
     } catch (e) {}
   }
 

@@ -405,9 +405,17 @@ function logout() {
     try { FP.api.postRead(WEBHOOK_URL + '?action=logout', { session: session }); } catch (e) { /* ignore */ }
   }
   if (FP.clearSession) FP.clearSession();
-  try { localStorage.removeItem('fp_student_name'); } catch (e) { /* ignore */ }
+  // DATA-1: purge EVERY fp_* key, not just the name. Anything left behind is
+  // inherited by the next student to log in on this device.
+  if (FP.purgeStudentState) {
+    FP.purgeStudentState();
+  } else {
+    try { localStorage.removeItem('fp_student_name'); } catch (e) { /* ignore */ }
+  }
   studentName = '';
   progress = null;
+  settings = { allow_skip_test: false, allow_retake_test: false };
+  previousAchievements = [];
   var emailEl = document.getElementById('loginEmail'); if (emailEl) emailEl.value = '';
   var pwEl = document.getElementById('loginPassword'); if (pwEl) pwEl.value = '';
   loginError('');

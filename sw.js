@@ -8,7 +8,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v15'; // bumped: landing header (access links) + EN/ES toggle
+var CACHE_VERSION = 'fp-v16'; // bumped: Sprint 0 — DATA-1 state purge, DATA-2 verified submit, SEC-5 token docs
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 // STUDENT-scoped: only the student site's files. The teacher dashboard lives in

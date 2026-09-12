@@ -224,7 +224,18 @@ export function loadAppsScriptAuth(props = {}) {
     DigestAlgorithm: { SHA_256: 'SHA_256' },
     Charset: { UTF_8: 'UTF_8' },
   };
-  globalThis.LockService = { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) };
+  // Instrumented lock so tests can assert BE-1 takes and releases it, and can
+  // simulate contention by flipping `lockLog.failNext`.
+  const lockLog = { waits: 0, releases: 0, failNext: false };
+  globalThis.LockService = {
+    getScriptLock: () => ({
+      waitLock: () => {
+        if (lockLog.failNext) { lockLog.failNext = false; throw new Error('Could not obtain lock'); }
+        lockLog.waits++;
+      },
+      releaseLock: () => { lockLog.releases++; },
+    }),
+  };
   globalThis.Logger = { log: () => {} };
 
   const code = readFileSync(resolve(ROOT, 'apps-script.js'), 'utf-8');
@@ -249,7 +260,17 @@ export function loadAppsScriptAuth(props = {}) {
     resolveSession: globalThis.resolveSession,
     resolveEffectiveStudent: globalThis.resolveEffectiveStudent,
     authEnforced: globalThis.authEnforced,
+    validateToken: globalThis.validateToken,
     validateTeacherToken: globalThis.validateTeacherToken,
+    rateLimited: globalThis.rateLimited,
+    rateLimitSubject: globalThis.rateLimitSubject,
+    enforceAiRateLimit: globalThis.enforceAiRateLimit,
+    withScriptLock: globalThis.withScriptLock,
+    cacheInvalidateStudent: globalThis.cacheInvalidateStudent,
+    cachePut: globalThis.cachePut,
+    cacheGet: globalThis.cacheGet,
+    stripeEventAlreadyProcessed: globalThis.stripeEventAlreadyProcessed,
+    markStripeEventProcessed: globalThis.markStripeEventProcessed,
     isCourseUnlocked: globalThis.isCourseUnlocked,
     enforceCourseAccess: globalThis.enforceCourseAccess,
     verifyStripeSignature: globalThis.verifyStripeSignature,
@@ -261,11 +282,15 @@ export function loadAppsScriptAuth(props = {}) {
     teacherBaseUrl: globalThis.teacherBaseUrl,
     POST_HANDLERS: globalThis.POST_HANDLERS,
     GET_HANDLERS: globalThis.GET_HANDLERS,
+    UNLOCKED_POST: globalThis.UNLOCKED_POST,
+    doPost: globalThis.doPost,
+    doGet: globalThis.doGet,
     HEADERS: globalThis.HEADERS,
     Utilities: globalThis.Utilities,
     _store: store,
     _cache: cache,
     _ss: ss,
+    _lockLog: lockLog,
     _setFetch: (fn) => { fetchHandler = fn; },
     _mail: mail,
   };

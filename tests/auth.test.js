@@ -254,3 +254,101 @@ describe('validateTeacherToken', () => {
     expect(fp.validateTeacherToken({ token: 'app', teacher_token: 'wrong' })).toBe(false);
   });
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   Sprint 0 — SEC-1: auth fails CLOSED when a secret is missing
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('SEC-1 — missing secrets fail closed', () => {
+  it('validateToken denies every request when APP_SECRET is unset', () => {
+    const fp = loadAppsScriptAuth({}); // no APP_SECRET configured
+    expect(fp.validateToken({ token: 'anything' })).toBe(false);
+    expect(fp.validateToken({})).toBe(false);
+  });
+
+  it('validateToken still accepts the correct token when APP_SECRET is set', () => {
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
+    expect(fp.validateToken({ token: 'app' })).toBe(true);
+    expect(fp.validateToken({ token: 'wrong' })).toBe(false);
+  });
+
+  it('validateTeacherToken denies grace-window access when TEACHER_SECRET is unset', () => {
+    // The pre-fix behaviour returned true here, which — combined with the
+    // publicly reachable legacy examiner page — let anyone write grades.
+    // Deleting TEACHER_SECRET (runbook Stage I1) must CLOSE this path.
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app' }); // grace mode, no TEACHER_SECRET
+    expect(fp.authEnforced()).toBe(false);
+    expect(fp.validateTeacherToken({ token: 'app' })).toBe(false);
+    expect(fp.validateTeacherToken({ token: 'app', teacher_token: 'guess' })).toBe(false);
+  });
+
+  it('a valid teacher session still works with no TEACHER_SECRET set', () => {
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
+    const session = fp.createSession({ email: 't@x.com', role: 'teacher', student_name: '' });
+    expect(fp.validateTeacherToken({ token: 'app', session: session.token })).toBe(true);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Sprint 0 — SEC-2: the paid AI proxy is rate limited
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('SEC-2 — AI proxy rate limiting', () => {
+  it('rateLimited allows up to max, then blocks', () => {
+    const fp = loadAppsScriptAuth({});
+    for (let i = 0; i < 3; i++) expect(fp.rateLimited('k', 3, 60)).toBe(false);
+    expect(fp.rateLimited('k', 3, 60)).toBe(true);
+  });
+
+  it('counts each key separately', () => {
+    const fp = loadAppsScriptAuth({});
+    expect(fp.rateLimited('a', 1, 60)).toBe(false);
+    expect(fp.rateLimited('a', 1, 60)).toBe(true);
+    expect(fp.rateLimited('b', 1, 60)).toBe(false);
+  });
+
+  it('prefers the server-resolved session over the client-supplied name', () => {
+    const fp = loadAppsScriptAuth({});
+    const subject = fp.rateLimitSubject({ student_name: 'Maria' }, 'SomeoneElse');
+    expect(subject).toBe('s:maria');
+  });
+
+  it('falls back to the requested name, then to a shared anon bucket', () => {
+    const fp = loadAppsScriptAuth({});
+    expect(fp.rateLimitSubject(null, 'Maria')).toBe('n:maria');
+    expect(fp.rateLimitSubject(null, '')).toBe('anon');
+  });
+
+  it('enforceAiRateLimit throws once the hourly cap is reached', () => {
+    const fp = loadAppsScriptAuth({});
+    for (let i = 0; i < 2; i++) fp.enforceAiRateLimit('lesson', 's:maria', 2);
+    expect(() => fp.enforceAiRateLimit('lesson', 's:maria', 2)).toThrow(/Rate limit exceeded/);
+  });
+
+  it('one student hitting the cap does not block another', () => {
+    const fp = loadAppsScriptAuth({});
+    fp.enforceAiRateLimit('lesson', 's:maria', 1);
+    expect(() => fp.enforceAiRateLimit('lesson', 's:maria', 1)).toThrow();
+    expect(() => fp.enforceAiRateLimit('lesson', 's:jose', 1)).not.toThrow();
+  });
+
+  it('generate_lesson refuses once the student is over the lesson cap', () => {
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
+    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true' }, {});
+    const params = { student: 'Maria', level: 'A1', day: '1', topic: 'greetings' };
+    const session = { role: 'student', student_name: 'Maria' };
+    // Burn the hourly allowance without invoking the (unmocked) AI provider.
+    for (let i = 0; i < 10; i++) fp.enforceAiRateLimit('lesson', 's:maria', 10);
+    expect(() => fp.GET_HANDLERS.generate_lesson(params, session)).toThrow(/Rate limit exceeded/);
+  });
+
+  it('the course-access check runs BEFORE the rate limit is spent', () => {
+    // A locked student must not consume another student's... or their own...
+    // hourly allowance on a request that was going to be refused anyway.
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
+    const params = { student: 'Locked', level: 'A1', day: '1', topic: 'greetings' };
+    const session = { role: 'student', student_name: 'Locked' };
+    expect(() => fp.GET_HANDLERS.generate_lesson(params, session)).toThrow(/Course locked/);
+    expect(fp.rateLimited('ai_rl_lesson_s:locked', 1, 60)).toBe(false); // budget untouched
+  });
+});

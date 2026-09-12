@@ -254,7 +254,11 @@ async function beginLesson() {
 // ══════════════════════════════════════════════════════
 async function generateLesson() {
   const topicHints = getTopicForDay(state.level, state.dayNumber);
-  const cacheKey = 'fp_lesson_' + state.level + '_d' + state.dayNumber;
+  // DATA-1: scope the cache by student. Keyed on (level, day) alone, two
+  // students at the same level and day on one device shared a cached lesson —
+  // including one personalised to the other's teacher-set difficulty profile.
+  const cacheStudent = String(state.studentName || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+  const cacheKey = 'fp_lesson_' + (cacheStudent ? cacheStudent + '_' : '') + state.level + '_d' + state.dayNumber;
   const isSpanishLevel = (state.level === 'A1' || state.level === 'A2');
 
   // 1. Cache check — never re-generate the same day twice

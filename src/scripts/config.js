@@ -33,11 +33,18 @@ FP.WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXY
 FP.FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
 
 // ── Auth Token ──────────────────────────────────────────────
-// Production app token (matches APP_SECRET in Script Properties). This is a
-// speed bump, not the real authorization — that comes from the per-user
-// session issued at login. The old public TEACHER_TOKEN has been removed;
-// teacher access is now proven by a teacher session.
-// For local dev with a different Apps Script deployment, override in config.local.js.
+// SEC-5: FP.APP_TOKEN IS INTENTIONALLY PUBLIC AND IS NOT AN AUTHORIZATION
+// BOUNDARY. It is served to every browser from this file and is in git history.
+// Treat it as a speed bump against drive-by traffic only.
+//
+// Real authorization is the per-user session issued at login and validated
+// server-side on every request (see the SEC-5 audit table in apps-script.js,
+// above TEACHER_ACTIONS: no mutating action authorizes on this token alone).
+// Never add a backend action that trusts this token by itself.
+//
+// The old public TEACHER_TOKEN has been removed; teacher access is proven by a
+// teacher session. For local dev against a different Apps Script deployment,
+// override in config.local.js.
 FP.APP_TOKEN = '04eaecb3a0ccb2dc91c6b0da61a8d875';
 
 // ── CEFR Levels ──────────────────────────────────────────────
@@ -95,6 +102,29 @@ FP.clearSession = function () {
     localStorage.removeItem(FP.KEYS.SESSION_EXP);
     localStorage.removeItem(FP.KEYS.ROLE);
   } catch (e) { /* ignore */ }
+};
+
+/**
+ * DATA-1: wipe ALL per-student state from this device.
+ *
+ * Project rule: reset ALL student state unconditionally when switching students.
+ * Clearing only the session and fp_student_name left the next student on a
+ * shared/family/library device inheriting the previous student's CEFR level,
+ * day counter, cached personalised lessons, achievements and unfinished
+ * checkpoints — every `fp_*` key except those two.
+ *
+ * Collects keys first, then removes, because removing inside an index-based
+ * localStorage loop reindexes it and silently skips entries.
+ */
+FP.purgeStudentState = function () {
+  try {
+    var doomed = [];
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k && k.indexOf('fp_') === 0) doomed.push(k);
+    }
+    for (var j = 0; j < doomed.length; j++) localStorage.removeItem(doomed[j]);
+  } catch (e) { /* storage unavailable — nothing to purge */ }
 };
 
 /** Redirect to the appropriate login screen (teacher dashboard vs student app). */
