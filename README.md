@@ -20,7 +20,6 @@ Two audiences -- **students** taking tests and completing lessons, and **teacher
   - [student-initial-test.html -- Placement Test](#3-student-initial-testhtml--placement-test)
   - [student-course.html -- Daily Lesson](#4-student-coursehtml--daily-lesson)
   - [examiner-panel.html -- Teacher Dashboard](#5-examiner-panelhtml--teacher-dashboard)
-  - [examiner-marking.html -- Standalone Marking (Legacy, moved to `legacy/`)](#6-examiner-markinghtml--standalone-marking-legacy)
 - [Shared Utilities](#shared-utilities)
 - [Level-Aware Translation System](#level-aware-translation-system)
 - [Shared Design System](#shared-design-system)
@@ -104,8 +103,7 @@ fluentpath/
 │   └── styles/                    # theme, mobile, hub, student-test, student-lesson
 ├── scripts/
 │   └── sync-shared.mjs            # Propagate shared files → teacher repo (npm run sync)
-├── tests/                         # vitest: utils, apps-script, auth, stripe, password-reset
-└── legacy/                        # Deprecated standalone marking page (superseded)
+└── tests/                         # vitest: utils, apps-script, auth, stripe, password-reset, backend
 ```
 
 ---
@@ -286,12 +284,6 @@ Pulled directly from the "Initial Test Results" Google Sheets tab (no email past
 - **Course permission toggles** -- allow Spanish UI, skip placement test, retake placement test; synced to Google Sheets Settings tab via `update_settings`
 - **Reset grading data** button on the placement test panel for clearing corrupted or stale scoring state
 - **Demo data** built in for testing without live data
-
----
-
-### 6. `examiner-marking.html` -- Standalone Marking (Legacy)
-
-**Moved to `legacy/examiner-marking.html`.** Original standalone placement test marking tool. Still functional but superseded by the "Grade Placement Test" panel in the Teacher Dashboard. Uses the Formspree email import workflow. Not actively maintained — use the dashboard instead.
 
 ---
 
