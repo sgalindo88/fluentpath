@@ -31,6 +31,20 @@
 // Each adapter knows how to build the request and pull the text
 // out of that provider's response shape.
 // ══════════════════════════════════════════════════════
+/**
+ * Deployed-backend marker, surfaced by ?action=health.
+ *
+ * BUMP THIS WITH EVERY BACKEND DEPLOY. Apps Script gives no way to ask a live
+ * web app which code it is running: the editor always runs @HEAD, while the
+ * /exec URL serves whichever deployment VERSION was pinned. So a `clasp push`
+ * that was never promoted to a new version — or a "New deployment" that minted
+ * a fresh URL and left the old one untouched (runbook B7) — looks identical to
+ * a successful deploy from the outside. This is how you tell.
+ *
+ * Distinct from package.json's version, which tracks the frontend repo.
+ */
+var BACKEND_VERSION = '0.46.0';
+
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
 // AI-1d. Measured by the P0-1 probe (2026-09-11) against the real A1/day-1
@@ -2714,6 +2728,14 @@ function handleHealth() {
   checks.ai_key = props.getProperty('AI_API_KEY') ? 'set' : 'missing';
   checks.ai_provider = (props.getProperty('AI_PROVIDER') || 'gemini').toLowerCase();
   checks.app_secret = props.getProperty('APP_SECRET') ? 'set' : 'missing';
+
+  // Deploy verification. The version is a constant someone has to remember to
+  // bump; these two are read from the live code, so they prove what is actually
+  // running even when the bump is forgotten. AI-1 shipped iff ai_max_tokens is
+  // 8192 and ai_thinking_budget is present.
+  checks.version = BACKEND_VERSION;
+  checks.ai_max_tokens = AI_MAX_TOKENS;
+  checks.ai_thinking_budget = AI_THINKING_BUDGET;
 
   // Metadata
   checks.timestamp = new Date().toISOString();

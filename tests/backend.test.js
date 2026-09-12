@@ -143,3 +143,38 @@ describe('BE-2 — cacheInvalidateStudent', () => {
     expect(fp.cacheGet('progress_maria_c1')).toBeNull();
   });
 });
+
+/* ═══════════════════════════════════════════════════════════════
+   Deploy verification — ?action=health must identify the running code
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('health — deploy verification', () => {
+  const health = (props = {}) => loadAppsScriptAuth(props).GET_HANDLERS.health({});
+
+  it('reports a backend version', () => {
+    // Apps Script cannot be asked which version a live web app is serving, so
+    // a push that was never promoted looks exactly like a successful deploy.
+    expect(health().version).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it('reports the AI budget knobs, which prove AI-1 shipped without a version bump', () => {
+    const h = health();
+    expect(h.ai_max_tokens).toBeGreaterThanOrEqual(8192);
+    expect(h.ai_thinking_budget).toBeDefined();
+  });
+
+  it('still answers without any auth, so an uptime monitor can call it', () => {
+    const fp = loadAppsScriptAuth({ APP_SECRET: 'app', AUTH_ENFORCED: 'true' });
+    const out = JSON.parse(fp.doGet({ parameter: { action: 'health' } }).getContent());
+    expect(out.error).toBeUndefined();
+    expect(out.version).toBeDefined();
+  });
+
+  it('does not leak secret values', () => {
+    const h = health({ APP_SECRET: 'super-secret', AI_API_KEY: 'key-123' });
+    const blob = JSON.stringify(h);
+    expect(blob).not.toContain('super-secret');
+    expect(blob).not.toContain('key-123');
+    expect(h.app_secret).toBe('set');
+  });
+});
