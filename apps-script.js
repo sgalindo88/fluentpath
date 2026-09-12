@@ -32,11 +32,35 @@
 // out of that provider's response shape.
 // ══════════════════════════════════════════════════════
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
-var AI_MAX_TOKENS = 4096;
+
+// AI-1d. Measured by the P0-1 probe (2026-09-11) against the real A1/day-1
+// Spanish prompt: 4096 was not close to enough. gemini-2.5-flash thinks by
+// default, thinking tokens count against maxOutputTokens, and the run spent
+// 1768 on thinking + 2324 on output = 4092 of 4096 — finishReason MAX_TOKENS,
+// JSON truncated mid-string, every A1/A2 Spanish lesson falling back.
+//
+// With thinking disabled the same lesson completes in 2169 output tokens, so
+// 8192 is ~3.8x headroom — enough for C2 (minWords 250) plus a teacher
+// guidance block. No need to scale this per level or per _es.
+var AI_MAX_TOKENS = 8192;
+
+// Bounded thinking budget for Gemini. 0 disables it. The probe measured 1768
+// thinking tokens on a lesson and ~half the latency without it (18s -> 9s),
+// which the student is waiting through. Raise this if lesson quality ever
+// looks flat — 1024 still fits comfortably inside AI_MAX_TOKENS.
+var AI_THINKING_BUDGET = 0;
 
 var AI_PROVIDERS = {
   gemini: {
-    buildRequest: function(apiKey, model, prompt, maxTokens) {
+    buildRequest: function(apiKey, model, prompt, maxTokens, wantJson) {
+      var generationConfig = {
+        maxOutputTokens: maxTokens,
+        // AI-1b: without this, dynamic thinking silently eats the output budget.
+        thinkingConfig: { thinkingBudget: AI_THINKING_BUDGET }
+      };
+      // AI-1c: only for callers that actually want JSON — ai_summary returns
+      // prose straight to the teacher and must not be forced into JSON.
+      if (wantJson) generationConfig.responseMimeType = 'application/json';
       return {
         url: 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent',
         options: {
@@ -45,7 +69,7 @@ var AI_PROVIDERS = {
           headers:     { 'x-goog-api-key': apiKey },
           payload:     JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: maxTokens }
+            generationConfig: generationConfig
           }),
           muteHttpExceptions: true
         }
@@ -53,6 +77,9 @@ var AI_PROVIDERS = {
     },
     extractText: function(body) {
       var c = body && body.candidates && body.candidates[0];
+      // AI-1e: say WHY the text is missing or short. Returning truncated text
+      // here is what turned a budget problem into "Could not parse lesson JSON".
+      aiCheckFinishReason('gemini', c && c.finishReason, body && body.usageMetadata);
       var parts = c && c.content && c.content.parts;
       return parts && parts[0] && parts[0].text;
     },
@@ -75,6 +102,7 @@ var AI_PROVIDERS = {
       };
     },
     extractText: function(body) {
+      aiCheckFinishReason('anthropic', body && body.stop_reason, body && body.usage);
       var c = body && body.content && body.content[0];
       return c && c.type === 'text' && c.text;
     },
@@ -98,6 +126,7 @@ var AI_PROVIDERS = {
     },
     extractText: function(body) {
       var c = body && body.choices && body.choices[0];
+      aiCheckFinishReason('openai', c && c.finish_reason, body && body.usage);
       return c && c.message && c.message.content;
     },
     extractError: function(body, code) {
@@ -106,10 +135,42 @@ var AI_PROVIDERS = {
   }
 };
 
+/**
+ * AI-1e — turn a truncated or blocked generation into a clear error.
+ *
+ * Every provider has a field saying why it stopped, and none of them was being
+ * read. A MAX_TOKENS response still carries partial text, so the old code
+ * happily returned half a lesson and let JSON.parse fail three frames later
+ * with "Could not parse lesson JSON" — a message that points at the parser
+ * rather than the budget. Measured cost of that: every A1/A2 Spanish lesson
+ * served the fallback, silently, for as long as the feature has existed.
+ *
+ * `usage` is logged, not interpreted; the token counts are what make a repeat
+ * diagnosable without re-running the P0-1 probe.
+ */
+var AI_TRUNCATED_REASONS = { 'MAX_TOKENS': true, 'max_tokens': true, 'length': true };
+var AI_BLOCKED_REASONS   = { 'SAFETY': true, 'RECITATION': true, 'PROHIBITED_CONTENT': true, 'content_filter': true };
+
+function aiCheckFinishReason(provider, reason, usage) {
+  if (!reason) return;
+  var detail = ' (' + provider + ', finish=' + reason +
+    (usage ? ', usage=' + JSON.stringify(usage) : '') + ')';
+  if (AI_TRUNCATED_REASONS[reason]) {
+    throw new Error('AI response hit the output token limit before finishing' + detail +
+      '. Raise AI_MAX_TOKENS (currently ' + AI_MAX_TOKENS + ') or lower AI_THINKING_BUDGET.');
+  }
+  if (AI_BLOCKED_REASONS[reason]) {
+    throw new Error('AI refused to complete the response' + detail + '.');
+  }
+}
+
 // Single entry point for all AI generation. Reads the active provider/key/model
 // from Script Properties, dispatches to the matching adapter, and returns the
 // generated text. Throws on misconfiguration or API error.
-function aiGenerate(prompt) {
+//
+// `wantJson` asks the provider for raw JSON where it supports it (AI-1c). Pass
+// it only for callers that parse the result — ai_summary returns prose.
+function aiGenerate(prompt, wantJson) {
   var props    = PropertiesService.getScriptProperties();
   var apiKey   = props.getProperty('AI_API_KEY');
   if (!apiKey) throw new Error('AI_API_KEY not set in Script Properties');
@@ -119,7 +180,7 @@ function aiGenerate(prompt) {
   if (!adapter) throw new Error('Unknown AI_PROVIDER "' + provider + '" (expected gemini, anthropic, or openai)');
 
   var model = props.getProperty('AI_MODEL') || AI_DEFAULT_MODEL;
-  var req   = adapter.buildRequest(apiKey, model, prompt, AI_MAX_TOKENS);
+  var req   = adapter.buildRequest(apiKey, model, prompt, AI_MAX_TOKENS, wantJson);
 
   var resp = UrlFetchApp.fetch(req.url, req.options);
   var code = resp.getResponseCode();
@@ -1823,11 +1884,18 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
 
   try {
     // Strip markdown code fences if the model wrapped the JSON despite instructions
-    var text = stripJsonFences(aiGenerate(prompt));
+    var text = stripJsonFences(aiGenerate(prompt, true));
 
     var lesson;
     try { lesson = JSON.parse(text); }
-    catch (parseErr) { return { error: 'Could not parse lesson JSON: ' + parseErr.message }; }
+    catch (parseErr) {
+      // AI-1f: the student only ever saw "tell your teacher the lesson
+      // generator is unavailable". Put it somewhere the teacher actually looks.
+      logError('generate_lesson', studentName || '',
+        'Could not parse lesson JSON: ' + parseErr.message,
+        { level: level, day: day, chars: text.length, tail: text.slice(-120) });
+      return { error: 'Could not parse lesson JSON: ' + parseErr.message };
+    }
 
     // Decision 6: custom-instructed lessons never enter the library
     if (!hasCustomInstructions) {
@@ -1838,6 +1906,10 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
 
     return { found: true, lesson: lesson, source: 'fresh' };
   } catch (err) {
+    // AI-1f: includes the finish-reason detail from aiCheckFinishReason, so a
+    // budget problem is legible in the Error Log without re-running a probe.
+    logError('generate_lesson', studentName || '', 'Lesson generation failed: ' + err.message,
+      { level: level, day: day, spanish: !!allowSpanish });
     return { error: 'Lesson generation failed: ' + err.message };
   }
 }
@@ -2336,7 +2408,7 @@ function rewriteLessonForDifficulty(sourceLesson, targetDifficulty, level, day) 
     (guidance ? 'TARGET DIFFICULTY:\n' + guidance + '\n\n' : '') +
     'LEVEL: ' + level + '  DAY: ' + day;
 
-  return JSON.parse(stripJsonFences(aiGenerate(prompt)));
+  return JSON.parse(stripJsonFences(aiGenerate(prompt, true)));
 }
 
 
