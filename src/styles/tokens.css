@@ -1,0 +1,177 @@
+/* COPY of src-files/branding-strategy/structured-design-package/final/variables.css (the source of truth).
+   Do not edit here: change the design package, then re-copy. */
+/* ==========================================================================
+   FluentPath Design Tokens & CSS Variables (FINAL, source of truth)
+   Domain: fluentpath.ca
+   Finalized: 2026-10-12
+   Includes: WCAG AA contrast fixes, outline focus rings (light + dark surfaces), navy pressed state,
+   plain 16px input rule. Montserrat only (400/500/600/700). No Light 300, no Poppins.
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. PRIMITIVE BRAND COLORS (FluentPath Brand Book)
+     ------------------------------------------------------------------------ */
+  --fp-navy-900: #1E2A38;        /* Deep Route Navy (Primary Dark) */
+  --fp-coral-500: #FF6F61;       /* Waypoint Coral (Brand Primary Accent) */
+  --fp-ice-100: #EBF4F6;         /* Cloud Ice Blue (Secondary Surface) */
+  --fp-cream-50: #F7F5F0;        /* Clear Cream (App Background Canvas) */
+  --fp-grey-300: #D9D9D9;        /* Station Grey (Disabled Fills & Light Borders) */
+  --fp-green-500: #4CAF50;       /* Path Green (Fills & Badges) */
+  --fp-white: #FFFFFF;           /* Pure White */
+
+  /* Derived State & High-Contrast WCAG-Compliant Primitives */
+  --fp-slate-600: #5A6572;       /* Slate Muted Text & Accessible Borders (3:1+) */
+  --fp-slate-700: #3A4552;       /* High-contrast Slate */
+  --fp-coral-hover: #FF8073;     /* Coral Hover State (5.95:1 Navy Text Contrast) */
+  --fp-navy-800: #2A3A4D;        /* Navy Hover State */
+  --fp-navy-950: #141D28;        /* Secondary button pressed */
+  --fp-green-700: #2E7D32;       /* Text-Safe Dark Green (4.5:1+ WCAG AA) */
+  --fp-amber-500: #F59E0B;       /* Warning Fill Amber */
+  --fp-amber-700: #B45309;       /* Text-Safe Dark Amber (4.5:1+ WCAG AA) */
+  --fp-crimson-700: #C62828;     /* Error / Validation Crimson (5.6:1 WCAG AA) */
+
+  /* ------------------------------------------------------------------------
+     2. SEMANTIC ROLES & CONTRAST FIXES
+     ------------------------------------------------------------------------ */
+  /* Surfaces */
+  --surface-primary: var(--fp-cream-50);
+  --surface-card: var(--fp-white);
+  --surface-secondary: var(--fp-ice-100);
+  --surface-nav-rail: var(--fp-navy-900);
+  --surface-disabled: var(--fp-grey-300);
+
+  /* Typography Colors */
+  --text-primary: var(--fp-navy-900);      /* 13.35:1 on Cream (Passes AAA) */
+  --text-muted: var(--fp-slate-600);        /* 5.45:1 on Cream (Passes AA) */
+  --text-inverse: var(--fp-cream-50);       /* Text on Navy */
+  --text-on-coral: var(--fp-navy-900);      /* 5.33:1 Navy on Waypoint Coral (Passes AA) */
+  --text-success: var(--fp-green-700);      /* 4.5:1+ Dark Green on Light BG */
+  --text-warning: var(--fp-amber-700);      /* 4.5:1+ Dark Amber on Light BG */
+  --text-error: var(--fp-crimson-700);      /* 5.62:1 Crimson on White */
+
+  /* Actions & CTA State Styling */
+  --action-primary-bg: var(--fp-coral-500);
+  --action-primary-text: var(--fp-navy-900);      /* 5.33:1 WCAG AA Pass */
+  --action-primary-hover: var(--fp-coral-hover);   /* 5.95:1 WCAG AA Pass */
+  --action-primary-active-bg: var(--fp-navy-900);  /* Safer Navy Pressed State (Avoids Error Red) */
+  --action-primary-active-text: var(--fp-coral-500);/* 5.33:1 Contrast Coral Text on Navy */
+  
+  --action-secondary-bg: var(--fp-navy-900);
+  --action-secondary-text: var(--fp-cream-50);
+  --action-secondary-hover: var(--fp-navy-800);
+
+  /* Borders & Surface-Aware Focus Rings */
+  --border-subtle: var(--fp-grey-300);      /* Fills & card dividers */
+  --border-accessible: var(--fp-slate-600);  /* Enforces 3:1+ boundary contrast */
+  /* Focus indicator is a real CSS outline (not box-shadow): it survives Windows
+     High Contrast / forced-colors mode, is not clipped by overflow:hidden
+     ancestors, and does not collide with an element's own box-shadow. */
+  --focus-ring-offset: 2px;
+  --focus-ring-width: 2px;
+  --focus-ring-color-light: var(--fp-navy-900);  /* 13.35:1 on Cream, 14.55:1 on White */
+  --focus-ring-color-dark: var(--fp-cream-50);   /* 13.35:1 on Navy */
+  /* Legacy shadow variants, kept only so existing references don't break.
+     NOT used by the base :focus-visible rules below; prefer the outline tokens. */
+  --focus-ring-light: 0 0 0 2px var(--surface-primary), 0 0 0 4px var(--fp-navy-900);
+  --focus-ring-dark: 0 0 0 2px var(--fp-navy-900), 0 0 0 4px var(--fp-cream-50);
+
+  /* Waypoint Nodes & Badges */
+  --waypoint-completed-bg: var(--fp-green-500);
+  --waypoint-completed-icon: var(--fp-navy-900); /* 5.23:1 Navy Checkmark on Green */
+  --waypoint-active-bg: var(--fp-coral-500);
+  --waypoint-upcoming-bg: rgba(255, 111, 97, 0.60);
+
+  /* Semantic Validation Roles */
+  --status-success: var(--fp-green-500);
+  --status-success-text: var(--fp-green-700);
+  --status-success-bg: rgba(76, 175, 80, 0.12);
+
+  --status-warning: var(--fp-amber-500);
+  --status-warning-text: var(--fp-amber-700);
+  --status-warning-bg: rgba(245, 158, 11, 0.12);
+
+  --status-error: var(--fp-crimson-700);
+  --status-error-text: var(--fp-crimson-700);
+  --status-error-bg: rgba(198, 40, 40, 0.12);
+
+  /* ------------------------------------------------------------------------
+     3. TYPOGRAPHY SCALE & FONT WEIGHTS
+     ------------------------------------------------------------------------ */
+  --font-family-primary: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --font-weight-regular: 400;   /* Approved Body Copy & Control Text */
+  --font-weight-medium: 500;    /* H2 & Section Headers */
+  --font-weight-semibold: 600;  /* Wordmark & Compact Pills / Badges */
+  --font-weight-bold: 700;      /* H1 & Primary Buttons */
+
+  --font-size-h1: 2rem;          /* 32px - Montserrat Bold (700) */
+  --font-size-h2: 1.5rem;        /* 24px - Montserrat Medium (500) */
+  --font-size-h3: 1.125rem;      /* 18px - Montserrat Bold (700) */
+  --font-size-body-lg: 1.125rem; /* 18px - Reading passages (Regular 400) */
+  --font-size-body: 0.9375rem;   /* 15px - Default Body Copy */
+  --font-size-input: 1rem;       /* 16px - Form Inputs (prevents iOS Safari auto-zoom) */
+  --font-size-sm: 0.8125rem;     /* 13px - Small UI Copy */
+  --font-size-xs: 0.6875rem;     /* 11px - Compact Badges & Micro-labels */
+
+  /* ------------------------------------------------------------------------
+     4. SPACING & GRID LAYOUT (8px Spatial System)
+     ------------------------------------------------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ------------------------------------------------------------------------
+     5. GEOMETRY & ELEVATIONS
+     ------------------------------------------------------------------------ */
+  --radius-sm: 8px;              /* Buttons, Form Controls, Selects */
+  --radius-md: 12px;             /* Cards & Lesson Modules */
+  --radius-lg: 16px;             /* Containers, Modals, Audio Bars */
+  --radius-full: 9999px;         /* Badges, Pills, Audio Controls */
+
+  --elevation-none: none;
+  --elevation-1: 0 4px 12px rgba(30, 42, 56, 0.08);
+  --elevation-2: 0 8px 24px rgba(30, 42, 56, 0.14);
+  --waypoint-glow: 0 0 0 6px rgba(255, 111, 97, 0.28);
+
+  /* ------------------------------------------------------------------------
+     6. LAYOUT & BREAKPOINT SPECIFICATIONS
+     ------------------------------------------------------------------------ */
+  --header-height-desktop: 64px;
+  --header-height-mobile: 56px;
+  --nav-rail-collapsed-width: 72px;
+  --nav-rail-expanded-width: 240px;
+  --nav-bottom-bar-height: 64px;
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-nav: 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Base Component Accessibility Overrides */
+
+/* iOS Safari zooms any focused form control under 16px and does not zoom back.
+   Normal specificity on purpose (no !important): component rules that set their own
+   input font-size must reference var(--font-size-input) instead of a px value. */
+input,
+select,
+textarea {
+  font-size: var(--font-size-input);
+}
+
+/* Default focus ring (light surfaces: Cream, White, Ice Blue) */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color-light);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Dark surfaces (Navy sidebar, dark headers): cream ring for contrast */
+.surface-dark :focus-visible,
+.nav-rail :focus-visible,
+[data-surface="dark"] :focus-visible {
+  outline-color: var(--focus-ring-color-dark);
+}

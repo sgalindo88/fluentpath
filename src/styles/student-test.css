@@ -5,8 +5,8 @@
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: 'Source Serif 4', Georgia, serif;
-  font-weight: 300;
+  font-family:var(--font-family-primary);
+  font-weight:400;
   min-height: 100vh;
 }
 
@@ -39,7 +39,7 @@ body {
   z-index: 99;
 }
 .nav-title {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -87,7 +87,7 @@ body {
   font-weight: 600;
 }
 .cover h1 {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: clamp(44px, 8vw, 80px);
   font-weight: 700;
   line-height: 1.02;
@@ -131,7 +131,7 @@ body {
   border: 1px solid var(--rule);
   border-bottom: 2px solid var(--ink);
   padding: 10px 12px;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
   font-size: 14px;
   color: var(--ink);
   outline: none;
@@ -169,7 +169,7 @@ body {
   font-weight: 600;
 }
 .overview-card .oc-title {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 18px;
   font-weight: 700;
   color: var(--ink);
@@ -185,7 +185,7 @@ body {
   color: var(--paper);
   border: none;
   padding: 16px 48px;
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 18px;
   font-style: italic;
   cursor: pointer;
@@ -203,7 +203,7 @@ body {
   text-align: center;
 }
 .section-intro .si-num {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 80px;
   font-weight: 700;
   color: var(--rule);
@@ -211,7 +211,7 @@ body {
   margin-bottom: 8px;
 }
 .section-intro h2 {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 40px;
   font-weight: 700;
   color: var(--ink);
@@ -267,7 +267,7 @@ body {
 }
 
 .q-num-big {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 13px;
   font-weight: 700;
   color: var(--rust);
@@ -320,7 +320,7 @@ body {
   cursor: pointer;
   text-align: left;
   transition: all 0.15s;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
   font-size: 14.5px;
   color: var(--ink);
   width: 100%;
@@ -398,7 +398,7 @@ body {
   border-bottom: 2px solid var(--ink);
   background: var(--cream);
   padding: 14px 16px;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
   font-size: 15px;
   color: var(--ink);
   outline: none;
@@ -435,7 +435,7 @@ textarea.text-input-area { min-height: 160px; }
   cursor: pointer;
   text-align: left;
   transition: all 0.15s;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
 }
 .task-choice-btn:hover:not(.chosen) {
   border-color: var(--ink);
@@ -562,7 +562,7 @@ textarea.text-input-area { min-height: 160px; }
   border: 1.5px solid var(--ink);
   color: var(--ink);
   padding: 12px 28px;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.15s;
@@ -607,7 +607,7 @@ textarea.text-input-area { min-height: 160px; }
   margin-bottom: 16px;
 }
 .results-header h2 {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 48px;
   font-weight: 700;
   color: var(--ink);
@@ -635,7 +635,7 @@ textarea.text-input-area { min-height: 160px; }
   margin-bottom: 12px;
 }
 .score-circle .sc-num {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 44px;
   font-weight: 700;
   color: var(--ink);
@@ -655,7 +655,7 @@ textarea.text-input-area { min-height: 160px; }
   text-transform: uppercase;
   padding: 8px 24px;
   font-weight: 600;
-  font-family: 'Source Serif 4', serif;
+  font-family:var(--font-family-primary);
 }
 
 .score-breakdown {
@@ -683,7 +683,7 @@ textarea.text-input-area { min-height: 160px; }
   margin-bottom: 6px;
 }
 .ssc-score {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 28px;
   font-weight: 700;
   color: var(--ink);
@@ -730,7 +730,7 @@ textarea.text-input-area { min-height: 160px; }
 .cefr-row:last-child { border-bottom: none; }
 .cefr-row.highlight { color: var(--rust); font-weight: 600; }
 .cefr-level {
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 16px;
   font-weight: 700;
   width: 50px;
@@ -749,7 +749,7 @@ textarea.text-input-area { min-height: 160px; }
   color: var(--paper);
   border: none;
   padding: 16px;
-  font-family: 'Playfair Display', serif;
+  font-family:var(--font-family-primary);
   font-size: 18px;
   font-style: italic;
   cursor: pointer;

@@ -5,12 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FluentPath Placement Test</title>
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="styles/theme.css">
+<link rel="stylesheet" href="styles/components.css">
 <link rel="stylesheet" href="styles/student-test.css">
 <link rel="stylesheet" href="styles/mobile.css">
 <script src="scripts/config.js"></script>
+<script src="scripts/icons.js"></script>
 <script src="scripts/api.js"></script>
 <script src="scripts/utils.js"></script>
+<script src="scripts/ui.js"></script>
 <script src="scripts/checkpoint.js"></script>
 </head>
 <body>
@@ -416,7 +420,7 @@
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q21')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <button class="record-speaking-btn" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
         <div id="rec-status-q21" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
         <div id="rec-transcript-q21" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
@@ -433,7 +437,7 @@
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q22')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <button class="record-speaking-btn" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
         <div id="rec-status-q22" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
         <div id="rec-transcript-q22" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
@@ -450,7 +454,7 @@
       <div class="speaking-input">
         <label>Preparation Notes (1 minute)</label>
         <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" rows="4" oninput="saveText('q23')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <button class="record-speaking-btn" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
         <div id="rec-status-q23" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
         <div id="rec-transcript-q23" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
@@ -467,7 +471,7 @@
       <div class="speaking-input">
         <label>Notes / Key Arguments (optional)</label>
         <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" rows="3" oninput="saveText('q24')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:'Source Serif 4',serif;font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
+        <button class="record-speaking-btn" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
         <div id="rec-status-q24" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
         <div id="rec-transcript-q24" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
       </div>
@@ -484,7 +488,7 @@
 <div class="screen" id="screen-submitting">
   <div style="min-height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 32px;">
     <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px;">Please wait</div>
-    <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:700;color:var(--ink);margin-bottom:12px;">Submitting your<br><em style="color:var(--rust);">results…</em></div>
+    <div style="font-family:var(--font-family-primary);font-size:40px;font-weight:700;color:var(--ink);margin-bottom:12px;">Submitting your<br><em style="color:var(--rust);">results…</em></div>
     <div style="width:48px;height:48px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.8s linear infinite;margin:28px auto;"></div>
     <div id="submittingStatus" style="font-size:14px;color:var(--muted);font-style:italic;max-width:400px;line-height:1.7;"></div>
   </div>
@@ -495,7 +499,7 @@
   <div class="results-screen">
 
     <!-- Submission status banner (auto-filled) -->
-    <div id="submissionBanner" style="margin-bottom:32px;padding:18px 24px;border-left:4px solid var(--green);background:var(--green-bg);font-size:14px;color:var(--green);display:none;"></div>
+    <div id="submissionBanner" class="fp-banner fp-banner--success fp-mb-8 fp-hidden" role="status"></div>
 
     <div class="results-header">
       <div class="eyebrow">Test Complete</div>
@@ -527,7 +531,7 @@
 
     <div id="submitStatus" style="display:none;margin-top:16px;padding:12px 16px;font-size:13px;"></div>
 
-    <a href="../app.html" style="display:block;text-align:center;margin-top:28px;padding:16px;background:var(--ink);color:var(--paper);text-decoration:none;font-family:'Playfair Display',serif;font-size:17px;font-style:italic;border-radius:4px;transition:background 0.2s;" onmouseover="this.style.background='var(--rust)'" onmouseout="this.style.background='var(--ink)'">Return to FluentPath</a>
+    <a href="../app.html" style="display:block;text-align:center;margin-top:28px;padding:16px;background:var(--ink);color:var(--paper);text-decoration:none;font-family:var(--font-family-primary);font-size:17px;font-style:italic;border-radius:4px;transition:background 0.2s;" onmouseover="this.style.background='var(--rust)'" onmouseout="this.style.background='var(--ink)'">Return to FluentPath</a>
   </div>
 </div>
 

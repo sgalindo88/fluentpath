@@ -485,54 +485,25 @@ function renderAchievements(d) {
 }
 
 function showAchievementToast(achievement) {
-  var toast = document.createElement('div');
-  toast.style.cssText =
-    'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:300;' +
-    'background:var(--ink,#1a1208);color:var(--paper,#f5f0e8);' +
-    'padding:14px 24px;border-radius:8px;font-size:14px;font-weight:600;' +
-    'box-shadow:0 8px 24px rgba(0,0,0,0.3);display:flex;align-items:center;gap:10px;' +
-    'animation:fpToastIn 0.4s ease;font-family:"Source Serif 4",serif;';
-  toast.innerHTML = '<span style="font-size:24px;">' + achievement.icon + '</span>' +
-    '<span>Achievement unlocked: <em>' + escHtml(achievement.name) + '</em></span>';
-  document.body.appendChild(toast);
-
-  // Inject animation if not already present
-  if (!document.getElementById('fp-toast-style')) {
-    var s = document.createElement('style');
-    s.id = 'fp-toast-style';
-    s.textContent = '@keyframes fpToastIn{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
-    document.head.appendChild(s);
-  }
-
-  setTimeout(function() {
-    toast.style.transition = 'opacity 0.4s';
-    toast.style.opacity = '0';
-    setTimeout(function() { toast.remove(); }, 400);
-  }, 3500);
+  // Icon is still the emoji here; the icon pass (Phase C) swaps it for FP.icon.
+  FP.ui.toast(
+    '<strong>' + achievement.icon + '</strong> Achievement unlocked: <em>' + escHtml(achievement.name) + '</em>',
+    { variant: 'success', html: true, iconHtml: '' });
 }
 
 /* ─────────────────────────────────────────────────────────────
    Offline Banner
    ───────────────────────────────────────────────────────────── */
 function showOfflineBanner() {
-  var existing = document.getElementById('fp-offline-banner');
-  if (existing) { existing.style.display = 'flex'; return; }
-  var banner = document.createElement('div');
-  banner.id = 'fp-offline-banner';
-  banner.style.cssText =
-    'display:flex;align-items:center;justify-content:center;gap:12px;' +
-    'position:fixed;bottom:0;left:0;right:0;z-index:200;' +
-    'background:#fff8e1;border-top:1px solid #c9933a;color:#5a3e0a;' +
-    'padding:10px 16px;font-size:13px;font-family:"Source Serif 4",serif;';
-  banner.innerHTML =
-    '<span>Offline — showing cached data</span>' +
-    '<button onclick="refreshProgress()" style="background:#5a3e0a;color:white;border:none;padding:4px 14px;font-size:12px;cursor:pointer;border-radius:4px;">Retry</button>';
-  document.body.appendChild(banner);
+  FP.ui.banner({
+    id: 'fp-offline-banner', variant: 'offline', position: 'bottom',
+    html: 'Offline — showing cached data',
+    actions: [{ label: 'Retry', onclick: function () { refreshProgress(); } }],
+  });
 }
 
 function hideOfflineBanner() {
-  var el = document.getElementById('fp-offline-banner');
-  if (el) el.style.display = 'none';
+  FP.ui.removeBanner('fp-offline-banner');
 }
 
 /* ─────────────────────────────────────────────────────────────

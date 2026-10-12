@@ -481,7 +481,7 @@ async function toggleSpeakingRec(qId) {
         player = document.createElement('audio');
         player.id = 'rec-audio-' + qId;
         player.controls = true;
-        player.style.cssText = 'display:block;width:100%;max-width:360px;margin-top:8px;';
+        player.className = 'fp-audio-preview';
         statusEl.insertAdjacentElement('afterend', player);
       }
       if (player.src) URL.revokeObjectURL(player.src);
@@ -663,27 +663,25 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
     { label: 'Started', value: state.startTime ? state.startTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
     { label: 'Finished', value: state.endTime ? state.endTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
     { label: 'Duration', value: duration ? formatDuration(duration) : '—' },
-  ].map(item => `<div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px;">${item.label}</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--ink);">${item.value}</div></div>`).join('');
+  ].map(item => `<div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px;">${item.label}</div><div style="font-family:var(--font-family-primary);font-size:22px;font-weight:700;color:var(--ink);">${item.value}</div></div>`).join('');
 
   // Submission banner
   const banner = document.getElementById('submissionBanner');
+  banner.classList.remove('fp-hidden', 'fp-banner--success', 'fp-banner--error');
   if (submissionOk) {
-    banner.style.display = 'block';
+    banner.classList.add('fp-banner--success');
     banner.textContent = '✓ ' + submissionMsg;
   } else {
-    banner.style.borderColor = 'var(--rust)';
-    banner.style.background = '#fdecea';
-    banner.style.color = 'var(--rust)';
-    banner.style.display = 'block';
+    banner.classList.add('fp-banner--error');
+    banner.setAttribute('role', 'alert');
     banner.textContent = submissionMsg;
     // Give the student a way out rather than a dead end.
     const retry = document.createElement('button');
     retry.id = 'retrySubmitBtn';
+    retry.type = 'button';
+    retry.className = 'fp-btn fp-btn--primary';
     retry.textContent = 'Retry submission';
     retry.setAttribute('onclick', 'retrySubmission()');
-    retry.style.cssText =
-      'display:block;margin:12px auto 0;padding:10px 24px;font-size:14px;cursor:pointer;' +
-      'background:var(--rust);color:white;border:none;border-radius:4px;font-family:inherit;';
     banner.appendChild(retry);
   }
 
@@ -953,7 +951,7 @@ function restartTest() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   // Reset submission banner
   const banner = document.getElementById('submissionBanner');
-  if (banner) { banner.style.display = 'none'; banner.textContent = ''; }
+  if (banner) { banner.classList.add('fp-hidden'); banner.classList.remove('fp-banner--error'); banner.classList.add('fp-banner--success'); banner.textContent = ''; }
 
   // Reset nav score
   document.getElementById('navScore').textContent = '';

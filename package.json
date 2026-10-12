@@ -16,7 +16,9 @@
     "clasp:push": "clasp push",
     "clasp:deploy": "clasp push && clasp deploy -d \"$(git log -1 --format=%s)\"",
     "clasp:status": "clasp status",
-    "test:ui": "vitest run --config vitest.ui.config.mjs"
+    "test:ui": "vitest run --config vitest.ui.config.mjs",
+    "icons": "node scripts/build-icons.mjs",
+    "icons:check": "node scripts/build-icons.mjs --check"
   },
   "repository": {
     "type": "git",
@@ -31,6 +33,7 @@
   "homepage": "https://github.com/sgalindo88/english-course#readme",
   "devDependencies": {
     "@google/clasp": "^3.3.0",
+    "@material-symbols/svg-400": "^0.48.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
     "playwright-core": "^1.49.1",

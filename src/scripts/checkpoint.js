@@ -175,32 +175,32 @@ const Checkpoint = (() => {
         margin-bottom: 12px;
       }
       .ckpt-title {
-        font-family: 'Playfair Display', Georgia, serif;
+        font-family:var(--font-family-primary);
         font-size: 22px;
         font-weight: 700;
         color: var(--ink, #1a1208);
         margin-bottom: 4px;
       }
       .ckpt-title-es {
-        font-family: 'Source Serif 4', Georgia, serif;
+        font-family:var(--font-family-primary);
         font-size: 14px;
-        font-weight: 300;
+        font-weight:400;
         font-style: italic;
         color: var(--muted, #6b5f4e);
         margin-bottom: 16px;
       }
       .ckpt-message {
-        font-family: 'Source Serif 4', Georgia, serif;
+        font-family:var(--font-family-primary);
         font-size: 15px;
-        font-weight: 300;
+        font-weight:400;
         color: var(--ink, #1a1208);
         line-height: 1.6;
         margin-bottom: 4px;
       }
       .ckpt-message-es {
-        font-family: 'Source Serif 4', Georgia, serif;
+        font-family:var(--font-family-primary);
         font-size: 13px;
-        font-weight: 300;
+        font-weight:400;
         font-style: italic;
         color: var(--muted, #6b5f4e);
         line-height: 1.5;
@@ -237,7 +237,7 @@ const Checkpoint = (() => {
         flex: 1;
         padding: 14px 16px;
         border-radius: 6px;
-        font-family: 'Playfair Display', Georgia, serif;
+        font-family:var(--font-family-primary);
         font-size: 15px;
         font-style: italic;
         cursor: pointer;
@@ -266,7 +266,7 @@ const Checkpoint = (() => {
         font-style: italic;
         opacity: 0.7;
         margin-top: 2px;
-        font-family: 'Source Serif 4', Georgia, serif;
+        font-family:var(--font-family-primary);
       }
       @media (max-width: 400px) {
         .ckpt-actions { flex-direction: column; }

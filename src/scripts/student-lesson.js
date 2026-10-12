@@ -335,15 +335,10 @@ async function generateLesson() {
 /** Show a small banner so the student/teacher knows the AI generator is offline. */
 function showFallbackBanner() {
   if (document.getElementById('fp-fallback-banner')) return;
-  const banner = document.createElement('div');
-  banner.id = 'fp-fallback-banner';
-  banner.style.cssText =
-    'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:198;' +
-    'background:#fff8e1;border:1px solid #c9933a;color:#5a3e0a;' +
-    'padding:8px 16px;font-size:12px;font-family:"Source Serif 4",serif;' +
-    'box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:90%;text-align:center;';
-  banner.innerHTML = '⚠ Offline lesson — please tell your teacher the lesson generator is unavailable.';
-  document.body.appendChild(banner);
+  FP.ui.banner({
+    id: 'fp-fallback-banner', variant: 'warning', position: 'below-header',
+    html: 'Offline lesson — please tell your teacher the lesson generator is unavailable.',
+  });
 }
 
 // Five hand-curated fallback lessons that cycle by (day - 1) % 5.
@@ -1115,7 +1110,7 @@ function renderSpeaking(wrap, data) {
   const drills = (data.drills || []).map(d => `
     <div class="activity-card" style="margin-bottom:16px;">
       <div class="ac-label">DRILL · PRONUNCIATION</div>
-      <div style="font-size:22px;font-family:'Playfair Display',serif;font-weight:700;margin-bottom:8px;">"${escHtml(d.phrase)}"</div>
+      <div style="font-size:22px;font-family:var(--font-family-primary);font-weight:700;margin-bottom:8px;">"${escHtml(d.phrase)}"</div>
       <div style="background:#fff8e6;border-left:3px solid var(--gold);padding:10px 14px;font-size:13px;color:var(--muted);font-style:italic;margin-bottom:16px;">💡 ${biText(d.tip, d.tip_es)}</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button data-phrase="${escHtml(d.phrase)}" onclick="speakText(this.dataset.phrase)" style="background:var(--blue);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">${biText('🔊 Hear model', '🔊 Escuchar modelo')}</button>
@@ -1773,8 +1768,7 @@ async function verifyLessonSave(submissionId) {
 function showLessonRetry(statusEl) {
   const btn = document.createElement('button');
   btn.id = 'retryLessonBtn';
-  btn.className = 'btn-begin';
-  btn.style.cssText = 'display:block;margin:12px auto 0;';
+  btn.className = 'btn-begin fp-retry';
   btn.textContent = tr('Try saving again');
   btn.addEventListener('click', function () {
     btn.disabled = true;

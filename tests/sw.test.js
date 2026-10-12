@@ -7,7 +7,7 @@
  * replayQueue (store.delete after an async fetch), so these tests fail on it.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 const SW_PATH = process.env.SW_UNDER_TEST || resolve(import.meta.dirname, '..', 'sw.js');
@@ -280,5 +280,27 @@ describe('SW-1: shell files come from one deploy', () => {
     sw.listeners.fetch({ request: get(URL_CSS), respondWith: (p) => { responded = p; } });
     expect(await (await responded).text()).toBe('NEW');
     expect(sw.fetchMock).toHaveBeenCalled();
+  });
+});
+
+describe('app shell lists', () => {
+  const read = (p) => readFileSync(resolve(import.meta.dirname, '..', p), 'utf-8');
+  const shellOf = (code) => [...code.match(/var APP_SHELL = \[([\s\S]*?)\];/)[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+
+  it('precaches every self-hosted font and tokens.css (offline must not lose the typeface)', () => {
+    const shell = shellOf(read('sw.js'));
+    
+    const fonts = readdirSync(resolve(import.meta.dirname, '..', 'src/fonts')).filter((f) => f.endsWith('.woff2'));
+    expect(fonts.length).toBe(8);
+    for (const f of fonts) expect(shell).toContain('./src/fonts/' + f);
+    expect(shell).toContain('./src/styles/tokens.css');
+  });
+
+  it('every file listed in the shell exists on disk', () => {
+    
+    for (const p of shellOf(read('sw.js'))) {
+      if (p === './') continue;
+      expect(existsSync(resolve(import.meta.dirname, '..', p)), p).toBe(true);
+    }
   });
 });

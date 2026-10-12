@@ -1,0 +1,340 @@
+/* ═══════════════════════════════════════════════════════════════
+   FluentPath — Base components (design spec §6)
+   ─────────────────────────────────────────────────────────────
+   Load after tokens.css and theme.css. Every colour, size and radius is a
+   token from tokens.css. Classes carry the `fp-` prefix so they can never
+   collide with a page stylesheet; states are `is-*` modifiers, which JS toggles
+   instead of writing style.cssText.
+
+   Components marked (derived) had no mockup; they are built from the tokens and
+   are reviewed on rendered screenshots (src/design-system.html).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Utilities ──────────────────────────────────────────────── */
+.fp-hidden { display: none !important; }
+.fp-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* Layout helpers that replace one-off inline styles */
+.fp-block-center { display: block; margin-left: auto; margin-right: auto; }
+.fp-mt-3 { margin-top: var(--space-3); }
+.fp-mt-4 { margin-top: var(--space-4); }
+.fp-mb-4 { margin-bottom: var(--space-4); }
+.fp-mb-8 { margin-bottom: var(--space-8); }
+.fp-text-center { text-align: center; }
+
+/* ── Icons (helper in icons.js: FP.icon('mic')) ─────────────── */
+.fp-icon {
+  display: inline-block; flex: none; vertical-align: -0.25em;
+  width: 1.5rem; height: 1.5rem; fill: currentColor;
+}
+.fp-icon--sm { width: 1.25rem; height: 1.25rem; }  /* 20px: badges, inline */
+.fp-icon--lg { width: 2rem; height: 2rem; }        /* 32px: empty states */
+
+/* ── Spinner ────────────────────────────────────────────────── */
+/* A white spinner on coral fails contrast, so it is navy there. */
+.fp-spinner {
+  display: inline-block; width: 16px; height: 16px; flex: none;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: fp-spin 0.8s linear infinite;
+}
+@keyframes fp-spin { to { transform: rotate(360deg); } }
+
+/* ── Buttons (§6.1, §6.2) ───────────────────────────────────── */
+.fp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 44px; padding: 10px var(--space-6);
+  border: 2px solid transparent; border-radius: var(--radius-sm);
+  font-family: var(--font-family-primary); font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold); line-height: 1.25; text-align: center; text-decoration: none;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+}
+.fp-btn--block { display: flex; width: 100%; }
+
+.fp-btn--primary { background: var(--action-primary-bg); color: var(--action-primary-text); }
+.fp-btn--secondary { background: var(--action-secondary-bg); color: var(--action-secondary-text); }
+
+/* Hover only where hover exists, so it never sticks on iOS. */
+@media (hover: hover) {
+  .fp-btn--primary:hover:not(:disabled):not(.is-loading) {
+    background: var(--action-primary-hover); box-shadow: var(--elevation-1); transform: translateY(-1px);
+  }
+  .fp-btn--secondary:hover:not(:disabled):not(.is-loading) { background: var(--action-secondary-hover); }
+}
+
+/* Pressed: navy fill, coral text. It cannot be mistaken for the crimson error colour. */
+.fp-btn--primary:active:not(:disabled) {
+  background: var(--action-primary-active-bg); color: var(--action-primary-active-text); transform: scale(0.98);
+}
+.fp-btn--secondary:active:not(:disabled) { background: var(--fp-navy-950); transform: scale(0.98); }
+
+.fp-btn:disabled, .fp-btn[aria-disabled="true"] {
+  background: var(--surface-disabled); color: var(--text-muted);
+  cursor: not-allowed; box-shadow: none; transform: none;
+}
+
+/* Error: crimson fill, white text (5.62:1), short shake. */
+.fp-btn--primary.is-error { background: var(--status-error); color: var(--fp-white); animation: fp-shake 0.3s; }
+.fp-btn--secondary.is-error { border-color: var(--status-error); color: var(--status-error); }
+@keyframes fp-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* Loading: label stays visible; spinner is navy on coral, coral on navy. */
+.fp-btn.is-loading { cursor: progress; pointer-events: none; }
+.fp-btn.is-loading::before {
+  content: ''; width: 16px; height: 16px; flex: none; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent; animation: fp-spin 0.8s linear infinite;
+}
+.fp-btn--secondary.is-loading::before { color: var(--fp-coral-500); }
+
+/* A navy button disappears on a navy surface: give it a cream border there. */
+.surface-dark .fp-btn--secondary, [data-surface="dark"] .fp-btn--secondary { border-color: var(--fp-cream-50); }
+
+@media (max-width: 599px) { .fp-btn--primary { min-height: 48px; } }
+
+/* ── Form fields (§6.3) ─────────────────────────────────────── */
+.fp-field { display: flex; flex-direction: column; gap: var(--space-1); }
+.fp-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.fp-input, .fp-textarea, .fp-select {
+  width: 100%; min-height: 44px; padding: 10px var(--space-3);
+  background: var(--fp-white); color: var(--text-primary);
+  border: 1.5px solid var(--border-accessible); border-radius: var(--radius-sm);
+  font-family: var(--font-family-primary); font-size: var(--font-size-input); line-height: 1.4;
+  transition: border-color var(--transition-fast);
+}
+.fp-textarea { min-height: 96px; resize: vertical; }
+.fp-input::placeholder, .fp-textarea::placeholder { color: var(--text-muted); opacity: 1; }
+@media (hover: hover) { .fp-input:hover, .fp-textarea:hover, .fp-select:hover { border-color: var(--fp-navy-900); } }
+.fp-input:focus, .fp-textarea:focus, .fp-select:focus { border-color: var(--fp-navy-900); border-width: 2px; padding: 9.5px 11.5px; }
+.fp-input:disabled, .fp-textarea:disabled, .fp-select:disabled,
+.fp-input[readonly] {
+  background: var(--surface-primary); border: 1px solid var(--border-subtle); color: var(--text-muted);
+}
+.fp-input.is-error, .fp-textarea.is-error, .fp-select.is-error {
+  background: rgba(198, 40, 40, 0.04); border: 2px solid var(--status-error); padding: 9.5px 11.5px;
+}
+/* The error message is words plus an icon, never colour alone. */
+.fp-field-error { display: flex; align-items: flex-start; gap: var(--space-1); font-size: var(--font-size-sm); color: var(--text-error); }
+.fp-field-error .fp-icon { width: 1.25rem; height: 1.25rem; }
+@media (max-width: 599px) { .fp-input, .fp-select { min-height: 48px; } }
+
+/* ── Cards and level tiles (§6.4) ───────────────────────────── */
+.fp-card {
+  background: var(--surface-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); box-shadow: var(--elevation-1); padding: var(--space-6);
+}
+.fp-card--interactive, .fp-tile {
+  border: 1.5px solid var(--border-accessible); cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+@media (hover: hover) { .fp-card--interactive:hover, .fp-tile:hover { border-color: var(--fp-navy-900); box-shadow: var(--elevation-2); } }
+
+/* Level tile (derived). Identity is the label (A1-C2), not a hue. */
+.fp-tile {
+  position: relative; background: var(--surface-card); border-radius: var(--radius-md); padding: var(--space-4);
+}
+.fp-tile.is-selected { border: 2px solid var(--fp-navy-900); background: var(--surface-secondary); }
+.fp-tile.is-selected::after {          /* filled check badge: Path Green with a navy check */
+  content: ''; position: absolute; top: var(--space-2); right: var(--space-2);
+  width: 20px; height: 20px; border-radius: 50%; background: var(--fp-green-500);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -960 960 960' fill='%231E2A38'%3E%3Cpath d='m382-354 339-339q12-12 28.5-12t28.5 12q12 12 12 28.5T778-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: center; background-size: 16px;
+}
+.fp-tile.is-locked, .fp-tile[aria-disabled="true"] {
+  background: var(--surface-primary); border: 1px dashed var(--border-subtle);
+  opacity: 0.65; cursor: not-allowed; box-shadow: none;
+}
+
+/* ── Answer tile (multiple choice, §6.5, derived) ───────────── */
+.fp-answer {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 48px;
+  padding: var(--space-3) var(--space-4); text-align: left; cursor: pointer;
+  background: var(--fp-white); color: var(--text-primary);
+  border: 1.5px solid var(--border-accessible); border-radius: var(--radius-sm);
+  font-family: var(--font-family-primary); font-size: var(--font-size-body); line-height: 1.4;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+@media (hover: hover) { .fp-answer:hover:not(:disabled) { border-color: var(--fp-navy-900); } }
+.fp-answer.is-selected { border: 2px solid var(--fp-navy-900); background: var(--surface-secondary); }
+.fp-answer.is-correct { border: 2px solid var(--text-success); background: var(--status-success-bg); }
+.fp-answer.is-wrong { border: 2px solid var(--status-error); background: var(--status-error-bg); }
+.fp-answer:disabled { opacity: 0.65; cursor: default; }
+.fp-answer.is-correct:disabled, .fp-answer.is-wrong:disabled { opacity: 1; }
+/* Correct/incorrect also say so in words and with an icon (colour is never the only signal). */
+.fp-answer__verdict { margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.fp-answer.is-correct .fp-answer__verdict { color: var(--text-success); }
+.fp-answer.is-wrong .fp-answer__verdict { color: var(--text-error); }
+
+/* ── Record / microphone button (§6.6, derived) ─────────────── */
+.fp-mic-btn {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 56px; height: 56px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+  background: var(--fp-coral-500); color: var(--fp-navy-900);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+.fp-mic-btn .fp-icon { width: 1.75rem; height: 1.75rem; }
+.fp-mic-btn.is-requesting { cursor: progress; }
+.fp-mic-btn.is-requesting .fp-icon { display: none; }
+.fp-mic-btn.is-requesting::before { content: ''; width: 20px; height: 20px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: fp-spin 0.8s linear infinite; }
+.fp-mic-btn.is-recording { background: var(--fp-navy-900); color: var(--fp-cream-50); animation: fp-waypoint-pulse 2s ease-in-out infinite; }
+.fp-mic-btn.is-recorded { background: var(--fp-ice-100); color: var(--fp-navy-900); border-color: var(--border-accessible); }
+.fp-mic-btn.is-uploading { background: var(--fp-ice-100); cursor: progress; }
+.fp-mic-btn.is-failed { background: var(--fp-white); border: 2px solid var(--status-error); color: var(--text-error); }
+.fp-mic-btn:disabled { background: var(--surface-disabled); color: var(--text-muted); cursor: not-allowed; animation: none; }
+@keyframes fp-waypoint-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 111, 97, 0.35); }
+  50% { box-shadow: 0 0 0 10px rgba(255, 111, 97, 0.08); }
+}
+/* Reduced motion: no pulse, but the active state stays visible as a static 4px coral ring. */
+@media (prefers-reduced-motion: reduce) {
+  .fp-mic-btn.is-recording { animation: none; box-shadow: 0 0 0 4px var(--fp-coral-500); }
+}
+
+/* ── Waypoints and step indicators (§6.7) ───────────────────── */
+.fp-waypoint {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; border-radius: 50%;
+  width: 12px; height: 12px; background: var(--waypoint-upcoming-bg);       /* upcoming: smaller, 60% coral */
+}
+.fp-waypoint.is-completed { width: 16px; height: 16px; background: var(--waypoint-completed-bg); color: var(--waypoint-completed-icon); }
+.fp-waypoint.is-current { width: 18px; height: 18px; background: var(--waypoint-active-bg); box-shadow: var(--waypoint-glow); }
+.fp-waypoint .fp-icon { width: 12px; height: 12px; }
+@media (prefers-reduced-motion: reduce) { .fp-waypoint.is-current { box-shadow: 0 0 0 4px var(--fp-coral-500); } }
+
+/* Lesson header: segmented bar of 8px pill segments. The text "Step 3 of 7" sits next to it. */
+.fp-steps { display: flex; gap: var(--space-1); }
+.fp-steps__seg { flex: 1; height: 8px; border-radius: var(--radius-full); background: var(--fp-grey-300); }
+.fp-steps__seg.is-completed { background: var(--fp-green-500); }
+.fp-steps__seg.is-current { background: var(--fp-coral-500); }
+
+/* ── Badge / pill (§6.8) ────────────────────────────────────── */
+.fp-badge {
+  display: inline-flex; align-items: center; gap: var(--space-1); min-height: 24px; padding: 4px 10px;
+  border-radius: var(--radius-full); background: var(--fp-ice-100); color: var(--fp-navy-900);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); line-height: 1.3;
+}
+.fp-badge--success { background: var(--status-success-bg); color: var(--status-success-text); }
+.fp-badge--warning { background: var(--status-warning-bg); color: var(--status-warning-text); }
+.fp-badge--error   { background: var(--status-error-bg);   color: var(--status-error-text); }
+
+/* ── Banners and toasts (§6.9, derived) ─────────────────────── */
+/* Navy text on a tinted surface for every variant, a 4px left bar, and an icon
+   that names the status. Never colour alone. */
+.fp-banner {
+  display: flex; align-items: flex-start; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4); border-left: 4px solid var(--fp-slate-600);
+  background: var(--fp-ice-100); color: var(--fp-navy-900);
+  font-size: var(--font-size-sm); line-height: 1.5; border-radius: var(--radius-sm);
+}
+.fp-banner__icon { flex: none; color: var(--fp-slate-600); }
+.fp-banner__body { flex: 1 1 200px; min-width: 0; }
+.fp-banner__actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.fp-banner--success { background: var(--status-success-bg); border-left-color: var(--text-success); }
+.fp-banner--success .fp-banner__icon { color: var(--text-success); }
+.fp-banner--warning { background: var(--status-warning-bg); border-left-color: var(--text-warning); }
+.fp-banner--warning .fp-banner__icon { color: var(--text-warning); }
+.fp-banner--error { background: var(--status-error-bg); border-left-color: var(--text-error); }
+.fp-banner--error .fp-banner__icon { color: var(--text-error); }
+.fp-banner--offline { background: var(--fp-ice-100); border-left-color: var(--fp-navy-900); }
+.fp-banner--offline .fp-banner__icon { color: var(--fp-navy-900); }
+/* Fixed to the top or bottom edge, clear of the notch and the home indicator. */
+.fp-banner--top, .fp-banner--bottom {
+  position: fixed; left: 0; right: 0; z-index: 200; border-radius: 0;
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+.fp-banner--top { top: 0; padding-top: max(var(--space-3), env(safe-area-inset-top)); }
+.fp-banner--bottom { bottom: 0; padding-bottom: max(var(--space-3), env(safe-area-inset-bottom)); }
+
+.fp-toast-region {
+  position: fixed; z-index: 400; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column;
+  align-items: center; gap: var(--space-2); pointer-events: none;
+  padding: var(--space-4) var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
+}
+.fp-toast {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: var(--space-3);
+  max-width: 480px; width: 100%; box-shadow: var(--elevation-2);
+  animation: fp-toast-in 0.25s ease-out;
+}
+.fp-toast.is-leaving { opacity: 0; transition: opacity 0.4s; }
+@keyframes fp-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Dismiss control inside a banner or toast (44px target). */
+.fp-banner__close {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  margin: calc(var(--space-3) * -1) calc(var(--space-2) * -1) calc(var(--space-3) * -1) 0;
+  background: transparent; border: 0; border-radius: 50%; color: var(--fp-navy-900); cursor: pointer;
+}
+.fp-banner--below-header { position: fixed; left: 0; right: 0; z-index: 198; top: var(--header-height-mobile); border-radius: 0; }
+
+/* Floating "request a video call" button */
+.fp-fab {
+  position: fixed; z-index: 199; right: max(var(--space-6), env(safe-area-inset-right));
+  bottom: max(var(--space-6), env(safe-area-inset-bottom)); box-shadow: var(--elevation-2);
+}
+.fp-fab.is-pending { opacity: 0.85; }
+.fp-fab__refresh { font-size: var(--font-size-xs); text-decoration: underline; opacity: 0.8; cursor: pointer; }
+
+/* Development banner (only on non-production hosts) */
+.fp-dev-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 99999; text-align: center; padding: 3px 12px;
+  background: var(--fp-navy-800); color: var(--fp-cream-50); font: 700 11px/1.4 monospace; letter-spacing: 0.15em;
+}
+
+/* Playback control for a just-made recording */
+.btn-begin.fp-retry, .btn-nav.fp-retry { display: block; margin: var(--space-3) auto 0; }
+.fp-audio-preview { display: block; width: 100%; max-width: 360px; margin-top: var(--space-2); }
+
+/* ── Modal and save overlay (§6.10, derived) ────────────────── */
+.fp-scrim {
+  position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center;
+  padding: var(--space-4); background: rgba(30, 42, 56, 0.5);
+}
+.fp-scrim.is-open { display: flex; }
+.fp-modal {
+  position: relative; width: 100%; max-width: 480px; max-height: 90vh; overflow: auto;
+  background: var(--fp-white); border-radius: var(--radius-lg); box-shadow: var(--elevation-2);
+  padding: var(--space-8) var(--space-6) var(--space-6); text-align: center;
+}
+.fp-modal__close {
+  position: absolute; top: var(--space-2); right: var(--space-2); width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 50%; color: var(--fp-navy-900); cursor: pointer;
+}
+.fp-modal__title { font-size: var(--font-size-h3); font-weight: var(--font-weight-bold); margin-bottom: var(--space-3); }
+/* Under 600px a modal is a bottom sheet. */
+@media (max-width: 599px) {
+  .fp-scrim.has-sheet { align-items: flex-end; padding: 0; }
+  .fp-scrim.has-sheet .fp-modal { max-width: none; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: max(var(--space-6), env(safe-area-inset-bottom)); }
+}
+/* "Please wait" overlay used while a save is in flight. */
+.fp-wait { max-width: 360px; }
+.fp-wait .fp-spinner { width: 36px; height: 36px; border-width: 3px; color: var(--fp-navy-900); margin-bottom: var(--space-4); }
+.fp-wait__msg { font-size: var(--font-size-body-lg); font-weight: var(--font-weight-semibold); line-height: 1.5; }
+
+/* ── Audio player (§6.11, derived) ──────────────────────────── */
+.fp-audio { display: flex; align-items: center; gap: var(--space-4); }
+.fp-audio__play {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 48px; height: 48px;
+  border-radius: 50%; border: 0; cursor: pointer; background: var(--fp-coral-500); color: var(--fp-navy-900);
+}
+.fp-audio__play:disabled { background: var(--surface-disabled); color: var(--text-muted); cursor: not-allowed; }
+.fp-audio__track { flex: 1; height: 6px; border-radius: var(--radius-full); background: var(--border-subtle); overflow: hidden; }
+.fp-audio__fill { height: 100%; width: 0; background: var(--fp-navy-900); }
+.fp-audio__plays { font-size: var(--font-size-sm); color: var(--text-muted); }
+
+/* ── Tables (teacher, §6.13, derived) ───────────────────────── */
+.fp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }   /* scroll, never truncate */
+.fp-table { width: 100%; border-collapse: collapse; background: var(--fp-white); font-size: var(--font-size-body); }
+.fp-table th {
+  position: sticky; top: 0; background: var(--fp-ice-100); color: var(--fp-navy-900);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-align: left; padding: var(--space-3);
+}
+.fp-table td { padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.fp-table--zebra tbody tr:nth-child(even) { background: var(--surface-primary); }
+
+/* ── Wrapping (Spanish runs 20-30% longer): never ellipsis on UI text ── */
+.fp-btn, .fp-badge, .fp-label, .fp-banner, .fp-answer { overflow-wrap: anywhere; white-space: normal; }

@@ -210,28 +210,21 @@ FP.api = (function () {
 FP.showSaveOverlay = function (message) {
   var el = document.getElementById('fp-save-overlay');
   if (!el) {
-    // Inject keyframes
-    if (!document.getElementById('fp-spin-style')) {
-      var s = document.createElement('style');
-      s.id = 'fp-spin-style';
-      s.textContent = '@keyframes fp-spin{to{transform:rotate(360deg)}}';
-      (document.head || document.documentElement).appendChild(s);
-    }
     el = document.createElement('div');
     el.id = 'fp-save-overlay';
-    el.style.cssText =
-      'position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;' +
-      'background:rgba(26,18,8,0.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);';
+    el.className = 'fp-scrim';
+    el.setAttribute('role', 'alertdialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'fp-save-msg');
     el.innerHTML =
-      '<div style="background:white;border-radius:12px;padding:32px 40px;text-align:center;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.25);">' +
-        '<div style="width:36px;height:36px;border:3px solid #e8e2d9;border-top-color:#b8471e;border-radius:50%;' +
-          'animation:fp-spin 0.8s linear infinite;margin:0 auto 16px;"></div>' +
-        '<div id="fp-save-msg" style="font-size:17px;font-weight:600;color:#1a1208;line-height:1.5;">Saving…</div>' +
+      '<div class="fp-modal fp-wait">' +
+        '<span class="fp-spinner" aria-hidden="true"></span>' +
+        '<div id="fp-save-msg" class="fp-wait__msg">Saving…</div>' +
       '</div>';
     (document.body || document.documentElement).appendChild(el);
   }
   document.getElementById('fp-save-msg').textContent = message || 'Saving…';
-  el.style.display = 'flex';
+  el.classList.add('is-open');
 };
 
 /**
@@ -248,7 +241,7 @@ FP.updateSaveOverlay = function (message) {
  */
 FP.hideSaveOverlay = function () {
   var el = document.getElementById('fp-save-overlay');
-  if (el) el.style.display = 'none';
+  if (el) el.classList.remove('is-open');
 };
 
 
@@ -266,11 +259,7 @@ if (FP.ENV === 'development') {
   document.addEventListener('DOMContentLoaded', function () {
     var banner = document.createElement('div');
     banner.id = 'fp-dev-banner';
-    banner.style.cssText =
-      'position:fixed;top:0;left:0;right:0;z-index:99999;' +
-      'background:#1e4d8c;color:white;text-align:center;' +
-      'padding:3px 12px;font-size:11px;font-weight:700;' +
-      'letter-spacing:0.15em;font-family:monospace;';
+    banner.className = 'fp-dev-banner';
     banner.textContent = 'DEV MODE';
     document.body.appendChild(banner);
   });

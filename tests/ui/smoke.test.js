@@ -112,3 +112,41 @@ describe('course landing (student-course.html)', () => {
     await ctx.close();
   });
 });
+
+describe('shared UI (toast, banner, save overlay) built from component classes', () => {
+  const handlers = { get_progress: () => LEVEL_PROGRESS(), get_settings: () => ({ found: true }) };
+
+  it('a toast announces itself, pairs an icon with words, and can be dismissed', async () => {
+    const { page, ctx, errors } = await open({ handlers }, '/app.html');
+    await page.waitForSelector('#screen-dashboard.active');
+    await page.evaluate(() => FP.ui.toast('We could not save that', { variant: 'error' }));
+    const t = page.locator('.fp-toast', { hasText: 'We could not save that' });
+    expect(await t.getAttribute('role')).toBe('alert');
+    expect(await t.locator('svg.fp-icon').count()).toBeGreaterThan(0);
+    expect(await t.textContent()).toContain('We could not save that');
+    await t.locator('.fp-banner__close').click();
+    await page.waitForSelector('.fp-toast:has-text("We could not save that")', { state: 'detached' });
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('the save overlay blocks while open and is gone after hide', async () => {
+    const { page, ctx } = await open({ handlers }, '/app.html');
+    await page.evaluate(() => FP.showSaveOverlay('Saving your lesson'));
+    expect(await page.isVisible('#fp-save-overlay')).toBe(true);
+    expect(await page.textContent('#fp-save-msg')).toBe('Saving your lesson');
+    await page.evaluate(() => FP.hideSaveOverlay());
+    expect(await page.isVisible('#fp-save-overlay')).toBe(false);
+    await ctx.close();
+  });
+
+  it('the offline banner shows with a Retry action and clears on removeBanner', async () => {
+    const { page, ctx } = await open({ handlers }, '/app.html');
+    await page.evaluate(() => showOfflineBanner());
+    expect(await page.textContent('#fp-offline-banner')).toMatch(/Offline/);
+    expect(await page.locator('#fp-offline-banner button', { hasText: 'Retry' }).count()).toBe(1);
+    await page.evaluate(() => hideOfflineBanner());
+    expect(await page.locator('#fp-offline-banner').count()).toBe(0);
+    await ctx.close();
+  });
+});

@@ -1,35 +1,130 @@
 /* ═══════════════════════════════════════════════════════════════
    FluentPath — Shared Theme
    ─────────────────────────────────────────────────────────────
-   Design tokens used across all pages. Import before page CSS.
+   Load order on every page: tokens.css → theme.css → components.css → page CSS.
+   tokens.css holds the design tokens (copy of the design package's variables.css).
+   This file: self-hosted Montserrat, the legacy-name aliases, and the base reset.
    ═══════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap');
+/* ── Montserrat, self-hosted (Latin + Latin-Extended, 400/500/600/700) ──
+   Latin covers ñ á é í ó ú ü ¿ ¡. OFL licence: src/fonts/OFL.txt.
+   The service worker caches these, so they work offline and Safari cannot
+   evict a third-party font cache. */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../fonts/montserrat-latin-ext-400-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../fonts/montserrat-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('../fonts/montserrat-latin-ext-500-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('../fonts/montserrat-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('../fonts/montserrat-latin-ext-600-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('../fonts/montserrat-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('../fonts/montserrat-latin-ext-700-normal.woff2') format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url('../fonts/montserrat-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
 
+/* ── Legacy token names (MIGRATION ALIASES) ──────────────────────
+   The pre-redesign stylesheets use these names. They now resolve to the new
+   design tokens so the whole app re-colours without touching every rule.
+   Remove an alias once nothing references it (grep `var(--rust` etc.).
+   Rules for choosing the replacement when you convert a rule:
+     --rust  → coral (--action-primary-*) for a primary action or progress,
+               --text-error / --status-error for an error. Never coral as text.
+     --gold  → --text-warning for text, --fp-amber-500 for fills; decorative → --border-subtle.
+     --blue  → navy (--text-primary) / --surface-secondary.
+     --green → --text-success (text) or --fp-green-500 (fill). */
 :root {
-  --ink: #1a1208;
-  --paper: #f5f0e8;
-  --cream: #ede8dc;
-  --rust: #b8471e;
-  --gold: #c9933a;
-  --rule: #c8bfa8;
-  --muted: #5a5040;  /* darkened from #6b5f4e for WCAG AA 4.5:1 on --paper */
-  --green: #2e6e45;
-  --green-bg: #eaf3ec;
-  --blue: #1e4d8c;
-  --blue-bg: #eaf0fb;
-  --purple: #7b3fa0;
-  --purple-bg: #f3edf8;
+  --ink: var(--text-primary);
+  --paper: var(--surface-primary);
+  --cream: var(--surface-secondary);
+  --rule: var(--border-subtle);
+  --muted: var(--text-muted);
+
+  --rust: var(--fp-crimson-700);       /* text-safe; split into coral vs crimson per use (Phase C) */
+  --gold: var(--fp-amber-700);         /* text-safe amber */
+  --green: var(--fp-green-700);
+  --green-bg: var(--status-success-bg);
+  --blue: var(--fp-navy-800);
+  --blue-bg: var(--fp-ice-100);
+  --purple: var(--fp-slate-700);
+  --purple-bg: var(--fp-ice-100);
 }
 
-/* ── Global Focus Indicators ──────────────────────────────── */
-/* Visible focus outline for all interactive elements (WCAG 2.4.7) */
-:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+/* ── Base ───────────────────────────────────────────────────── */
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-body);
+  color: var(--text-primary);
+  background: var(--surface-primary);
 }
 
-/* Remove default outline only when not using keyboard (mouse/touch) */
+/* Remove the default outline only when not using keyboard (mouse/touch).
+   The visible ring itself is the :focus-visible rule in tokens.css. */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* Reduced motion: no pulses, shakes or lifts; transitions are instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

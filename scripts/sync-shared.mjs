@@ -37,10 +37,23 @@ const SHARED_FILES = [
   'src/scripts/i18n.js',
   'src/scripts/call-request.js',
   'src/scripts/password-reset.js',
+  'src/styles/tokens.css',
   'src/styles/theme.css',
+  'src/styles/components.css',
   'src/styles/mobile.css',
+  'src/scripts/icons.js',
+  'src/scripts/ui.js',
+  'src/icons/LICENSE',
   'favicon.svg',
+  // Montserrat (self-hosted, Latin + Latin-Extended) and its licence
+  ...['400', '500', '600', '700'].flatMap((w) => [`src/fonts/montserrat-latin-${w}-normal.woff2`, `src/fonts/montserrat-latin-ext-${w}-normal.woff2`]),
+  'src/fonts/OFL.txt',
 ];
+
+// Binary shared files are copied byte for byte.
+const isBinary = (rel) => /\.(woff2|png|ico)$/.test(rel);
+const readShared = (path, rel) => (isBinary(rel) ? readFileSync(path) : readFileSync(path, 'utf-8'));
+const sameContent = (a, b) => (Buffer.isBuffer(a) && Buffer.isBuffer(b) ? a.equals(b) : a === b);
 
 // Teacher service worker (generated from this repo's sw.js).
 const TEACHER_CACHE_VERSION = 'fp-teacher-v7'; // bump to evict old caches
@@ -58,8 +71,13 @@ const TEACHER_APP_SHELL = [
   './src/scripts/call-request.js',
   './src/scripts/i18n.js',
   './src/scripts/password-reset.js',
+  './src/styles/tokens.css',
   './src/styles/theme.css',
+  './src/styles/components.css',
   './src/styles/mobile.css',
+  './src/scripts/icons.js',
+  './src/scripts/ui.js',
+  ...SHARED_FILES.filter((f) => f.endsWith('.woff2')).map((f) => './' + f),
   './src/styles/teacher-portal.css',
   './src/styles/examiner-panel.css',
 ];
@@ -86,7 +104,7 @@ function buildOutputs() {
       console.error(`[sync-shared] Missing source file: ${rel}`);
       process.exit(2);
     }
-    outputs.push({ rel, content: readFileSync(srcPath, 'utf-8') });
+    outputs.push({ rel, content: readShared(srcPath, rel) });
   }
   outputs.push({ rel: 'sw.js', content: teacherServiceWorker(readFileSync(resolve(ROOT, 'sw.js'), 'utf-8')) });
   outputs.push({ rel: 'CNAME', content: TEACHER_CNAME });
@@ -123,8 +141,8 @@ function main() {
   let written = 0;
   for (const { rel, content } of outputs) {
     const destPath = join(dest, rel);
-    const current = existsSync(destPath) ? readFileSync(destPath, 'utf-8') : null;
-    if (current === content) continue;
+    const current = existsSync(destPath) ? readShared(destPath, rel) : null;
+    if (current !== null && sameContent(current, content)) continue;
 
     if (args.check) {
       console.error(`[sync-shared] OUT OF SYNC: ${rel}`);

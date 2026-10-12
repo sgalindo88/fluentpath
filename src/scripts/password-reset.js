@@ -29,7 +29,7 @@
       '#fp-reset-modal{position:fixed;inset:0;z-index:99998;display:none;align-items:center;justify-content:center;' +
       'background:rgba(26,18,8,0.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}' +
       '#fp-reset-card{background:#fff;border-radius:12px;padding:28px 28px 24px;max-width:380px;width:90%;' +
-      'box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:"Source Serif 4",Georgia,serif;color:#1a1208;}' +
+      'box-shadow:0 8px 32px rgba(0,0,0,0.25);font-family:var(--font-family-primary);color:#1a1208;}' +
       '#fp-reset-card h2{margin:0 0 6px;font-size:20px;}' +
       '#fp-reset-card p.sub{margin:0 0 16px;font-size:14px;color:#6b5d4a;}' +
       '#fp-reset-card input{width:100%;box-sizing:border-box;padding:11px 13px;margin-bottom:10px;font-size:15px;' +
