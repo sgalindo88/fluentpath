@@ -122,16 +122,7 @@ body {
   font-style:italic; cursor:pointer; transition:all 0.2s; letter-spacing:0.01em;
 }
 .btn-begin:hover { background:var(--rust); transform:translateY(-1px); }
-
-/* ── WAITING SCREEN ── */
-.waiting {
-  min-height:100vh; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; padding:80px 24px; text-align:center;
-}
-.waiting-icon { font-size:48px; margin-bottom:24px; animation:pulse 2s infinite; }
-.waiting h2 { font-family:'Playfair Display',serif; font-size:36px; font-weight:700; margin-bottom:12px; }
-.waiting p { font-size:15px; color:var(--muted); font-style:italic; max-width:420px; line-height:1.8; }
-.waiting-status { margin-top:24px; font-size:13px; color:var(--gold); letter-spacing:0.1em; }
+.btn-begin:disabled { opacity:0.45; cursor:default; transform:none; background:var(--ink); }
 
 /* ── LESSON PLAYER ── */
 .main { padding-top:80px; padding-bottom:80px; }

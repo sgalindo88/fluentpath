@@ -135,7 +135,7 @@ describe('BE-2 — cacheInvalidateStudent', () => {
 
   it('a save_progress write invalidates the cached read', () => {
     const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
-    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true' }, {});
+    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true', cefr_level: 'A1' }, {});
     fp.cachePut('progress_maria_c1', { lessons_completed: 0, stale: true });
     fp.POST_HANDLERS.save_progress(
       { student_name: 'Maria', day_number: '1', level: 'A1' }, {},

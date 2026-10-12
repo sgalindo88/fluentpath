@@ -230,7 +230,7 @@ describe('save_progress gating', () => {
     const params = { student_name: 'Maria', day_number: '1', level: 'A1' };
     expect(() => fp.POST_HANDLERS.save_progress(params, {}, session)).toThrow(/course locked/i);
 
-    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true' }, {});
+    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true', cefr_level: 'A1' }, {});
     expect(() => fp.POST_HANDLERS.save_progress(params, {}, session)).not.toThrow();
   });
 });
@@ -334,7 +334,7 @@ describe('SEC-2 — AI proxy rate limiting', () => {
 
   it('generate_lesson refuses once the student is over the lesson cap', () => {
     const fp = loadAppsScriptAuth({ APP_SECRET: 'app' });
-    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true' }, {});
+    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', access_granted: 'true', cefr_level: 'A1' }, {});
     const params = { student: 'Maria', level: 'A1', day: '1', topic: 'greetings' };
     const session = { role: 'student', student_name: 'Maria' };
     // Burn the hourly allowance without invoking the (unmocked) AI provider.

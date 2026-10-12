@@ -39,8 +39,8 @@
 
     <div class="student-form">
       <div class="fg fg-full">
-        <label>Your Full Name <span style="color:var(--rust)">*</span></label>
-        <input type="text" id="studentName" placeholder="e.g. Maria Gonzalez">
+        <label>Your Name</label>
+        <input type="text" id="studentName" readonly style="background:var(--cream);cursor:default;">
       </div>
       <div class="fg fg-full">
         <label>Today's Date</label>
@@ -48,40 +48,40 @@
       </div>
     </div>
 
-    <p id="levelInstruction" style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:24px;max-width:420px;">Select your level below. If you are not sure, ask your teacher.</p>
+    <p id="levelInstruction" style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:24px;max-width:420px;">Your level is set by your teacher.</p>
 
     <div class="level-grid">
-      <div class="level-card theme-a1" data-level="A1" onclick="selectLevel(this)">
+      <div class="level-card theme-a1" data-level="A1">
         <div class="lc-badge">A1</div>
         <div class="lc-name">Beginner</div>
         <div class="lc-theme">Everyday Survival</div>
         <div class="lc-check">✓</div>
       </div>
-      <div class="level-card theme-a2" data-level="A2" onclick="selectLevel(this)">
+      <div class="level-card theme-a2" data-level="A2">
         <div class="lc-badge">A2</div>
         <div class="lc-name">Elementary</div>
         <div class="lc-theme">Community & Life</div>
         <div class="lc-check">✓</div>
       </div>
-      <div class="level-card theme-b1" data-level="B1" onclick="selectLevel(this)">
+      <div class="level-card theme-b1" data-level="B1">
         <div class="lc-badge">B1</div>
         <div class="lc-name">Intermediate</div>
         <div class="lc-theme">The Workplace</div>
         <div class="lc-check">✓</div>
       </div>
-      <div class="level-card theme-b2" data-level="B2" onclick="selectLevel(this)">
+      <div class="level-card theme-b2" data-level="B2">
         <div class="lc-badge">B2</div>
         <div class="lc-name">Upper-Intermediate</div>
         <div class="lc-theme">Career & Society</div>
         <div class="lc-check">✓</div>
       </div>
-      <div class="level-card theme-c1" data-level="C1" onclick="selectLevel(this)">
+      <div class="level-card theme-c1" data-level="C1">
         <div class="lc-badge">C1</div>
         <div class="lc-name">Advanced</div>
         <div class="lc-theme">Professional Mastery</div>
         <div class="lc-check">✓</div>
       </div>
-      <div class="level-card theme-c2" data-level="C2" onclick="selectLevel(this)">
+      <div class="level-card theme-c2" data-level="C2">
         <div class="lc-badge">C2</div>
         <div class="lc-name">Proficiency</div>
         <div class="lc-theme">Full Fluency</div>
@@ -90,19 +90,6 @@
     </div>
 
     <button class="btn-begin" id="btnBeginLesson" onclick="startCourse()">Begin Today's Lesson →</button>
-    <p style="font-size:11px;color:var(--rule);margin-top:12px;font-style:italic;">Your lesson must be approved by your teacher before it starts.</p>
-  </div>
-</div>
-
-<!-- ══════════════════ SCREEN: WAITING ══════════════════ -->
-<div class="screen" id="screen-waiting">
-  <div class="waiting">
-    <div class="waiting-icon">⏳</div>
-    <h2>Waiting for Approval</h2>
-    <p>Your lesson has been sent to your teacher for review. Please wait — this usually takes just a few minutes.</p>
-    <div class="waiting-status" id="waitingStatus">Checking for approval…</div>
-    <div class="spinner"></div>
-    <p style="font-size:12px;color:var(--muted);font-style:italic;margin-top:24px;">You can leave this page open. It will start automatically when approved.</p>
   </div>
 </div>
 

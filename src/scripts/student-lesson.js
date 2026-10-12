@@ -21,7 +21,6 @@ let state = {
   timerInterval: null,
   timeElapsed: 0,        // seconds
   pollInterval: null,
-  approved: false,
 };
 
 const LESSON_DURATION = FP.LESSON_DURATION_MIN * 60; // seconds
@@ -105,7 +104,6 @@ function tryResumeLesson() {
       state.lessonContent = data.lessonContent;
       state.answers = data.answers || {};
       state.timeElapsed = data.timeElapsed || 0;
-      state.approved = true;
       state.startTime = new Date(Date.now() - (state.timeElapsed * 1000));
 
       // Rebuild steps and set position
@@ -149,18 +147,8 @@ function showScreen(id) {
 }
 
 // ══════════════════════════════════════════════════════
-// LEVEL SELECTION
+// LEVEL DISPLAY (the level itself is assigned by the teacher — see loadCourseState)
 // ══════════════════════════════════════════════════════
-function selectLevel(card) {
-  document.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
-  card.classList.add('selected');
-  state.level = card.dataset.level;
-
-  // Update translation mode for the selected level
-  if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
-
-}
-
 function lockLevelGrid(levelCode) {
   // Disable clicking on all level cards
   document.querySelectorAll('.level-card').forEach(function(c) {
@@ -181,25 +169,60 @@ function lockLevelGrid(levelCode) {
 // ══════════════════════════════════════════════════════
 // START COURSE
 // ══════════════════════════════════════════════════════
-async function startCourse() {
-  const name = document.getElementById('studentName').value.trim();
-  if (!name) { alert('Please enter your name.'); return; }
-  if (!state.level) { alert('Please select your level.'); return; }
-
-  state.studentName = name;
-  state.lessonDate  = document.getElementById('lessonDate').value || localDateString();
-
-  // Calculate course day (next day after last completed)
-  state.dayNumber = getCourseDay();
-
-  // Go straight to lesson generation
+function startCourse() {
+  // FLOW-1: name, level and day all come from the server (loadCourseState);
+  // the landing page no longer lets the student type or pick any of them.
+  if (!state.studentName || !state.level || !state.dayNumber) return;
+  state.lessonDate = document.getElementById('lessonDate').value || localDateString();
   beginLesson();
 }
 
-function getCourseDay() {
-  // Use last completed day from localStorage + 1, capped at 20
-  var last = parseInt(localStorage.getItem('fp_last_lesson_day') || '0', 10);
-  return Math.min(last + 1, FP.COURSE_DAYS);
+/**
+ * Pure: decide level and day from a get_progress reply, falling back to what
+ * the hub last cached when the server could not be reached. The server
+ * re-validates both on generate_lesson and save_progress, so a stale fallback
+ * can at worst be refused, never filed under the wrong day.
+ */
+function resolveCourseState(progress, cachedLevel, cachedLastDay) {
+  var level = (progress && progress.cefr_level) || cachedLevel || '';
+  var day = (progress && parseInt(progress.next_day, 10)) ||
+            Math.min((parseInt(cachedLastDay, 10) || 0) + 1, FP.COURSE_DAYS);
+  return { level: level, dayNumber: Math.max(1, Math.min(day, FP.COURSE_DAYS)) };
+}
+
+async function loadCourseState() {
+  var btn = document.getElementById('btnBeginLesson');
+  btn.disabled = true;
+  var progress = null;
+  try {
+    progress = await FP.api.get(
+      GOOGLE_SHEET_WEBHOOK + '?action=get_progress&student=' + encodeURIComponent(state.studentName),
+      { timeout: 15000 });
+  } catch (e) {
+    console.warn('[FluentPath] Could not load course state, using the hub cache:', e.message);
+  }
+  var cs = resolveCourseState(progress,
+    localStorage.getItem(FP.KEYS.CEFR_LEVEL), localStorage.getItem(FP.KEYS.LAST_LESSON_DAY));
+  if (progress && progress.found) {
+    try {
+      if (progress.cefr_level) localStorage.setItem(FP.KEYS.CEFR_LEVEL, progress.cefr_level);
+      localStorage.setItem(FP.KEYS.LAST_LESSON_DAY, String(progress.max_day || 0));
+    } catch (_) {}
+  }
+  if (!cs.level) {
+    document.querySelectorAll('.level-card').forEach(function(c) { c.style.opacity = '0.3'; c.style.cursor = 'default'; });
+    document.getElementById('levelInstruction').innerHTML =
+      'Your teacher has not set your level yet. Take the placement test from the hub, then come back here.' +
+      '<span style="display:block;margin-top:4px;">Tu profesor aún no ha asignado tu nivel. Haz la prueba de nivel en el inicio y vuelve aquí.</span>';
+    return;
+  }
+  state.level = cs.level;
+  state.dayNumber = cs.dayNumber;
+  if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
+  var card = document.querySelector('.level-card[data-level="' + cs.level + '"]');
+  if (card) card.classList.add('selected');
+  lockLevelGrid(cs.level);
+  btn.disabled = false;
 }
 
 // ══════════════════════════════════════════════════════
@@ -257,7 +280,6 @@ async function beginLesson() {
 // Falls back to a varied offline library if anything goes wrong.
 // ══════════════════════════════════════════════════════
 async function generateLesson() {
-  const topicHints = getTopicForDay(state.level, state.dayNumber);
   // DATA-1: scope the cache by student. Keyed on (level, day) alone, two
   // students at the same level and day on one device shared a cached lesson —
   // including one personalised to the other's teacher-set difficulty profile.
@@ -285,7 +307,6 @@ async function generateLesson() {
       'action=generate_lesson',
       'level=' + encodeURIComponent(state.level),
       'day=' + encodeURIComponent(state.dayNumber),
-      'topic=' + encodeURIComponent(topicHints.topic),
       'spanish=' + (isSpanishLevel ? 'true' : 'false'),
       'student=' + encodeURIComponent(state.studentName || '')
     ].join('&');
@@ -323,19 +344,6 @@ function showFallbackBanner() {
     'box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:90%;text-align:center;';
   banner.innerHTML = '⚠ Offline lesson — please tell your teacher the lesson generator is unavailable.';
   document.body.appendChild(banner);
-}
-
-function getTopicForDay(level, day) {
-  const topics = {
-    A1: ['greetings & introductions','numbers & dates','family members','daily routines','food & drinks','shopping basics','asking for directions','weather','body & health','home & furniture','public transport','money & prices','jobs & workplaces','phone conversations','making appointments','emergencies','time & schedules','neighbourhood','feelings','reviewing basics'],
-    A2: ['renting an apartment','talking to a landlord','at the doctor','health insurance basics','school & children','bank & finances','job applications','customer service','community services','neighbour conversations','filing taxes basics','grocery shopping','cooking & recipes','recreation & leisure','travel & transportation','social media basics','email & text messages','understanding bills','government offices','reviewing progress'],
-    B1: ['workplace communication','job interviews','professional emails','team meetings','asking for a raise','workplace rights','networking','performance reviews','time management','problem solving at work','customer complaints','writing reports','phone etiquette','managing conflict','presentations basics','contracts & agreements','onboarding process','career goals','remote work','professional development'],
-    B2: ['negotiation skills','persuasive language','news & current events','formal writing','critical thinking','debate & discussion','cultural references','idioms in context','complex instructions','leadership communication','media literacy','academic vocabulary','complex grammar','advanced reading','opinion writing','professional networking','research skills','public speaking','complex problem solving','mastery review'],
-    C1: ['sophisticated argumentation','nuanced vocabulary','register & tone','academic discourse','strategic communication','complex rhetorical devices','cultural competency','advanced idioms','professional fluency','editorial writing','policy discussion','advanced presentations','research & citations','cross-cultural communication','leadership language','advanced negotiation','media production','complex analysis','synthesis writing','advanced mastery'],
-    C2: ['near-native expression','stylistic variation','literary language','philosophical discussion','advanced pragmatics','subtle connotation','humour & irony','regional varieties','professional expertise','creative writing','complex analysis','abstract reasoning','academic writing','advanced media','cultural intelligence','linguistic precision','full fluency tasks','advanced persuasion','complex synthesis','mastery certification'],
-  };
-  const list = topics[level] || topics['B1'];
-  return { topic: list[Math.min(day - 1, list.length - 1)] };
 }
 
 // Five hand-curated fallback lessons that cycle by (day - 1) % 5.
@@ -1780,17 +1788,14 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('lessonDate').value = localDateString();
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
-  // Auto-fill name from hub
+  // FLOW-1b: the name is the logged-in student's, shown read-only.
   var savedName = localStorage.getItem('fp_student_name');
-  if (savedName) document.getElementById('studentName').value = savedName;
+  if (!savedName) { FP.redirectToLogin(); return; }
+  document.getElementById('studentName').value = savedName;
+  state.studentName = savedName;
 
-  // Auto-select and lock level from placement test results
-  var savedLevel = localStorage.getItem('fp_cefr_level');
-  if (savedLevel) {
-    var card = document.querySelector('.level-card[data-level="' + savedLevel + '"]');
-    if (card) selectLevel(card);
-    lockLevelGrid(savedLevel);
-  }
+  // FLOW-1 / DATA-3: level and day come from the server, not from localStorage.
+  loadCourseState();
 
   tryResumeLesson();
 

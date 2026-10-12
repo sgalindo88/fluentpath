@@ -604,6 +604,118 @@ function enforceCourseAccess(session, studentName) {
   if (!isCourseUnlocked(settingsRow)) throw new Error('Course locked');
 }
 
+// ── Server-authoritative level and day (FLOW-1 / N-7 / N-9 / DATA-3) ──
+// The client used to send its own level, day and topic. A stale localStorage
+// (Safari ITP, a second device), a promotion that never reached the hub, or a
+// hand-crafted request could then file a lesson under the wrong level/day, and
+// generate_lesson would cache that into the SHARED Lesson Library. For STUDENT
+// sessions the server now decides all three; teachers keep manual control.
+var COURSE_DAYS = 20;
+var CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+// One topic per day per level (day beyond the list reuses the last entry).
+var COURSE_TOPICS = {
+  A1: ['greetings & introductions','numbers & dates','family members','daily routines','food & drinks','shopping basics','asking for directions','weather','body & health','home & furniture','public transport','money & prices','jobs & workplaces','phone conversations','making appointments','emergencies','time & schedules','neighbourhood','feelings','reviewing basics'],
+  A2: ['renting an apartment','talking to a landlord','at the doctor','health insurance basics','school & children','bank & finances','job applications','customer service','community services','neighbour conversations','filing taxes basics','grocery shopping','cooking & recipes','recreation & leisure','travel & transportation','social media basics','email & text messages','understanding bills','government offices','reviewing progress'],
+  B1: ['workplace communication','job interviews','professional emails','team meetings','asking for a raise','workplace rights','networking','performance reviews','time management','problem solving at work','customer complaints','writing reports','phone etiquette','managing conflict','presentations basics','contracts & agreements','onboarding process','career goals','remote work','professional development'],
+  B2: ['negotiation skills','persuasive language','news & current events','formal writing','critical thinking','debate & discussion','cultural references','idioms in context','complex instructions','leadership communication','media literacy','academic vocabulary','complex grammar','advanced reading','opinion writing','professional networking','research skills','public speaking','complex problem solving','mastery review'],
+  C1: ['sophisticated argumentation','nuanced vocabulary','register & tone','academic discourse','strategic communication','complex rhetorical devices','cultural competency','advanced idioms','professional fluency','editorial writing','policy discussion','advanced presentations','research & citations','cross-cultural communication','leadership language','advanced negotiation','media production','complex analysis','synthesis writing','advanced mastery'],
+  C2: ['near-native expression','stylistic variation','literary language','philosophical discussion','advanced pragmatics','subtle connotation','humour & irony','regional varieties','professional expertise','creative writing','complex analysis','abstract reasoning','academic writing','advanced media','cultural intelligence','linguistic precision','full fluency tasks','advanced persuasion','complex synthesis','mastery certification']
+};
+
+/** 'b1', ' B1 ', 'B1+' -> 'B1'; anything that is not a CEFR level -> ''. */
+function normalizeLevel(value) {
+  var m = /^\s*([abc][12])/i.exec(String(value == null ? '' : value));
+  return m ? m[1].toUpperCase() : '';
+}
+
+/** The topic the course assigns to (level, day). Never taken from the client. */
+function topicForDay(level, day) {
+  var list = COURSE_TOPICS[normalizeLevel(level)] || COURSE_TOPICS.B1;
+  var d = parseInt(day, 10) || 1;
+  return list[Math.max(0, Math.min(d - 1, list.length - 1))];
+}
+
+/** Level of record: Settings (teacher-set, follows promote_student), else the graded placement test. */
+function resolveStudentLevel(settingsRow, examinerRow) {
+  return normalizeLevel(settingsRow && settingsRow['cefr_level']) ||
+         normalizeLevel(examinerRow && examinerRow['cefr_level']);
+}
+
+function studentCourseId(settingsRow) {
+  var c = settingsRow && settingsRow['course_id'] ? String(settingsRow['course_id']).trim() : '';
+  return c || '1';
+}
+
+/** Highest day with a saved lesson in this course (0 if none). Redo rows do not inflate it. */
+function maxCompletedDay(studentName, courseId) {
+  var target = String(studentName).toLowerCase().trim();
+  var rows = sheetToObjects(getOrCreateSheet('Course Progress', HEADERS['Course Progress']));
+  var max = 0;
+  for (var i = 0; i < rows.length; i++) {
+    if (String(rows[i]['student_name'] || '').toLowerCase().trim() !== target) continue;
+    if (String(rows[i]['course_id'] || '1').trim() !== courseId) continue;
+    var d = parseInt(rows[i]['day_number'], 10);
+    if (d > max) max = d;
+  }
+  return Math.min(max, COURSE_DAYS);
+}
+
+function nextCourseDay(maxDay) {
+  return Math.min((maxDay || 0) + 1, COURSE_DAYS);
+}
+
+/**
+ * Validate the (level, day) a request claims.
+ *  - STUDENT session: level and course are taken from the server; the day must
+ *    be a whole number from 1 up to the next unfinished day (re-doing an earlier
+ *    day is allowed). Throws otherwise.
+ *  - Anyone else (teacher / grace window): the supplied values are used, but
+ *    must still be a real CEFR level and a day inside the course.
+ * Returns { level, day, courseId } (courseId only for students).
+ */
+function validateCourseRequest(session, studentName, level, day) {
+  var d = Number(String(day == null ? '' : day).trim());
+  if (!(d >= 1 && d <= COURSE_DAYS) || Math.floor(d) !== d) throw new Error('Invalid day');
+  if (session && session.role === 'student') {
+    var settingsRow = findLastByStudent('Settings', HEADERS['Settings'], studentName);
+    var examinerRow = findLastByStudent('Examiner Results', HEADERS['Examiner Results'], studentName);
+    var serverLevel = resolveStudentLevel(settingsRow, examinerRow);
+    if (!serverLevel) throw new Error('No level assigned yet');
+    var courseId = studentCourseId(settingsRow);
+    if (d > nextCourseDay(maxCompletedDay(studentName, courseId))) throw new Error('That day is not unlocked yet');
+    return { level: serverLevel, day: d, courseId: courseId };
+  }
+  var lvl = normalizeLevel(level);
+  if (!lvl) throw new Error('Invalid level');
+  return { level: lvl, day: d, courseId: '' };
+}
+
+/**
+ * Shape check for an AI-generated (or library-stored) lesson. buildSteps on the
+ * client has no guard, so an incomplete lesson would break the student's screen
+ * and, once cached in the shared library, break it for everyone served it.
+ */
+function isValidLesson(lesson) {
+  function str(v) { return typeof v === 'string' && v.trim().length > 0; }
+  function arr(v) { return Array.isArray(v) && v.length > 0; }
+  function mcq(q) {
+    return q && str(q.question) && Array.isArray(q.options) && q.options.length >= 2 &&
+      typeof q.correct === 'number' && q.correct >= 0 && q.correct < q.options.length;
+  }
+  if (!lesson || typeof lesson !== 'object' || Array.isArray(lesson)) return false;
+  if (!str(lesson.topic)) return false;
+  var v = lesson.vocabulary, l = lesson.listening, s = lesson.speaking,
+      p = lesson.practice, w = lesson.writing, r = lesson.review, wu = lesson.warmup;
+  return !!(wu && str(wu.prompt) &&
+    v && arr(v.words) && v.words.every(function (x) { return x && str(x.word); }) &&
+    l && str(l.audioText) && arr(l.questions) && l.questions.every(mcq) &&
+    s && arr(s.drills) && s.drills.every(function (x) { return x && str(x.phrase); }) &&
+    p && arr(p.questions) && p.questions.every(mcq) &&
+    w && str(w.prompt) &&
+    r && arr(r.keyTakeaways));
+}
+
 // ── Site URLs (Script Properties; default to the current live origin so
 //    emails keep working until STUDENT_URL/TEACHER_URL are set at cutover) ──
 function studentBaseUrl() {
@@ -840,7 +952,9 @@ var TEACHER_GET_ACTIONS = {
   'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
   // SEC-3: only the examiner panel reads recordings; no student page calls this.
   // Teacher-only means a student session cannot read another student's audio.
-  'get_audio': true
+  'get_audio': true,
+  // N-11: full lesson JSON (and source_student) of any library entry.
+  'get_library_entry': true
 };
 
 // ══════════════════════════════════════════════════════
@@ -1334,8 +1448,11 @@ var GET_HANDLERS = {
   get_attendance:        function(p) { return handleGetAttendance(p.student); },
   generate_lesson:       function(p, session) {
     enforceCourseAccess(session, p.student);
+    // N-9: level, day and topic are decided here, never taken from the client.
+    var req = validateCourseRequest(session, p.student, p.level, p.day);
     enforceAiRateLimit('lesson', rateLimitSubject(session, p.student), AI_LESSON_MAX_PER_HOUR);
-    return handleGenerateLesson(p.level, parseInt(p.day, 10), p.topic, String(p.spanish || '').toLowerCase() === 'true', p.student);
+    var spanish = (req.level === 'A1' || req.level === 'A2'); // also derived: the flag changes what is stored in the shared library
+    return handleGenerateLesson(req.level, req.day, topicForDay(req.level, req.day), spanish, p.student);
   },
   get_library:           function(_) { return handleGetLibrary(); },
   get_library_entry:     function(p) { return handleGetLibraryEntry(p.id); },
@@ -1439,9 +1556,12 @@ function handleGetProgress(studentName, courseId) {
   var gradedRow = findLastByStudent('Examiner Results', HEADERS['Examiner Results'], studentName);
   if (gradedRow) {
     result.found = true;
-    result.cefr_level = gradedRow['cefr_level'] || null;
     result.total_score = gradedRow['total_score'] || null;
   }
+  // N-7: the level of record is Settings (teacher profile, promote_student);
+  // the graded placement test is only the fallback before one is set.
+  result.cefr_level = resolveStudentLevel(settingsRow, gradedRow) || null;
+  if (result.cefr_level) result.found = true;
 
   // Check course progress
   var progressSheet = getOrCreateSheet('Course Progress', HEADERS['Course Progress']);
@@ -1486,6 +1606,16 @@ function handleGetProgress(studentName, courseId) {
   lessons.sort(function(a, b) { return parseInt(a.day || 0) - parseInt(b.day || 0); });
   result.lessons = lessons;
   result.lessons_completed = lessons.length;
+  // N-15 / DATA-3: the day counter is the highest saved day, not the row count
+  // (re-dos and duplicate rows would otherwise skip days). The client uses
+  // next_day to start the right lesson without trusting localStorage.
+  var maxDay = 0;
+  for (var k = 0; k < lessons.length; k++) {
+    var dn = parseInt(lessons[k].day, 10);
+    if (dn > maxDay) maxDay = dn;
+  }
+  result.max_day = Math.min(maxDay, COURSE_DAYS);
+  result.next_day = nextCourseDay(result.max_day);
   result.course_unlocked = courseUnlocked;
   if (lessons.length > 0) {
     result.last_lesson_date = lessons[lessons.length - 1].date;
@@ -1875,16 +2005,17 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
 
       if (entries.length > 0 && Math.random() < recycleChance) {
         var match = findLibraryMatch(entries, difficulty || {});
-        if (match && match.lesson) {
+        if (match && match.lesson && isValidLesson(match.lesson)) {
           try { incrementTimesServed(match.id); } catch (e) {}
           return { found: true, lesson: match.lesson, source: 'library' };
         }
 
         // Option C: no direct match — rewrite closest entry for this difficulty
         var closest = findClosestEntry(entries, difficulty || {});
-        if (closest && closest.lesson) {
+        if (closest && closest.lesson && isValidLesson(closest.lesson)) {
           try {
             var rewritten = rewriteLessonForDifficulty(closest.lesson, difficulty || {}, level, day);
+            if (!isValidLesson(rewritten)) throw new Error('rewritten lesson failed validation');
             try { addToLibrary(level, day, rewritten, difficulty || {}, studentName); } catch (e) {}
             return { found: true, lesson: rewritten, source: 'rewrite' };
           } catch (rewriteErr) {
@@ -1915,6 +2046,14 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
         'Could not parse lesson JSON: ' + parseErr.message,
         { level: level, day: day, chars: text.length, tail: text.slice(-120) });
       return { error: 'Could not parse lesson JSON: ' + parseErr.message };
+    }
+
+    // N-9: an incomplete lesson is neither served nor cached. The student gets
+    // the offline fallback and the teacher sees why in the Error Log.
+    if (!isValidLesson(lesson)) {
+      logError('generate_lesson', studentName || '', 'Generated lesson failed validation (missing or malformed section)',
+        { level: level, day: day, keys: Object.keys(lesson || {}).join(',') });
+      return { error: 'Generated lesson was incomplete' };
     }
 
     // Decision 6: custom-instructed lessons never enter the library
@@ -3081,15 +3220,20 @@ var POST_HANDLERS = {
       var lastRow = findLastByStudent('Course Progress', HEADERS['Course Progress'], name);
       if (lastRow && String(lastRow['submission_id'] || '').trim() === sid) return;
     }
+    // FLOW-1 / N-7: a student's level, course and day come from the server.
+    var req = validateCourseRequest(session, name, level, day);
+    params['level'] = req.level;
+    params['day_number'] = String(req.day);
+    if (req.courseId) params['course_id'] = req.courseId; // the client never sent one, so Course 2 rows landed in course 1
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
-    notifyTeacherLessonSubmitted(name, day);
+    notifyTeacherLessonSubmitted(name, params['day_number']);
     // Save vocabulary words if provided (extracted from lesson content by frontend)
     if (params['vocabulary_words']) {
       try {
         var words = JSON.parse(params['vocabulary_words']);
         if (Array.isArray(words)) {
-          saveVocabularyWords(name, words, level, parseInt(day, 10));
+          saveVocabularyWords(name, words, params['level'], parseInt(params['day_number'], 10));
           // Mark any review words as reviewed
           var reviewWords = getReviewWords(name);
           if (reviewWords.length > 0) {

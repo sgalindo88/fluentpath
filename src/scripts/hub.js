@@ -176,13 +176,23 @@ async function fetchProgress(name) {
   renderDashboard();
 }
 
+/**
+ * N-15: days completed = the highest saved day, not the number of rows
+ * (a re-do or a duplicate row would otherwise skip a day). Older cached
+ * progress without max_day falls back to the row count.
+ */
+function daysCompleted(d) {
+  if (d && d.max_day != null) return Number(d.max_day) || 0;
+  return (d && d.lessons_completed) || 0;
+}
+
 /** Sync individual localStorage keys so other pages can read them. */
 function syncIndividualKeys(d) {
   if (d.test_completed)    localStorage.setItem(FP.KEYS.TEST_COMPLETED, 'true');
   if (d.test_date)         localStorage.setItem(FP.KEYS.TEST_DATE, d.test_date);
   if (d.cefr_level)        localStorage.setItem(FP.KEYS.CEFR_LEVEL, d.cefr_level);
   if (d.total_score)       localStorage.setItem(FP.KEYS.TEST_SCORE, String(d.total_score));
-  if (d.lessons_completed) localStorage.setItem(FP.KEYS.LAST_LESSON_DAY, String(d.lessons_completed));
+  if (daysCompleted(d))    localStorage.setItem(FP.KEYS.LAST_LESSON_DAY, String(daysCompleted(d)));
   if (d.last_lesson_date)  localStorage.setItem(FP.KEYS.LAST_LESSON_DATE, d.last_lesson_date);
   if (d.course_id)         localStorage.setItem(FP.KEYS.COURSE_ID, String(d.course_id));
 }
@@ -212,7 +222,7 @@ function renderDashboard() {
   // Determine phase
   const testDone  = d.test_completed;
   const hasLevel  = !!d.cefr_level;
-  const courseDays = d.lessons_completed || 0;
+  const courseDays = daysCompleted(d);
   const courseStarted = courseDays > 0;
   const courseComplete = courseDays >= COURSE_DAYS;
   const courseNum = parseInt(d.course_id || '1', 10);
@@ -429,10 +439,10 @@ function logout() {
 var ACHIEVEMENTS = [
   { id: 'first_steps',     icon: '🎯', name: 'First Steps',      test: function(d) { return d.test_completed; } },
   { id: 'level_up',        icon: '📊', name: 'Level Up',         test: function(d) { return !!d.cefr_level; } },
-  { id: 'day_one',         icon: '📝', name: 'Day One',          test: function(d) { return (d.lessons_completed || 0) >= 1; } },
-  { id: 'five_streak',     icon: '🔥', name: '5-Day Streak',     test: function(d) { return (d.lessons_completed || 0) >= 5; } },
-  { id: 'halfway',         icon: '⭐', name: 'Halfway There',    test: function(d) { return (d.lessons_completed || 0) >= Math.floor(COURSE_DAYS / 2); } },
-  { id: 'graduate',        icon: '🎓', name: 'Graduate',         test: function(d) { return (d.lessons_completed || 0) >= COURSE_DAYS; } },
+  { id: 'day_one',         icon: '📝', name: 'Day One',          test: function(d) { return daysCompleted(d) >= 1; } },
+  { id: 'five_streak',     icon: '🔥', name: '5-Day Streak',     test: function(d) { return daysCompleted(d) >= 5; } },
+  { id: 'halfway',         icon: '⭐', name: 'Halfway There',    test: function(d) { return daysCompleted(d) >= Math.floor(COURSE_DAYS / 2); } },
+  { id: 'graduate',        icon: '🎓', name: 'Graduate',         test: function(d) { return daysCompleted(d) >= COURSE_DAYS; } },
 ];
 
 /** Previously earned achievement IDs (stored in localStorage to detect new ones). */

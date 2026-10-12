@@ -140,21 +140,12 @@ const I18n = (() => {
     'Your Journey to Fluency':      'Tu Camino hacia la Fluidez',
     'Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation, speaking — at your pace, on your schedule.':
       'Lecciones diarias paso a paso diseñadas para adultos ocupados. Vocabulario, pronunciación, conversación — a tu ritmo, en tu horario.',
-    'Select your level below. If you are not sure, ask your teacher.':
-      'Selecciona tu nivel. Si no estás seguro, pregúntale a tu profesor.',
-    'Your Full Name':               'Tu Nombre Completo',
+    'Your level is set by your teacher.':
+      'Tu profesor asigna tu nivel.',
     'Today\'s Date':                'Fecha de Hoy',
     'e.g. Maria Gonzalez':          'ej. María González',
-    'Waiting for Approval':         'Esperando Aprobación',
-    'Your lesson has been sent to your teacher for review. Please wait — this usually takes just a few minutes.':
-      'Tu lección ha sido enviada a tu profesor para revisión. Por favor espera — normalmente toma solo unos minutos.',
-    'Your lesson must be approved by your teacher before it starts.':
-      'Tu lección debe ser aprobada por tu profesor antes de comenzar.',
-    'You can leave this page open. It will start automatically when approved.':
-      'Puedes dejar esta página abierta. Comenzará automáticamente cuando sea aprobada.',
     'Loading your personalised lesson…':
       'Cargando tu lección personalizada…',
-    'Checking for approval…':       'Verificando aprobación…',
     'Demo mode — starting automatically…':
       'Modo demostración — comenzando automáticamente…',
     'Lesson Complete!':             '¡Lección Completada!',
