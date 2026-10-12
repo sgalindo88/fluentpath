@@ -67,7 +67,9 @@ self.addEventListener('activate', function (event) {
       );
     })
   );
-  self.clients.claim();
+  // SW-2: no clients.claim(). Claiming would hand an already-open page (e.g. a
+  // student mid-lesson) to a new worker whose cache holds newer JS/CSS than the
+  // HTML that page loaded. New workers take over pages on their next load.
 });
 
 // ── FETCH: routing by request type ──────────────────────
@@ -213,42 +215,137 @@ function queuePost(url, body, contentType) {
   });
 }
 
-function replayQueue() {
+// N-3: requests that must NEVER be queued. They carry credentials, and a
+// queued login would be replayed later (and the page was told "queued", which
+// it reads as a generic failure while the password sat in IndexedDB).
+var NO_QUEUE_ACTIONS = ['login', 'logout', 'request_reset', 'reset_password', 'create_account'];
+var MAX_REPLAY_ATTEMPTS = 5;
+
+/** True if a failed POST may be queued for later. Pure; takes the URL and raw body. */
+function isQueueable(url, body) {
+  var text = String(body || '');
+  var action = '';
+  try { action = new URL(url).searchParams.get('action') || ''; } catch (e) { /* ignore */ }
+  if (!action) {
+    var m = /(?:^|&)action=([^&]*)/.exec(text);
+    if (m) { try { action = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { action = m[1]; } }
+  }
+  if (!action) {
+    var j = /"action"\s*:\s*"([^"]*)"/.exec(text);
+    if (j) action = j[1];
+  }
+  if (NO_QUEUE_ACTIONS.indexOf(action.trim()) !== -1) return false;
+  // Belt and braces: never persist anything carrying a password field.
+  if (/(?:^|&)(?:new_|old_)?password=/.test(text) || /"(?:new_|old_)?password"\s*:/.test(text)) return false;
+  return true;
+}
+
+/** Read every queued item in ONE transaction, resolved only once it has data. */
+function readQueue() {
   return openPostQueue().then(function (db) {
-    return new Promise(function (resolve) {
-      var tx = db.transaction(POST_QUEUE_STORE, 'readwrite');
-      var store = tx.objectStore(POST_QUEUE_STORE);
-      var getAll = store.getAll();
-      getAll.onsuccess = function () {
-        var items = getAll.result || [];
-        if (items.length === 0) { resolve(0); return; }
-        var replayed = 0;
-        var chain = Promise.resolve();
-        items.forEach(function (item) {
-          chain = chain.then(function () {
-            return fetch(item.url, {
-              method: 'POST',
-              headers: { 'Content-Type': item.contentType },
-              body: item.body,
-            }).then(function () {
-              store.delete(item.id);
-              replayed++;
-            }).catch(function () {
-              // Still offline — leave in queue
-            });
-          });
-        });
-        chain.then(function () { resolve(replayed); });
-      };
+    return new Promise(function (resolve, reject) {
+      var req = db.transaction(POST_QUEUE_STORE, 'readonly').objectStore(POST_QUEUE_STORE).getAll();
+      req.onsuccess = function () { resolve(req.result || []); };
+      req.onerror = function (e) { reject(e.target.error); };
     });
   });
 }
 
+/** Each write gets its OWN transaction: one opened before an async fetch has
+ *  already auto-committed by the time the fetch returns (the N-3 bug). */
+function writeQueue(mutate) {
+  return openPostQueue().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(POST_QUEUE_STORE, 'readwrite');
+      mutate(tx.objectStore(POST_QUEUE_STORE));
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function (e) { reject(e.target.error); };
+    });
+  });
+}
+
+/**
+ * Decide what a replay response means.
+ *   'done'  - the server accepted it: delete.
+ *   'retry' - transient (5xx / 429 / 408): leave it, try again later.
+ *   'drop'  - Unauthorized: this request can never succeed, delete.
+ *   'fail'  - any other rejection ({error}/{result:'error'}/4xx): count an attempt.
+ * Apps Script answers 200 even for errors, so the body must be read.
+ */
+function classifyReplay(resp) {
+  if (!resp.ok) {
+    var transient = resp.status >= 500 || resp.status === 429 || resp.status === 408;
+    return Promise.resolve(transient ? 'retry' : 'fail');
+  }
+  return resp.text().then(function (text) {
+    var body = null;
+    try { body = JSON.parse(text); } catch (e) { return 'done'; }
+    if (body && (body.error === 'Unauthorized' || body.message === 'Unauthorized')) return 'drop';
+    if (body && (body.error || body.result === 'error')) return 'fail';
+    return 'done';
+  });
+}
+
+var replayInFlight = null;
+
+/** Replay the queue. Only one replay runs at a time (overlapping `online`
+ *  events used to re-POST every item concurrently). Resolves { replayed, dropped }. */
+function replayQueue() {
+  if (replayInFlight) return replayInFlight;
+  replayInFlight = doReplay().then(function (r) {
+    replayInFlight = null;
+    return r;
+  }, function (err) {
+    replayInFlight = null;
+    throw err;
+  });
+  return replayInFlight;
+}
+
+function doReplay() {
+  var result = { replayed: 0, dropped: 0 };
+  return readQueue().then(function (items) {
+    var chain = Promise.resolve();
+    items.forEach(function (item) {
+      chain = chain.then(function () {
+        return fetch(item.url, {
+          method: 'POST',
+          headers: { 'Content-Type': item.contentType },
+          body: item.body,
+        }).then(classifyReplay).then(function (outcome) {
+          if (outcome === 'done') {
+            result.replayed++;
+            return writeQueue(function (store) { store.delete(item.id); });
+          }
+          if (outcome === 'drop') {
+            result.dropped++;
+            return writeQueue(function (store) { store.delete(item.id); });
+          }
+          if (outcome === 'fail') {
+            var attempts = (item.attempts || 0) + 1;
+            if (attempts >= MAX_REPLAY_ATTEMPTS) {
+              result.dropped++;
+              return writeQueue(function (store) { store.delete(item.id); });
+            }
+            item.attempts = attempts;
+            return writeQueue(function (store) { store.put(item); });
+          }
+          // 'retry': leave it in the queue
+        }).catch(function () {
+          // Network error — still offline; leave in queue
+        });
+      });
+    });
+    return chain;
+  }).then(function () { return result; });
+}
+
 function handlePost(request) {
   var clonedRequest = request.clone();
-  return fetch(request).catch(function () {
-    // Network failed — queue the POST for later
+  return fetch(request).catch(function (err) {
+    // Network failed — queue the POST for later, unless it must not be queued
     return clonedRequest.text().then(function (body) {
+      if (!isQueueable(clonedRequest.url, body)) throw err; // page sees a real network error
       return queuePost(
         clonedRequest.url,
         body,
@@ -267,11 +364,11 @@ function handlePost(request) {
 
 self.addEventListener('message', function (event) {
   if (event.data === 'replay-queue') {
-    replayQueue().then(function (count) {
-      if (count > 0) {
+    replayQueue().then(function (r) {
+      if (r.replayed > 0 || r.dropped > 0) {
         self.clients.matchAll().then(function (clients) {
           clients.forEach(function (client) {
-            client.postMessage({ type: 'queue-replayed', count: count });
+            client.postMessage({ type: 'queue-replayed', count: r.replayed, dropped: r.dropped });
           });
         });
       }

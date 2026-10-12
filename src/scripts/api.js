@@ -305,7 +305,8 @@ if ('serviceWorker' in navigator) {
   // Listen for messages from the SW (e.g. queue replayed)
   navigator.serviceWorker.addEventListener('message', function (event) {
     if (event.data && event.data.type === 'queue-replayed') {
-      console.log('[FluentPath] Replayed ' + event.data.count + ' offline request(s).');
+      console.log('[FluentPath] Replayed ' + event.data.count + ' offline request(s)' +
+        (event.data.dropped ? ', dropped ' + event.data.dropped + ' that the server rejected.' : '.'));
     }
   });
 }
