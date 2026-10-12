@@ -1736,7 +1736,7 @@ async function saveProgress(endTime, speakingAudioJson) {
     student_notes:  notes.substring(0, 1000),
     warmup_response: (state.answers['warmup'] || '').substring(0, 500),
     speaking_transcript: (state.answers['speaking_conv'] || '').substring(0, 1000),
-    answers_json:   JSON.stringify(state.answers).substring(0, 5000),
+    answers_json:   compactAnswersJson(state.answers, 5000), // DATA-5: always valid JSON
     speaking_audio_json: speakingAudioJson || '',
     submitted_at:   new Date().toLocaleString(),
     vocabulary_words: JSON.stringify(

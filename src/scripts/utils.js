@@ -187,3 +187,50 @@ function localDateString(d) {
   var m = d.getMonth() + 1, day = d.getDate();
   return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
 }
+
+/** DATA-5: serialise lesson answers for the answers_json column without ever
+ *  producing invalid JSON. The old code did JSON.stringify(...).substring(0, 5000),
+ *  which cut mid-string, so the teacher's JSON.parse failed and the whole day
+ *  was lost. Here the longest free-text VALUE is halved (and marked with an
+ *  ellipsis) until the whole document fits, so the output is always parseable.
+ *  Score counters and ratings are never shortened. When anything was cut the
+ *  JSON carries `_truncated: true` and `_truncated_keys: [...]` for the teacher.
+ *  @param {object} answers
+ *  @param {number} [limit=5000] max characters of the returned JSON string
+ */
+function compactAnswersJson(answers, limit) {
+  limit = limit || 5000;
+  var data = {};
+  Object.keys(answers || {}).forEach(function (k) { data[k] = answers[k]; });
+  var full = JSON.stringify(data);
+  if (full.length <= limit) return full;
+
+  var PROTECTED = /(_correct|_total|_score|_is_right)$|^confidence$/;
+  var cut = {};
+  function out() {
+    var o = {};
+    Object.keys(data).forEach(function (k) { o[k] = data[k]; });
+    o._truncated = true;
+    o._truncated_keys = Object.keys(cut);
+    return JSON.stringify(o);
+  }
+  for (var guard = 0; guard < 500; guard++) {
+    var json = out();
+    if (json.length <= limit) return json;
+    // longest shortenable string value
+    var best = null;
+    Object.keys(data).forEach(function (k) {
+      if (PROTECTED.test(k) || typeof data[k] !== 'string' || data[k].length <= 1) return;
+      if (best === null || data[k].length > data[best].length) best = k;
+    });
+    if (best === null) break;
+    var keep = Math.floor(data[best].length / 2);
+    data[best] = data[best].slice(0, keep) + '\u2026';
+    cut[best] = true;
+  }
+  // Last resort (only reachable with an absurdly small limit or huge protected
+  // data): keep the protected counters and the flag, which is still valid JSON.
+  var minimal = { _truncated: true, _truncated_keys: Object.keys(data).filter(function (k) { return !PROTECTED.test(k); }) };
+  Object.keys(data).forEach(function (k) { if (PROTECTED.test(k)) minimal[k] = data[k]; });
+  return JSON.stringify(minimal);
+}

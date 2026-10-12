@@ -42,6 +42,7 @@ export function loadUtils() {
     submissionMatches: globalThis.submissionMatches,
     lessonSaveConfirmed: globalThis.lessonSaveConfirmed,
     localDateString: globalThis.localDateString,
+    compactAnswersJson: globalThis.compactAnswersJson,
   };
 }
 

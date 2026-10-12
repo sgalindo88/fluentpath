@@ -183,3 +183,74 @@ describe('localDateString', () => {
     expect(u.localDateString()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
+
+// ── compactAnswersJson (DATA-5) ─────────────────────────
+
+describe('compactAnswersJson', () => {
+  const big = (n, ch = 'x') => ch.repeat(n);
+
+  it('returns the plain JSON untouched when it already fits', () => {
+    const a = { writing: 'hello', listening_correct: 2, listening_total: 3 };
+    expect(u.compactAnswersJson(a, 5000)).toBe(JSON.stringify(a));
+  });
+
+  it('REPRODUCES the old bug: substring(0,5000) of a big answer set is not parseable', () => {
+    const a = { writing: big(6000), listening_correct: 2 };
+    expect(() => JSON.parse(JSON.stringify(a).substring(0, 5000))).toThrow();
+  });
+
+  it('always yields parseable JSON within the limit, and flags what it cut', () => {
+    const a = {
+      warmup: big(1500), writing: big(3000), review_notes: big(900), speaking_conv: big(1200),
+      drill_s1: 'I would like a coffee', drill_s1_score: 0.82,
+      listening_correct: 3, listening_total: 4, practice_correct: 5, practice_total: 6,
+      confidence: 2,
+    };
+    const out = u.compactAnswersJson(a, 5000);
+    expect(out.length).toBeLessThanOrEqual(5000);
+    const parsed = JSON.parse(out);
+    expect(parsed._truncated).toBe(true);
+    expect(parsed._truncated_keys).toContain('writing');
+  });
+
+  it('never shortens score counters, ratings or short drill transcripts', () => {
+    const a = {
+      writing: big(7000), drill_s1: 'short phrase', drill_s1_score: 0.9,
+      listening_correct: 3, listening_total: 4, practice_correct: 5, practice_total: 6, confidence: 1,
+    };
+    const parsed = JSON.parse(u.compactAnswersJson(a, 5000));
+    expect(parsed.listening_correct).toBe(3);
+    expect(parsed.listening_total).toBe(4);
+    expect(parsed.practice_correct).toBe(5);
+    expect(parsed.practice_total).toBe(6);
+    expect(parsed.confidence).toBe(1);
+    expect(parsed.drill_s1_score).toBe(0.9);
+    expect(parsed.drill_s1).toBe('short phrase');
+    expect(parsed._truncated_keys).toEqual(['writing']);
+  });
+
+  it('keeps a shortened field truthy (the teacher dashboard tests aj.warmup)', () => {
+    const parsed = JSON.parse(u.compactAnswersJson({ warmup: big(6000), vocab_practice: 'ok' }, 1000));
+    expect(parsed.warmup.length).toBeGreaterThan(0);
+    expect(parsed.vocab_practice).toBe('ok');
+  });
+
+  it('is valid for quotes, newlines, emoji and non-Latin text near the cut', () => {
+    const nasty = ('He said "hola"\n\\ 😀 ñ ' ).repeat(400);
+    const out = u.compactAnswersJson({ writing: nasty, speaking_conv: nasty }, 3000);
+    expect(out.length).toBeLessThanOrEqual(3000);
+    expect(() => JSON.parse(out)).not.toThrow();
+  });
+
+  it('falls back to a valid minimal document when the limit is absurdly small', () => {
+    const out = u.compactAnswersJson({ writing: big(500), listening_correct: 2 }, 60);
+    const parsed = JSON.parse(out);
+    expect(parsed._truncated).toBe(true);
+    expect(parsed.listening_correct).toBe(2);
+  });
+
+  it('tolerates empty or missing answers', () => {
+    expect(u.compactAnswersJson({}, 5000)).toBe('{}');
+    expect(u.compactAnswersJson(null, 5000)).toBe('{}');
+  });
+});
