@@ -218,7 +218,15 @@ function queuePost(url, body, contentType) {
 // N-3: requests that must NEVER be queued. They carry credentials, and a
 // queued login would be replayed later (and the page was told "queued", which
 // it reads as a generic failure while the password sat in IndexedDB).
-var NO_QUEUE_ACTIONS = ['login', 'logout', 'request_reset', 'reset_password', 'create_account'];
+// N-5: nor may teacher writes (grades, settings, level, attendance...). A queued
+// grade would be replayed after the 12-hour teacher session has expired, and the
+// teacher was told "saved offline" about the step that sets a student's level.
+// Offline, the page must see a real network error and say so.
+var NO_QUEUE_ACTIONS = [
+  'login', 'logout', 'request_reset', 'reset_password', 'create_account',
+  'save_marks', 'update_settings', 'save_attendance', 'delete_library_entry',
+  'promote_student', 'send_call_link', 'ai_summary'
+];
 var MAX_REPLAY_ATTEMPTS = 5;
 
 /** True if a failed POST may be queued for later. Pure; takes the URL and raw body. */
@@ -235,6 +243,8 @@ function isQueueable(url, body) {
     if (j) action = j[1];
   }
   if (NO_QUEUE_ACTIONS.indexOf(action.trim()) !== -1) return false;
+  // Examiner Results (the placement-test grade) is identified by sheet_name, not action.
+  if (/(?:^|&)sheet_name=Examiner(?:\+|%20)Results(?:&|$)/.test(text)) return false;
   // Belt and braces: never persist anything carrying a password field.
   if (/(?:^|&)(?:new_|old_)?password=/.test(text) || /"(?:new_|old_)?password"\s*:/.test(text)) return false;
   return true;

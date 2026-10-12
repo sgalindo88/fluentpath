@@ -50,7 +50,7 @@ describe('submissionMatches', () => {
 });
 
 describe('backend: submission_id column and retry', () => {
-  const post = (fp, extra = {}) => fp.POST_HANDLERS._submit_test(
+  const post = (fp, extra = {}) => fp.POST_HANDLERS.submit_test(
     { candidate_name: 'Maria', submitted_at: '2026-09-13T22:51:19.000Z', reading_score: '10 / 20', ...extra });
   const rows = (fp) => fp._ss.getSheetByName('Initial Test Results').getDataRange().getValues();
 

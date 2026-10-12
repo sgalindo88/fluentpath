@@ -649,7 +649,7 @@ async function submitResults() {
   const submissionId = state.submissionId;
   // The sheet gets an ISO timestamp and the id; the Formspree email keeps its
   // original readable fields.
-  const sheetPayload = Object.assign({}, payload, {
+  const sheetPayload = Object.assign({ action: 'submit_test' }, payload, {
     submitted_at: new Date().toISOString(),
     submission_id: submissionId,
   });

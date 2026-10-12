@@ -113,7 +113,7 @@ describe('sessions', () => {
   it('serves from cache on the second lookup', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     const session = fp.createSession(makeAccount(fp));
-    expect(fp._cache.has('session_' + session.token)).toBe(true);
+    expect(fp._cache.has('session_' + globalThis.hashSessionToken(session.token))).toBe(true); // N-6: keyed by the hash
     expect(fp.validateSession(session.token).student_name).toBe('Maria');
   });
 });

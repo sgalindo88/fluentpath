@@ -303,7 +303,7 @@ function validateTeacherToken(params) {
  *   save_audio             student session
  *   request_video_call     student session
  *   update_call_status     student or teacher session
- *   _submit_test           student session   (default POST branch — see SEC-7)
+ *   submit_test            student session   (placement test; SEC-7 removed the no-action default)
  *   create_account         TEACHER session
  *   save_marks             TEACHER session
  *   save_attendance        TEACHER session
@@ -349,6 +349,16 @@ function isExaminerPost(params) {
 // server-issued tokens persisted in the Sessions sheet (read-through cached).
 // ══════════════════════════════════════════════════════
 
+/**
+ * N-28: look up an action in a dispatch table by OWN key only. A plain
+ * `table[action]` finds 'constructor', 'toString', '__proto__' ... on
+ * Object.prototype, which are truthy, so `action=constructor` skipped the
+ * session requirement and ran a native function as a handler.
+ */
+function own(table, key) {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
+}
+
 /** Loose truthiness for string-typed sheet cells ('true'/'1'/'yes' → true). */
 function truthy(v) {
   var s = String(v == null ? '' : v).toLowerCase().trim();
@@ -385,8 +395,15 @@ function bytesToHex(bytes) {
 // for public signup. See the README security caveats.
 var PW_ROUNDS = 2000;
 
+/**
+ * The server-only password pepper. N-25: fail CLOSED — with PW_PEPPER unset the
+ * password hashes lose their primary protection and reset tokens would be signed
+ * with an empty HMAC key, so refuse to hash, sign or verify at all.
+ */
 function pwPepper() {
-  return PropertiesService.getScriptProperties().getProperty('PW_PEPPER') || '';
+  var pepper = PropertiesService.getScriptProperties().getProperty('PW_PEPPER') || '';
+  if (!pepper) throw new Error('PW_PEPPER is not configured');
+  return pepper;
 }
 
 function hashPassword(plain, salt) {
@@ -424,6 +441,18 @@ function findAccountByEmail(email) {
 }
 
 // ── Session lifecycle ─────────────────────────────────
+/**
+ * N-6: the Sessions sheet (and the script cache) keep only a SHA-256 of the
+ * session token. The raw token lives in the client alone, so reading the sheet
+ * — by anyone with access to it, or by a formula injected into it — no longer
+ * yields a usable login. Tokens are two UUIDs (256 bits), so an unsalted hash
+ * is enough.
+ */
+function hashSessionToken(token) {
+  return bytesToHex(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256, String(token), Utilities.Charset.UTF_8));
+}
+
 /** Issue a session for an account. Students ~30d, teachers ~12h. */
 function createSession(account) {
   var role = String(account.role || 'student').toLowerCase();
@@ -432,7 +461,7 @@ function createSession(account) {
   var now = new Date();
   var expires = new Date(now.getTime() + ttlMs);
   var session = {
-    token: token,
+    token: hashSessionToken(token), // stored form; the raw token is returned below only
     email: account.email,
     role: role,
     student_name: account.student_name,
@@ -442,17 +471,21 @@ function createSession(account) {
   };
   var headers = HEADERS['Sessions'];
   var sheet = getOrCreateSheet('Sessions', headers);
-  sheet.appendRow(headers.map(function(h) { return session[h]; }));
-  cachePut('session_' + token, session);
-  return session;
+  sheet.appendRow(headers.map(function(h) { return sheetSafe(session[h]); }));
+  cachePut(cacheKeyForSession(session.token), session);
+  var issued = {};
+  Object.keys(session).forEach(function(k) { issued[k] = session[k]; });
+  issued.token = token; // handed to the client once; never persisted
+  return issued;
 }
 
 /** Resolve a session token → session object, or null if missing/expired/revoked. */
 function validateSession(token) {
   token = String(token || '').trim();
   if (!token) return null;
+  token = hashSessionToken(token);
 
-  var cacheKey = 'session_' + token;
+  var cacheKey = cacheKeyForSession(token);
   var session = cacheGet(cacheKey);
   var fromCache = !!session;
 
@@ -467,6 +500,11 @@ function validateSession(token) {
     var rowData = sheet.getRange(rowNum, 1, 1, headers.length).getValues()[0];
     session = {};
     for (var j = 0; j < headers.length; j++) session[headers[j]] = rowData[j];
+    // N-16: a deactivated (or deleted) account must not keep a working session.
+    // Checked whenever the session is loaded from the sheet, i.e. at least
+    // every CACHE_TTL, which bounds how long a deactivation takes to bite.
+    var owner = findAccountByEmail(session.email);
+    if (!owner || !truthy(owner.active)) return null;
   }
 
   if (truthy(session.revoked)) return null;
@@ -481,6 +519,7 @@ function validateSession(token) {
 function revokeSession(token) {
   token = String(token || '').trim();
   if (!token) return;
+  token = hashSessionToken(token);
   var headers = HEADERS['Sessions'];
   var sheet = getOrCreateSheet('Sessions', headers);
   if (sheet.getLastRow() >= 2) {
@@ -494,7 +533,8 @@ function revokeSession(token) {
   try { CacheService.getScriptCache().remove(cacheKeyForSession(token)); } catch (e) {}
 }
 
-function cacheKeyForSession(token) { return 'session_' + token; }
+/** Cache key for a session, from its STORED (hashed) token. */
+function cacheKeyForSession(storedToken) { return 'session_' + storedToken; }
 
 // ── Password reset tokens (STATELESS / signed) ────────
 // Neither a Sheet nor CacheService is reliably consistent across requests in
@@ -511,12 +551,21 @@ function resetSign(payloadB64) {
   return bytesToHex(Utilities.computeHmacSha256Signature(payloadB64, pwPepper()));
 }
 
+/**
+ * Binds a reset token to the password it was issued against. N-25: an HMAC of
+ * the hash, not a slice of the hash itself, so the emailed token no longer
+ * carries 48 bits of the stored password hash.
+ */
+function pwFingerprint(account) {
+  return resetSign('fp|' + String(account.pw_hash || '')).substring(0, 16);
+}
+
 /** Create a signed reset token for an account; returns the RAW token (to email). */
 function createResetToken(account) {
   var payload = [
     String(account.email).toLowerCase().trim(),
     new Date().getTime() + RESET_TTL_MS,
-    String(account.pw_hash || '').substring(0, 12)
+    pwFingerprint(account)
   ].join('|');
   var b64 = Utilities.base64EncodeWebSafe(payload);
   return b64 + '.' + resetSign(b64);
@@ -868,9 +917,20 @@ function rateLimited(key, max, windowSec) {
   } catch (e) { return false; }
 }
 
-/** Per-email login throttle (10 attempts / 15 min). login is internet-reachable. */
-function loginRateLimited(email) {
-  return rateLimited('login_rl_' + String(email).toLowerCase().trim(), 10, 15 * 60);
+var LOGIN_MAX_FAILURES = 10; // per email, per 15 minutes
+function loginKey(email) { return 'login_rl_' + String(email).toLowerCase().trim(); }
+
+/** True once an email has hit its failure cap. Read-only: does not count an attempt. */
+function loginBlocked(email) {
+  try {
+    return parseInt(CacheService.getScriptCache().get(loginKey(email)) || '0', 10) >= LOGIN_MAX_FAILURES;
+  } catch (e) { return false; } // fail open, like rateLimited
+}
+
+/** Count one failed login. N-16: successes are not counted, so a student who
+ *  logs in normally can never exhaust their own allowance. */
+function recordLoginFailure(email) {
+  rateLimited(loginKey(email), LOGIN_MAX_FAILURES, 15 * 60);
 }
 
 /** Per-email reset-request throttle (3 reset emails / hour). */
@@ -1131,8 +1191,38 @@ function notifyStudentTestGraded(studentName, cefrLevel) {
 }
 
 // ══════════════════════════════════════════════════════
+// SHEET WRITE SAFETY (N-6)
+// ══════════════════════════════════════════════════════
+
+/**
+ * Google Sheets evaluates any cell that begins with = + - @ as a formula (and
+ * tab/CR can smuggle one in). Student-controlled text (writing, notes, names,
+ * vocabulary) lands in the same spreadsheet as Accounts and Sessions, so a
+ * crafted answer such as =IMPORTDATA(...) could exfiltrate them when the sheet
+ * is opened — and honest answers like "-5 degrees" were being mangled.
+ * A leading apostrophe makes Sheets store the value as plain text; the
+ * apostrophe itself is not part of the stored value.
+ */
+function sheetSafe(value) {
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(value)) return "'" + value;
+  return value;
+}
+
+// ══════════════════════════════════════════════════════
 // ERROR LOGGING
 // ══════════════════════════════════════════════════════
+
+/** Param names that must never reach the Error Log (SEC-6). */
+var SENSITIVE_PARAM = /^(session|token|password|new_password|reset_token|pw_hash|pw_salt|secret|api_key)$/i;
+
+/** Copy of params with credentials blanked, so logging cannot leak a login. */
+function redactParams(params) {
+  var out = {};
+  Object.keys(params || {}).forEach(function(k) {
+    out[k] = SENSITIVE_PARAM.test(k) ? '[redacted]' : params[k];
+  });
+  return out;
+}
 
 /** Log an error to the Error Log sheet for server-side debugging. */
 function logError(action, student, message, params) {
@@ -1140,10 +1230,10 @@ function logError(action, student, message, params) {
     var sheet = getOrCreateSheet('Error Log', ['timestamp', 'action', 'student', 'message', 'params']);
     sheet.appendRow([
       new Date().toISOString(),
-      action || '',
-      student || '',
-      message || '',
-      JSON.stringify(params || {}).substring(0, 2000)
+      sheetSafe(action || ''),
+      sheetSafe(student || ''),
+      sheetSafe(message || ''),
+      JSON.stringify(redactParams(params)).substring(0, 2000) // SEC-6
     ]);
   } catch (e) { /* logging itself failed — nothing we can do */ }
 }
@@ -1336,7 +1426,7 @@ function upsertByStudent(sheetName, headers, studentName, data) {
   // Build the row using ACTUAL sheet headers — preserves alignment if the
   // sheet has extra columns or a different order than the constant.
   var rowData = actualHeaders.map(function(h) {
-    return data[h] !== undefined ? data[h] : '';
+    return sheetSafe(data[h] !== undefined ? data[h] : '');
   });
 
   if (existingRow > 0) {
@@ -1484,7 +1574,7 @@ function doGet(e) {
   if (action !== 'health') {
     if (authEnforced()) {
       if (!session ||
-          (TEACHER_GET_ACTIONS[action] && session.role !== 'teacher')) {
+          (own(TEACHER_GET_ACTIONS, action) && session.role !== 'teacher')) {
         return ContentService
           .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
           .setMimeType(ContentService.MimeType.JSON);
@@ -1495,7 +1585,7 @@ function doGet(e) {
 
   var result;
   try {
-    var handler = GET_HANDLERS[action];
+    var handler = own(GET_HANDLERS, action);
     result = handler ? handler(e.parameter, session) : { error: 'Unknown action: ' + action };
   } catch (err) {
     logError(action, student, err.message, e.parameter);
@@ -1642,7 +1732,7 @@ function handleGetProgress(studentName, courseId) {
       for (var r = 0; r < fresh.length; r++) {
         if (String(fresh[r][0]).toLowerCase().trim() === target) return;
       }
-      studentsSheet.appendRow([studentName, new Date().toISOString().split('T')[0]]);
+      studentsSheet.appendRow([sheetSafe(studentName), new Date().toISOString().split('T')[0]]);
     });
   }
 
@@ -2248,8 +2338,8 @@ function saveVocabularyWords(studentName, words, level, dayNumber) {
     var word = String(w).trim();
     if (!word || existing.has(word.toLowerCase())) return;
     sheet.appendRow([
-      studentName,
-      word,
+      sheetSafe(studentName),
+      sheetSafe(word),
       level || '',
       today,          // day_introduced
       '',             // last_reviewed (empty until first review)
@@ -2661,7 +2751,7 @@ function safeAppendRow(sheetName, expectedHeaders, params) {
 
   // Build the row by matching params to actual column headers
   var row = actualHeaders.map(function(header) {
-    return params[header] || '';
+    return sheetSafe(params[header] || '');
   });
 
   sheet.appendRow(row);
@@ -2755,6 +2845,13 @@ function handleGetErrors() {
 
 /** Student requests a video call. Returns the request id. */
 function handleRequestVideoCall(studentName, page, dayNumber) {
+  // N-17: each request emails the teacher (and shares the daily MailApp quota
+  // with password resets). Re-use a request that is already open, and cap new ones.
+  var open = handleGetActiveCallRequest(studentName);
+  if (open.found) return { result: 'success', id: open.id, existing: true };
+  if (rateLimited('call_rl_' + String(studentName).toLowerCase().trim(), 3, 60 * 60)) {
+    return { result: 'error', message: 'Too many call requests. Please wait before asking again.' };
+  }
   var sheet = getOrCreateSheet('Video Call Requests', HEADERS['Video Call Requests']);
   var id = Utilities.getUuid();
   var row = {
@@ -2873,6 +2970,7 @@ function handleHealth() {
   checks.ai_key = props.getProperty('AI_API_KEY') ? 'set' : 'missing';
   checks.ai_provider = (props.getProperty('AI_PROVIDER') || 'gemini').toLowerCase();
   checks.app_secret = props.getProperty('APP_SECRET') ? 'set' : 'missing';
+  checks.pw_pepper = props.getProperty('PW_PEPPER') ? 'set' : 'missing'; // N-25: logins and reset links fail closed without it
 
   // Deploy verification. The version is a constant someone has to remember to
   // bump; these two are read from the live code, so they prove what is actually
@@ -2884,7 +2982,7 @@ function handleHealth() {
 
   // Metadata
   checks.timestamp = new Date().toISOString();
-  checks.status = (checks.sheets === 'ok' && checks.ai_key === 'set' && checks.app_secret === 'set')
+  checks.status = (checks.sheets === 'ok' && checks.ai_key === 'set' && checks.app_secret === 'set' && checks.pw_pepper === 'set')
     ? 'healthy' : 'degraded';
 
   return checks;
@@ -2976,15 +3074,45 @@ function getAudioFolder(studentName, lessonDay) {
  * }
  * Returns: { result:'success', audio_json: '{"s1":"<id>", ...}' }
  */
-function handleSaveAudio(body) {
-  var studentName = body.student_name || 'Unknown';
-  var dayNumber   = body.day_number   || '0';
+// N-10: upload limits. A lesson has a handful of drills plus one conversation;
+// base64 of a minute of m4a is well under 1 MB.
+var AUDIO_MAX_RECORDINGS = 12;
+var AUDIO_MAX_CHARS_EACH = 10 * 1000 * 1000;  // base64 chars (~7.5 MB of audio)
+var AUDIO_MAX_CHARS_TOTAL = 25 * 1000 * 1000;
+var AUDIO_KEY = /^[A-Za-z0-9_-]{1,40}$/;
+
+function handleSaveAudio(body, session) {
+  // N-10: a student's recordings are filed under THEIR session identity; the
+  // name inside the JSON body is only trusted for teacher/grace callers.
+  var studentName = (session && session.role === 'student')
+    ? session.student_name
+    : (body.student_name || 'Unknown');
+  var dayNumber   = parseInt(body.day_number, 10);
   var recordings  = body.recordings   || {};
   var scores      = body.scores       || {};
+
+  if (!(dayNumber >= 1 && dayNumber <= COURSE_DAYS)) {
+    return { result: 'error', message: 'Invalid day_number' };
+  }
 
   var keys = Object.keys(recordings);
   if (keys.length === 0) {
     return { result: 'error', message: 'No recordings received. The request body may not have been parsed correctly.' };
+  }
+  if (keys.length > AUDIO_MAX_RECORDINGS) {
+    return { result: 'error', message: 'Too many recordings in one request' };
+  }
+  var totalChars = 0;
+  for (var c = 0; c < keys.length; c++) {
+    var r0 = recordings[keys[c]];
+    var len = (r0 && typeof r0.data === 'string') ? r0.data.length : 0;
+    if (!AUDIO_KEY.test(keys[c]) || len > AUDIO_MAX_CHARS_EACH) {
+      return { result: 'error', message: 'Invalid or oversized recording' };
+    }
+    totalChars += len;
+  }
+  if (totalChars > AUDIO_MAX_CHARS_TOTAL) {
+    return { result: 'error', message: 'Recordings are too large' };
   }
 
   var folder;
@@ -3002,7 +3130,7 @@ function handleSaveAudio(body) {
     var rec = recordings[key];
     if (!rec || !rec.data) continue;
 
-    var ext  = rec.ext || 'webm';
+    var ext  = rec.ext === 'mp4' ? 'mp4' : 'webm'; // whitelist: the extension goes into the filename
     var mime = ext === 'mp4' ? 'audio/mp4' : 'audio/webm';
     var filename = key + '.' + ext;
 
@@ -3010,7 +3138,8 @@ function handleSaveAudio(body) {
       var decoded = Utilities.base64Decode(rec.data);
       var blob    = Utilities.newBlob(decoded, mime, filename);
       var file    = folder.createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      // N-10: no link sharing. Recordings of adult learners' voices stay private
+      // to the script owner; the teacher panel plays them through get_audio.
       audioJson[key] = file.getId();
     } catch (fileErr) {
       errors.push(key + ': ' + fileErr.message);
@@ -3020,7 +3149,8 @@ function handleSaveAudio(body) {
   // Store accuracy scores alongside file IDs
   var scoreKeys = Object.keys(scores);
   for (var si = 0; si < scoreKeys.length; si++) {
-    audioJson[scoreKeys[si] + '_score'] = scores[scoreKeys[si]];
+    var sv = Number(scores[scoreKeys[si]]);
+    if (AUDIO_KEY.test(scoreKeys[si]) && isFinite(sv)) audioJson[scoreKeys[si] + '_score'] = sv;
   }
 
   var audioJsonStr = JSON.stringify(audioJson);
@@ -3030,6 +3160,55 @@ function handleSaveAudio(body) {
   return result;
 }
 
+
+// ── N-2: speaking_audio_json is client-supplied; keep only what we could have issued ──
+
+/** True if the Drive file sits in <FluentPath Audios>/<this student>/<Lesson N>/. */
+function audioFileBelongsTo(fileId, studentName) {
+  try {
+    var file = DriveApp.getFileById(fileId);
+    if (!isUnderAudioRoot(file)) return false;
+    var lessonIt = file.getParents();
+    if (!lessonIt.hasNext()) return false;
+    var studentIt = lessonIt.next().getParents();
+    if (!studentIt.hasNext()) return false;
+    return String(studentIt.next().getName()).toLowerCase().trim() ===
+           String(studentName).toLowerCase().trim();
+  } catch (err) { return false; }
+}
+
+/**
+ * save_progress used to write speaking_audio_json verbatim, so a student chose
+ * its keys (which the teacher panel put into HTML — N-2) and could point it at
+ * any Drive id. Returns a JSON string holding only entries shaped like
+ * handleSaveAudio's output: safe key -> a file id inside THIS student's audio
+ * folder, and <key>_score -> a number. Anything else is dropped (the lesson
+ * still saves) and noted in the Error Log.
+ */
+function sanitizeSpeakingAudioJson(raw, studentName, ownsFile) {
+  if (!raw) return '';
+  var obj;
+  try { obj = JSON.parse(String(raw)); } catch (err) { obj = null; }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    logError('save_progress', studentName, 'speaking_audio_json was not a JSON object', {});
+    return '';
+  }
+  var out = {};
+  var dropped = 0;
+  Object.keys(obj).forEach(function(k) {
+    var v = obj[k];
+    if (!AUDIO_KEY.test(k)) { dropped++; return; }
+    if (/_score$/.test(k)) {
+      var n = Number(v);
+      if (typeof v !== 'object' && isFinite(n) && n >= 0 && n <= 100) out[k] = n; else dropped++;
+      return;
+    }
+    if (typeof v === 'string' && /^[A-Za-z0-9_-]{10,100}$/.test(v) && ownsFile(v, studentName)) out[k] = v;
+    else dropped++;
+  });
+  if (dropped) logError('save_progress', studentName, 'Dropped ' + dropped + ' invalid speaking_audio_json entr' + (dropped === 1 ? 'y' : 'ies'), {});
+  return Object.keys(out).length ? JSON.stringify(out) : '';
+}
 
 // ══════════════════════════════════════════════════════
 // doPOST — dispatch table for all write requests
@@ -3070,7 +3249,7 @@ var POST_HANDLERS = {
     if (!account) return { _json: { ok: false, error: 'Account not found.' } };
     // Single-use: the token is bound to the password at issue time. If it no
     // longer matches, the password was already changed (this link was used).
-    if (String(account.pw_hash || '').substring(0, 12) !== reset._pwfp) {
+    if (pwFingerprint(account) !== reset._pwfp) {
       return { _json: { ok: false, error: 'This reset link has already been used.' } };
     }
     setAccountPassword(account, newPassword); // changes pw_hash → invalidates this token
@@ -3086,11 +3265,14 @@ var POST_HANDLERS = {
     var email = String(paramOrBody(params, body, 'email')).trim().toLowerCase();
     var password = String(paramOrBody(params, body, 'password'));
     if (!email || !password) return { _json: { ok: false, error: 'Invalid email or password' } };
-    if (loginRateLimited(email)) return { _json: { ok: false, error: 'Too many attempts. Please try again later.' } };
+    if (loginBlocked(email)) return { _json: { ok: false, error: 'Too many attempts. Please try again later.' } };
     var account = findAccountByEmail(email);
     var ok = account && truthy(account.active) &&
              verifyPassword(password, account.pw_salt, account.pw_hash);
-    if (!ok) return { _json: { ok: false, error: 'Invalid email or password' } };
+    if (!ok) {
+      recordLoginFailure(email);
+      return { _json: { ok: false, error: 'Invalid email or password' } };
+    }
     var session = createSession(account);
     return { _json: {
       ok: true,
@@ -3183,7 +3365,7 @@ var POST_HANDLERS = {
     return { _json: { ok: true, email: email, student_name: studentName, role: role } };
   },
 
-  save_audio: function(params, e) {
+  save_audio: function(params, e, session) {
     var audioBody;
     if (e.postData && e.postData.contents) {
       try { audioBody = JSON.parse(e.postData.contents); } catch (err) { audioBody = null; }
@@ -3191,7 +3373,7 @@ var POST_HANDLERS = {
     if (!audioBody || !audioBody.recordings) {
       throw new Error('Could not parse audio request body. postData type: ' + (e.postData ? e.postData.type : 'none'));
     }
-    return { _json: handleSaveAudio(audioBody) };
+    return { _json: handleSaveAudio(audioBody, session) };
   },
 
   // Teacher weekly-summary AI draft (gated by TEACHER_ACTIONS). Prompt arrives as
@@ -3224,6 +3406,7 @@ var POST_HANDLERS = {
     var req = validateCourseRequest(session, name, level, day);
     params['level'] = req.level;
     params['day_number'] = String(req.day);
+    params['speaking_audio_json'] = sanitizeSpeakingAudioJson(params['speaking_audio_json'], name, audioFileBelongsTo);
     if (req.courseId) params['course_id'] = req.courseId; // the client never sent one, so Course 2 rows landed in course 1
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
@@ -3320,8 +3503,8 @@ var POST_HANDLERS = {
     return { _json: handleUpdateCallStatus(id, status) };
   },
 
-  // No action → student submitted placement test
-  _submit_test: function(params) {
+  // Student submitted the placement test (action=submit_test)
+  submit_test: function(params) {
     var name = requireParam(params, 'candidate_name');
     // DATA-2: a retry re-posts under the same submission_id. If the newest row
     // for this student already carries it, the first save landed: don't append
@@ -3369,7 +3552,7 @@ function doPost(e) {
   }
 
   // ── Auth check ──
-  if (TEACHER_ACTIONS[action] || isExaminerPost(params)) {
+  if (own(TEACHER_ACTIONS, action) || isExaminerPost(params)) {
     if (!validateTeacherToken(params)) {
       return ContentService
         .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
@@ -3387,8 +3570,8 @@ function doPost(e) {
   // verified above). A student session is then forced onto student_name/
   // candidate_name so a student can never write as someone else.
   var session = resolveSession(params);
-  var isTeacherAction = TEACHER_ACTIONS[action] || isExaminerPost(params);
-  if (authEnforced() && !isTeacherAction && !SESSIONLESS_POST[action] && !session) {
+  var isTeacherAction = own(TEACHER_ACTIONS, action) || isExaminerPost(params);
+  if (authEnforced() && !isTeacherAction && !own(SESSIONLESS_POST, action) && !session) {
     return ContentService
       .createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -3399,9 +3582,10 @@ function doPost(e) {
   }
 
   // ── Resolve handler ──
-  var handler = POST_HANDLERS[action];
+  // SEC-7: no catch-all. A request with no action used to be filed as a
+  // placement-test submission; the test now says action=submit_test explicitly.
+  var handler = own(POST_HANDLERS, action);
   if (!handler && sheetName === 'Examiner Results') handler = POST_HANDLERS._examiner_results;
-  if (!handler && !action)                          handler = POST_HANDLERS._submit_test;
 
   if (!handler) {
     return ContentService
@@ -3414,7 +3598,7 @@ function doPost(e) {
     // lock. UNLOCKED_POST exempts handlers whose work is a slow outbound call —
     // holding a global lock across a 5-15s AI request would stall every student
     // save behind one teacher drafting a summary.
-    var result = UNLOCKED_POST[action]
+    var result = own(UNLOCKED_POST, action)
       ? handler(params, e, session)
       : withScriptLock(function () { return handler(params, e, session); });
     var body = (result && result._json) ? result._json : { result: 'success' };

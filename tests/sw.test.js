@@ -85,7 +85,7 @@ describe('isQueueable', () => {
   const { isQueueable } = loadSw();
   it('queues ordinary student saves', () => {
     expect(isQueueable(URL_EXEC, 'action=save_progress&student_name=M')).toBe(true);
-    expect(isQueueable(URL_EXEC, 'candidate_name=M&reading_score=3')).toBe(true); // test submit (no action)
+    expect(isQueueable(URL_EXEC, 'action=submit_test&candidate_name=M&reading_score=3')).toBe(true); // placement test
     expect(isQueueable(URL_EXEC + '?action=save_audio', '{"recordings":{}}')).toBe(true);
   });
   it('never queues auth actions (form, query string, or JSON body)', () => {
@@ -94,6 +94,15 @@ describe('isQueueable', () => {
       expect(isQueueable(URL_EXEC + `?action=${a}`, '{}')).toBe(false);
       expect(isQueueable(URL_EXEC, `{"action":"${a}"}`)).toBe(false);
     }
+  });
+  it('never queues teacher writes (N-5): a grade must not be "saved offline"', () => {
+    for (const a of ['save_marks', 'update_settings', 'save_attendance', 'delete_library_entry', 'promote_student', 'send_call_link', 'ai_summary']) {
+      expect(isQueueable(URL_EXEC, `action=${a}&student_name=M`)).toBe(false);
+      expect(isQueueable(URL_EXEC + `?action=${a}`, 'x=1')).toBe(false);
+    }
+    // the placement-test grade is identified by sheet_name, not action
+    expect(isQueueable(URL_EXEC, 'sheet_name=Examiner+Results&candidate_name=M')).toBe(false);
+    expect(isQueueable(URL_EXEC, 'candidate_name=M&sheet_name=Examiner%20Results')).toBe(false);
   });
   it('never queues anything carrying a password', () => {
     expect(isQueueable(URL_EXEC, 'action=x&password=hunter2')).toBe(false);
