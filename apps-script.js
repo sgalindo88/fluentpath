@@ -1264,7 +1264,8 @@ var HEADERS = {
     'time_spent_min', 'topic', 'confidence',
     'writing_response', 'student_notes', 'warmup_response',
     'speaking_transcript', 'answers_json', 'speaking_audio_json',
-    'course_id'
+    'course_id',
+    'submission_id'   // N-12/DATA-6: opaque id minted by the client per lesson attempt
   ],
   'Settings': [
     'student_name', 'teacher_name', 'cefr_level',
@@ -1475,7 +1476,8 @@ function handleGetProgress(studentName, courseId) {
         confidence: progressRows[i]['confidence'] || '',
         writing_score: dayMarks ? (dayMarks['writing_score'] || null) : null,
         speaking_score: dayMarks ? (dayMarks['speaking_score'] || null) : null,
-        answers_json: progressRows[i]['answers_json'] || ''
+        answers_json: progressRows[i]['answers_json'] || '',
+        submission_id: String(progressRows[i]['submission_id'] || '')
       });
     }
   }
@@ -3071,6 +3073,14 @@ var POST_HANDLERS = {
     var day = requireParam(params, 'day_number');
     var level = requireParam(params, 'level');
     enforceCourseAccess(session, name); // gated course path — locked students rejected
+    // N-12: a retry re-posts under the same submission_id. If the student's
+    // newest row already carries it, the first save landed: write nothing and
+    // send no second teacher email.
+    var sid = String(params['submission_id'] || '').trim();
+    if (sid) {
+      var lastRow = findLastByStudent('Course Progress', HEADERS['Course Progress'], name);
+      if (lastRow && String(lastRow['submission_id'] || '').trim() === sid) return;
+    }
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
     notifyTeacherLessonSubmitted(name, day);

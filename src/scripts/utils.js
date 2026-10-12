@@ -169,3 +169,13 @@ function submissionMatches(data, submissionId) {
   return !!(submissionId && data && data.found &&
     String(data.submission_id || '').trim() === String(submissionId));
 }
+
+/** N-12 / DATA-6: a get_progress reply confirms THIS lesson save only if one of
+ *  its lesson rows carries exactly our submission_id (a day-number match would
+ *  also pass for an older attempt of the same day). */
+function lessonSaveConfirmed(progress, submissionId) {
+  if (!submissionId || !progress || !Array.isArray(progress.lessons)) return false;
+  return progress.lessons.some(function (l) {
+    return String(l && l.submission_id || '').trim() === String(submissionId);
+  });
+}

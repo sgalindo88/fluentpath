@@ -40,6 +40,7 @@ export function loadUtils() {
     timeAgo: globalThis.timeAgo,
     newSubmissionId: globalThis.newSubmissionId,
     submissionMatches: globalThis.submissionMatches,
+    lessonSaveConfirmed: globalThis.lessonSaveConfirmed,
   };
 }
 

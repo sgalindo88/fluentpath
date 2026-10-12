@@ -96,3 +96,60 @@ describe('backend: submission_id column and retry', () => {
     expect(all[2][all[0].indexOf('submission_id')]).toBe('sub_9');
   });
 });
+
+describe('lessonSaveConfirmed (N-12 / DATA-6)', () => {
+  const u = loadUtils();
+  const prog = (...ids) => ({ lessons: ids.map((id, i) => ({ day: 3, submission_id: id })) });
+
+  it('confirms only a row carrying our id', () => {
+    expect(u.lessonSaveConfirmed(prog('sub_a', 'sub_b'), 'sub_b')).toBe(true);
+  });
+  it('does NOT confirm an older attempt of the same day (the DATA-6 bug)', () => {
+    expect(u.lessonSaveConfirmed(prog('sub_old'), 'sub_new')).toBe(false);
+  });
+  it('does not confirm rows without an id, or bad replies', () => {
+    expect(u.lessonSaveConfirmed({ lessons: [{ day: 3 }] }, 'sub_x')).toBe(false);
+    expect(u.lessonSaveConfirmed({ lessons: [] }, 'sub_x')).toBe(false);
+    expect(u.lessonSaveConfirmed(null, 'sub_x')).toBe(false);
+    expect(u.lessonSaveConfirmed({ error: 'x' }, 'sub_x')).toBe(false);
+    expect(u.lessonSaveConfirmed(prog('sub_x'), '')).toBe(false);
+  });
+});
+
+describe('backend: save_progress submission_id and retry (N-12)', () => {
+  const save = (fp, extra = {}) => fp.POST_HANDLERS.save_progress(
+    { student_name: 'Maria', day_number: '3', level: 'A1', topic: 'Food', ...extra }, {}, null);
+  const progressRows = (fp) => fp._ss.getSheetByName('Course Progress').getDataRange().getValues();
+
+  it('adds submission_id to Course Progress headers', () => {
+    const fp = loadAppsScriptAuth();
+    expect(fp.HEADERS['Course Progress']).toContain('submission_id');
+  });
+
+  it('stores the id and get_progress returns it per lesson', () => {
+    const fp = loadAppsScriptAuth();
+    save(fp, { submission_id: 'sub_1' });
+    const res = fp.GET_HANDLERS.get_progress({ student: 'Maria' });
+    expect(res.lessons.length).toBe(1);
+    expect(res.lessons[0].submission_id).toBe('sub_1');
+  });
+
+  it('a retry with the same id writes no duplicate row and sends no second email', () => {
+    const fp = loadAppsScriptAuth();
+    save(fp, { submission_id: 'sub_1' });
+    const mailAfterFirst = fp._mail.length;
+    save(fp, { submission_id: 'sub_1' });
+    expect(progressRows(fp).length).toBe(2);
+    expect(fp._mail.length).toBe(mailAfterFirst);
+  });
+
+  it('a re-do of the same day under a new id is saved and is the one that verifies', () => {
+    const fp = loadAppsScriptAuth();
+    const u = loadUtils();
+    save(fp, { submission_id: 'sub_1' });
+    save(fp, { submission_id: 'sub_2' });
+    expect(progressRows(fp).length).toBe(3);
+    const res = fp.GET_HANDLERS.get_progress({ student: 'Maria' });
+    expect(u.lessonSaveConfirmed(res, 'sub_2')).toBe(true);
+  });
+});

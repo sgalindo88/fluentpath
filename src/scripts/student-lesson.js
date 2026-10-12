@@ -11,6 +11,7 @@ let state = {
   teacherCode: '',
   level: null,
   lessonDate: '',
+  submissionId: null,    // N-12: one opaque id per lesson attempt (verify + idempotent retry)
   dayNumber: 1,
   lessonContent: null,   // AI-generated lesson plan
   steps: [],
@@ -65,6 +66,7 @@ function saveLessonCheckpoint() {
     level: state.level,
     lessonDate: state.lessonDate,
     dayNumber: state.dayNumber,
+    submissionId: state.submissionId,
     lessonContent: state.lessonContent,
     currentStep: state.currentStep,
     answers: domAnswers,
@@ -99,6 +101,7 @@ function tryResumeLesson() {
       state.level = data.level;
       state.lessonDate = data.lessonDate;
       state.dayNumber = data.dayNumber;
+      state.submissionId = data.submissionId || newSubmissionId();
       state.lessonContent = data.lessonContent;
       state.answers = data.answers || {};
       state.timeElapsed = data.timeElapsed || 0;
@@ -209,6 +212,7 @@ window.addEventListener('beforeunload', onBeforeUnload);
 
 async function beginLesson() {
   lessonInProgress = true;
+  state.submissionId = newSubmissionId(); // N-12
   showScreen('screen-lesson');
   state.startTime = new Date();
   startTimer();
@@ -766,6 +770,8 @@ var _TR = {
   'Continue →': 'Continuar →',
   'You said:': 'Dijiste:',
   'Day': 'Día',
+  '⚠ We could not confirm your lesson was saved. Tap "Try saving again". Your answers are still saved on this device — do not close this page.': '⚠ No pudimos confirmar que tu lección se guardó. Toca "Intentar guardar de nuevo". Tus respuestas siguen guardadas en este dispositivo — no cierres esta página.',
+  'Try saving again': 'Intentar guardar de nuevo',
   '⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.': '⚠ Tus grabaciones no se subieron, así que tu profesor no puede escucharlas. Por favor avísale a tu profesor.',
 };
 function tr(en) {
@@ -1574,10 +1580,18 @@ document.addEventListener('visibilitychange', function() {
 // ══════════════════════════════════════════════════════
 // FINISH LESSON
 // ══════════════════════════════════════════════════════
+// N-12: the lesson counts as done only when the save is VERIFIED. Until then the
+// checkpoint is kept (so a reload can resume and re-submit under the same
+// submission_id) and the day counter is not advanced.
+let lessonEndTime = null;
+let lessonAudioJson = null;   // set once the recordings have uploaded
+
 async function finishLesson() {
   lessonInProgress = false;
   if (paused) resumeLesson(); // ensure overlay is removed
-  clearLessonCheckpoint();
+  // Stop the 5 s autosave and write one final checkpoint; do NOT clear it yet.
+  if (ckptInterval) { clearInterval(ckptInterval); ckptInterval = null; }
+  saveLessonCheckpoint();
   clearInterval(state.timerInterval);
   try { if (recognition) { recognition.stop(); convRecording = false; } } catch(e) {}
   // Stop any active drill recordings
@@ -1586,7 +1600,8 @@ async function finishLesson() {
   var pb = document.getElementById('navPause');
   if (pb) pb.style.display = 'none';
 
-  const endTime = new Date();
+  lessonEndTime = new Date();
+  lessonAudioJson = null;
   const elapsed = Math.round(state.timeElapsed / 60);
 
   document.getElementById('stat-time').textContent = elapsed + 'm';
@@ -1596,73 +1611,105 @@ async function finishLesson() {
   showScreen('screen-complete');
   document.getElementById('progressBar').style.width = '100%';
 
-  // Save progress to localStorage so the hub page can track status
+  // Identity only; the day counter moves after the save is verified.
   try {
     localStorage.setItem('fp_student_name', state.studentName);
     localStorage.setItem('fp_cefr_level', state.level);
-    localStorage.setItem('fp_last_lesson_day', String(state.dayNumber));
-    localStorage.setItem('fp_last_lesson_date', state.lessonDate);
   } catch(e) { /* localStorage unavailable */ }
 
-  // Block interaction while saving
+  await submitLesson();
+}
+
+/**
+ * Upload audio, save the lesson, and confirm the row landed. Used by
+ * finishLesson and by the Retry button. Safe to repeat: the backend ignores a
+ * second save carrying the same submission_id.
+ */
+async function submitLesson() {
+  const statusEl = document.getElementById('saveStatus');
+  const oldRetry = document.getElementById('retryLessonBtn');
+  if (oldRetry) oldRetry.remove();
   FP.showSaveOverlay('Saving your lesson — please wait…');
 
-  // Upload audio recordings first (may take a few seconds)
-  const statusEl = document.getElementById('saveStatus');
-  let speakingAudioJson = null;
   let audioUploadFailed = false;
-  if (!GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT') && Object.keys(audioRecordings).length > 0) {
-    FP.updateSaveOverlay('Uploading your recordings…');
-    statusEl.textContent = tr('Uploading your recordings… please wait.');
-    statusEl.className = 'save-status';
-    speakingAudioJson = await uploadAudioRecordings();
-    if (!speakingAudioJson) {
-      audioUploadFailed = true;
-      statusEl.textContent = tr('⚠ Audio upload failed — your written work will still be saved.');
-      statusEl.className = 'save-status warn';
-    }
-  }
-  releaseSpeakingStream();
-
-  // Save to Google Sheet
-  FP.updateSaveOverlay('Saving your progress to Google Sheets…');
-  statusEl.textContent = 'Saving your lesson progress…';
-  statusEl.className = 'save-status';
-  const saved = await saveProgress(endTime, speakingAudioJson);
-  if (saved) {
-    // Verify the save by reading back progress
-    FP.updateSaveOverlay('Verifying save…');
-    try {
-      var verifyUrl = GOOGLE_SHEET_WEBHOOK + '?action=get_progress&student=' + encodeURIComponent(state.studentName);
-      var verifyData = await FP.api.get(verifyUrl, { timeout: 15000 });
-      var found = verifyData && verifyData.lessons && verifyData.lessons.some(function(l) {
-        return String(l.day) === String(state.dayNumber);
-      });
-      if (found) {
-        statusEl.textContent = '✓ Progress saved to your record.';
-        statusEl.className = 'save-status ok';
-      } else {
-        statusEl.textContent = '⚠ Save may not have completed. Check your progress on the home page.';
+  try {
+    // Upload audio recordings first (may take a few seconds); skip if already done.
+    if (!lessonAudioJson && !GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT') && Object.keys(audioRecordings).length > 0) {
+      FP.updateSaveOverlay('Uploading your recordings…');
+      statusEl.textContent = tr('Uploading your recordings… please wait.');
+      statusEl.className = 'save-status';
+      lessonAudioJson = await uploadAudioRecordings();
+      if (!lessonAudioJson) {
+        audioUploadFailed = true;
+        statusEl.textContent = tr('⚠ Audio upload failed — your written work will still be saved.');
         statusEl.className = 'save-status warn';
-        console.warn('[FluentPath] Save verification: day ' + state.dayNumber + ' not found in progress data');
       }
-    } catch(verifyErr) {
-      // Verification failed but save was sent — show cautious success
-      statusEl.textContent = '✓ Progress saved.';
-      statusEl.className = 'save-status ok';
     }
-  } else {
-    statusEl.textContent = '⚠ Could not save to Google Sheets. Your progress was saved locally.';
-    statusEl.className = 'save-status warn';
+    releaseSpeakingStream();
+
+    FP.updateSaveOverlay('Saving your progress to Google Sheets…');
+    statusEl.textContent = 'Saving your lesson progress…';
+    statusEl.className = 'save-status';
+    const sent = await saveProgress(lessonEndTime, lessonAudioJson);
+
+    let verified = false;
+    if (sent) {
+      FP.updateSaveOverlay('Verifying save…');
+      verified = await verifyLessonSave(state.submissionId);
+    }
+
+    if (verified) {
+      try {
+        localStorage.setItem('fp_last_lesson_day', String(state.dayNumber));
+        localStorage.setItem('fp_last_lesson_date', state.lessonDate);
+      } catch(e) { /* localStorage unavailable */ }
+      clearLessonCheckpoint();
+      statusEl.textContent = '✓ Progress saved to your record.';
+      statusEl.className = 'save-status ok';
+    } else {
+      statusEl.textContent = tr('⚠ We could not confirm your lesson was saved. Tap "Try saving again". Your answers are still saved on this device — do not close this page.');
+      statusEl.className = 'save-status warn';
+      showLessonRetry(statusEl);
+    }
+  } finally {
+    FP.hideSaveOverlay();
   }
-  // The status line above is overwritten by the save result, so re-add the
-  // audio warning: otherwise the student never learns the teacher can't hear them.
+  // The status line is overwritten by the save result, so re-add the audio
+  // warning: otherwise the student never learns the teacher can't hear them.
   if (audioUploadFailed) {
     statusEl.textContent += ' ' + tr('⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.');
     statusEl.className = 'save-status warn';
   }
-  FP.hideSaveOverlay();
   document.getElementById('btnViewProgress').style.display = 'inline-block';
+}
+
+/** N-12 / DATA-6: saved means the sheet returns a lesson row with OUR submission_id. */
+async function verifyLessonSave(submissionId) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+    try {
+      const data = await FP.api.get(
+        GOOGLE_SHEET_WEBHOOK + '?action=get_progress&student=' + encodeURIComponent(state.studentName),
+        { timeout: 15000 });
+      if (lessonSaveConfirmed(data, submissionId)) return true;
+    } catch (e) {
+      console.warn('[FluentPath] Lesson save verify attempt ' + (attempt + 1) + ' failed:', e.message);
+    }
+  }
+  return false;
+}
+
+function showLessonRetry(statusEl) {
+  const btn = document.createElement('button');
+  btn.id = 'retryLessonBtn';
+  btn.className = 'btn-begin';
+  btn.style.cssText = 'display:block;margin:12px auto 0;';
+  btn.textContent = tr('Try saving again');
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    submitLesson();
+  });
+  statusEl.insertAdjacentElement('afterend', btn);
 }
 
 async function saveProgress(endTime, speakingAudioJson) {
@@ -1698,6 +1745,7 @@ async function saveProgress(endTime, speakingAudioJson) {
         : []
     ),
     course_id: localStorage.getItem('fp_course_id') || '1',
+    submission_id: state.submissionId || '',
   };
 
   try {
