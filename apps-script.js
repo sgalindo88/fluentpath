@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.46.0';
+var BACKEND_VERSION = '0.47.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
