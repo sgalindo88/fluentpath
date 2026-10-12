@@ -38,6 +38,8 @@ export function loadUtils() {
     formatDuration: globalThis.formatDuration,
     formatPlayTime: globalThis.formatPlayTime,
     timeAgo: globalThis.timeAgo,
+    newSubmissionId: globalThis.newSubmissionId,
+    submissionMatches: globalThis.submissionMatches,
   };
 }
 

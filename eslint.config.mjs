@@ -63,6 +63,8 @@ export default [
         formatDuration: 'readonly',
         formatPlayTime: 'readonly',
         timeAgo: 'readonly',
+        newSubmissionId: 'readonly',
+        submissionMatches: 'readonly',
         cleanupLocalStorage: 'readonly',
         Checkpoint: 'writable',
         I18n: 'writable',

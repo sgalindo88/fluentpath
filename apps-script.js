@@ -1242,7 +1242,8 @@ var HEADERS = {
     'q11_passive_voice', 'q12_combined_sentence', 'q13_error_correction',
     'q14_writing_task', 'q20_dictation',
     'q21_speaking_notes', 'q22_speaking_notes',
-    'q23_speaking_notes', 'q24_speaking_notes'
+    'q23_speaking_notes', 'q24_speaking_notes',
+    'submission_id'   // DATA-2: opaque id minted by the client at startTest; verify matches it exactly
   ],
   'Examiner Results': [
     'graded_at', 'candidate_name', 'test_date', 'examiner',
@@ -3165,6 +3166,14 @@ var POST_HANDLERS = {
   // No action → student submitted placement test
   _submit_test: function(params) {
     var name = requireParam(params, 'candidate_name');
+    // DATA-2: a retry re-posts under the same submission_id. If the newest row
+    // for this student already carries it, the first save landed: don't append
+    // a duplicate row or re-email the teacher.
+    var sid = String(params['submission_id'] || '').trim();
+    if (sid) {
+      var last = findLastByStudent('Initial Test Results', HEADERS['Initial Test Results'], name);
+      if (last && String(last['submission_id'] || '').trim() === sid) return;
+    }
     safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
     cacheInvalidateStudent(name);
     notifyTeacherTestSubmitted(name);

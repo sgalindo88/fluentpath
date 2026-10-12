@@ -86,6 +86,7 @@ function saveTestCheckpoint() {
     chosenTask: state.chosenTask,
     q19selected: [...state.q19selected],
     startTime: state.startTime ? state.startTime.toISOString() : null,
+    submissionId: state.submissionId || null,
     listeningPlays: state.listeningPlays,
     dictationPlays: state.dictationPlays,
   });
@@ -120,6 +121,9 @@ function tryResumeTest() {
       state.chosenTask = data.chosenTask || null;
       state.q19selected = new Set(data.q19selected || []);
       state.startTime = data.startTime ? new Date(data.startTime) : new Date();
+      // DATA-2: keep the id across reload so a save that landed is recognised.
+      // A checkpoint from before this fix has none; mint one.
+      state.submissionId = data.submissionId || newSubmissionId();
       state.listeningPlays = data.listeningPlays || 0;
       state.dictationPlays = data.dictationPlays || 0;
       // Restore textarea values
@@ -211,6 +215,7 @@ function startTest() {
   if (!dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
   testInProgress = true;
   state.startTime = new Date();
+  state.submissionId = newSubmissionId(); // DATA-2
   showScreen('screen-reading-intro');
   startTestAutoSave();
 }
@@ -636,13 +641,18 @@ async function submitResults() {
     q24_speaking_notes:     state.textAnswers['q24'] || '(blank)',
   };
 
-  // DATA-2: remember when this attempt began so the verify step can tell THIS
-  // submission apart from an older one (a re-take must not verify against the
-  // previous attempt's row). Allow 2 minutes of client/sheet clock skew.
-  // Pinned for the whole test session so a retry re-verifies against the FIRST
-  // attempt — a save that actually landed is then confirmed, not duplicated.
-  if (!state.submitAttemptStartedAt) state.submitAttemptStartedAt = Date.now() - 120000;
-  const attemptStartedAt = state.submitAttemptStartedAt;
+  // DATA-2: one opaque id per test attempt (minted at startTest, kept in the
+  // checkpoint). The sheet row carries it and verify matches it exactly, so
+  // neither locale nor timezone matters, and a retry of a save that already
+  // landed is recognised (and ignored server-side) instead of duplicated.
+  if (!state.submissionId) state.submissionId = newSubmissionId();
+  const submissionId = state.submissionId;
+  // The sheet gets an ISO timestamp and the id; the Formspree email keeps its
+  // original readable fields.
+  const sheetPayload = Object.assign({}, payload, {
+    submitted_at: new Date().toISOString(),
+    submission_id: submissionId,
+  });
 
   const results = { email: 'skipped', sheet: 'skipped', verified: false };
 
@@ -660,13 +670,13 @@ async function submitResults() {
   // means SENT, NOT SAVED — only verifySubmission below can confirm a save.
   if (!missingSheet) {
     try {
-      await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, payload);
+      await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, sheetPayload);
       results.sheet = 'sent';
     } catch { results.sheet = 'error'; }
 
     if (results.sheet === 'sent') {
       FP.updateSaveOverlay('Confirming your results were saved…');
-      results.verified = await verifySubmission(attemptStartedAt);
+      results.verified = await verifySubmission(submissionId);
     }
   }
 
@@ -702,14 +712,13 @@ async function submitResults() {
 /**
  * DATA-2: confirm the submission actually reached the sheet.
  *
- * postForm is fire-and-forget (no-cors), so this reads the student's test
- * results back and checks that a row exists whose submitted_at is newer than
- * the moment this attempt began. Matching on presence alone would pass for a
- * re-take whose new save failed but whose old row is still there.
+ * postForm is fire-and-forget (no-cors), so this reads the student's newest
+ * test row back and requires its submission_id to equal ours exactly. An old
+ * row from a previous attempt has a different (or no) id, so it can't pass.
  *
  * Retries a few times because Apps Script writes and the sheet read can lag.
  */
-async function verifySubmission(attemptStartedAt) {
+async function verifySubmission(submissionId) {
   const who = (function () {
     try { return localStorage.getItem('fp_student_name') || ''; } catch (e) { return ''; }
   })() || (document.getElementById('candidateName').value || '').trim();
@@ -720,12 +729,7 @@ async function verifySubmission(attemptStartedAt) {
       const data = await FP.api.get(
         GOOGLE_SHEET_WEBHOOK + '?action=get_test_results&student=' + encodeURIComponent(who),
         { timeout: 15000 });
-      if (data && data.found && data.submitted_at) {
-        // submitted_at may come back as the string we sent or as a Sheets-coerced
-        // date; Date parses both. NaN fails the comparison, which is correct.
-        const landed = new Date(data.submitted_at).getTime();
-        if (landed >= attemptStartedAt) return true;
-      }
+      if (submissionMatches(data, submissionId)) return true;
     } catch (e) {
       console.warn('[FluentPath] Submission verify attempt ' + (attempt + 1) + ' failed:', e.message);
     }
@@ -744,9 +748,9 @@ async function retrySubmission() {
   const btn = document.getElementById('retrySubmitBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
 
-  if (state.submitAttemptStartedAt) {
+  if (state.submissionId) {
     FP.showSaveOverlay('Checking whether your results arrived…');
-    const alreadyLanded = await verifySubmission(state.submitAttemptStartedAt);
+    const alreadyLanded = await verifySubmission(state.submissionId);
     FP.hideSaveOverlay();
     if (alreadyLanded) {
       showResultsScreen(true, 'Your results have been saved.', true);
@@ -759,7 +763,7 @@ async function retrySubmission() {
 function restartTest() {
   testInProgress = false;
   clearTestCheckpoint();
-  state.submitAttemptStartedAt = null; // DATA-2: a new attempt gets a new verify window
+  state.submissionId = null; // DATA-2: a new attempt gets a new id (minted at startTest)
   // Reset state
   state.answers = {};
   state.textAnswers = {};

@@ -140,3 +140,32 @@ function cleanupLocalStorage() {
     }
   } catch (e) { /* localStorage unavailable */ }
 }
+
+
+/** DATA-2: opaque id for one placement-test submission. Prefixed so Sheets
+ *  can never coerce it to a number or date. crypto.randomUUID is missing on
+ *  older iOS Safari, so fall back to getRandomValues, then Math.random. */
+function newSubmissionId() {
+  var hex;
+  try {
+    var c = window.crypto;
+    if (c && c.randomUUID) {
+      hex = c.randomUUID().replace(/-/g, '');
+    } else if (c && c.getRandomValues) {
+      var a = new Uint8Array(16);
+      c.getRandomValues(a);
+      hex = Array.prototype.map.call(a, function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
+    }
+  } catch (e) { hex = null; }
+  if (!hex) {
+    hex = '';
+    for (var i = 0; i < 4; i++) hex += Math.floor(Math.random() * 0x100000000).toString(16);
+  }
+  return 'sub_' + Date.now().toString(36) + '_' + hex;
+}
+
+/** DATA-2: true only when the server's newest test row carries exactly our id. */
+function submissionMatches(data, submissionId) {
+  return !!(submissionId && data && data.found &&
+    String(data.submission_id || '').trim() === String(submissionId));
+}
