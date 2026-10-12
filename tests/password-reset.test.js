@@ -26,7 +26,8 @@ describe('request_reset', () => {
     const res = fp.POST_HANDLERS.request_reset({ email: 'maria@x.com' }, {});
     expect(res._json.ok).toBe(true);
     expect(fp._mail.length).toBe(1);
-    expect(fp._mail[0].htmlBody).toMatch(/https:\/\/fluentpath\.ca\/\?reset=/);
+    expect(fp._mail[0].htmlBody).toMatch(/https:\/\/fluentpath\.ca\/app\.html\?reset=/);
+    expect(fp._mail[0].htmlBody).not.toMatch(/fluentpath\.ca\/\?reset=/);
   });
 
   it('returns the same generic ok for an unknown email and sends nothing (no enumeration)', () => {
@@ -43,6 +44,13 @@ describe('request_reset', () => {
     expect(fp._mail.length).toBe(3);
     fp.POST_HANDLERS.request_reset({ email: 'maria@x.com' }, {}); // throttled
     expect(fp._mail.length).toBe(3); // no new email
+  });
+
+  it('does not double the slash when STUDENT_URL has a trailing slash', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep', STUDENT_URL: 'https://fluentpath.ca/' });
+    makeStudent(fp);
+    fp.POST_HANDLERS.request_reset({ email: 'maria@x.com' }, {});
+    expect(fp._mail[0].htmlBody).toContain('https://fluentpath.ca/app.html?reset=');
   });
 
   it('sends the teacher link to the teacher site', () => {

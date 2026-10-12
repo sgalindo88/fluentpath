@@ -796,8 +796,11 @@ function enforceAiRateLimit(kind, subject, max) {
 
 /** Email a password-reset link (to the correct site for the account's role). */
 function sendPasswordResetEmail(email, role, token) {
-  var base = (String(role).toLowerCase() === 'teacher') ? teacherBaseUrl() : studentBaseUrl();
-  var link = base + '/?reset=' + encodeURIComponent(token);
+  var isTeacher = String(role).toLowerCase() === 'teacher';
+  var base = (isTeacher ? teacherBaseUrl() : studentBaseUrl()).replace(/\/+$/, '');
+  // N-4: only app.html (students) and the teacher index load password-reset.js;
+  // the student site root is the brochure, which has no reset handler.
+  var link = base + (isTeacher ? '/' : '/app.html') + '?reset=' + encodeURIComponent(token);
   sendNotificationEmail(
     email,
     'FluentPath: Reset your password',
