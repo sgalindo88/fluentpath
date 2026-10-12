@@ -849,11 +849,7 @@ function revealWord(el) {
 }
 
 function speakWord(word) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(word);
-  u.lang = 'en-US'; u.rate = 0.85;
-  window.speechSynthesis.speak(u);
+  speakEnglish(word);
 }
 
 // ── LISTENING ──
@@ -1836,12 +1832,7 @@ async function saveProgress(endTime, speakingAudioJson) {
 // SPEECH SYNTHESIS
 // ══════════════════════════════════════════════════════
 function speakText(text, onEnd) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US'; u.rate = 0.85; u.pitch = 1;
-  if (onEnd) u.onend = onEnd;
-  window.speechSynthesis.speak(u);
+  speakEnglish(text, onEnd);
 }
 
 

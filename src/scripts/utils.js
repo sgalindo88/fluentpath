@@ -15,6 +15,22 @@ function escHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// ── Text to speech ──────────────────────────────────────────
+
+/** Read English text aloud. The ONE place the app picks a voice, so the placement
+ *  test and the lessons always sound the same: we set only the language and leave
+ *  the voice to the device default for it (no per-page voice hunting). */
+function speakEnglish(text, onEnd) {
+  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US';
+  u.rate = 0.85;
+  u.pitch = 1;
+  if (onEnd) u.onend = onEnd;
+  window.speechSynthesis.speak(u);
+}
+
 // ── Date Formatting ─────────────────────────────────────────
 
 /** Format a date string as "10 April 2026" (long) or "10 Apr" (short).

@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.48.0';
+var BACKEND_VERSION = '0.49.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -1437,6 +1437,14 @@ function upsertByStudent(sheetName, headers, studentName, data) {
 }
 
 
+/** Server-side "submitted at" for sheet rows: readable, and in the script time zone
+ *  (the client sent an ISO/UTC string for tests and a locale string for lessons). */
+function sheetTimestamp() {
+  var now = new Date();
+  try { return Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'); }
+  catch (err) { return now.toISOString(); }
+}
+
 // ══════════════════════════════════════════════════════
 // SHEET DEFINITIONS (headers for each tab)
 // ══════════════════════════════════════════════════════
@@ -1450,7 +1458,8 @@ var HEADERS = {
     'q14_writing_task', 'q20_dictation',
     'q21_speaking_notes', 'q22_speaking_notes',
     'q23_speaking_notes', 'q24_speaking_notes',
-    'submission_id'   // DATA-2: opaque id minted by the client at startTest; verify matches it exactly
+    'submission_id',  // DATA-2: opaque id minted by the client at startTest; verify matches it exactly
+    'speaking_audio_json'  // Drive file ids of the Q21-Q24 recordings: {"q21":"<id>",...}
   ],
   'Examiner Results': [
     'graded_at', 'candidate_name', 'test_date', 'examiner',
@@ -3057,12 +3066,13 @@ function getOrCreateSubfolder(parent, name) {
   return parent.createFolder(name);
 }
 
-/** Resolve the destination folder: FluentPath Audios / <student> / Lesson <day> */
+/** Resolve the destination folder: FluentPath Audios / <student> / Lesson <day>
+ *  (or "Placement Test" for the placement-test speaking recordings). */
 function getAudioFolder(studentName, lessonDay) {
   var root = DriveApp.getRootFolder();
   var rootAudio = getOrCreateSubfolder(root, 'FluentPath Audios');
   var studentFolder = getOrCreateSubfolder(rootAudio, studentName);
-  return getOrCreateSubfolder(studentFolder, 'Lesson ' + lessonDay);
+  return getOrCreateSubfolder(studentFolder, lessonDay === 'test' ? 'Placement Test' : 'Lesson ' + lessonDay);
 }
 
 /**
@@ -3087,11 +3097,13 @@ function handleSaveAudio(body, session) {
   var studentName = (session && session.role === 'student')
     ? session.student_name
     : (body.student_name || 'Unknown');
-  var dayNumber   = parseInt(body.day_number, 10);
+  // body.day_number is a lesson day, or the literal 'test' for the placement test.
+  var isTest      = String(body.day_number) === 'test';
+  var dayNumber   = isTest ? 'test' : parseInt(body.day_number, 10);
   var recordings  = body.recordings   || {};
   var scores      = body.scores       || {};
 
-  if (!(dayNumber >= 1 && dayNumber <= COURSE_DAYS)) {
+  if (!isTest && !(dayNumber >= 1 && dayNumber <= COURSE_DAYS)) {
     return { result: 'error', message: 'Invalid day_number' };
   }
 
@@ -3407,6 +3419,7 @@ var POST_HANDLERS = {
     params['level'] = req.level;
     params['day_number'] = String(req.day);
     params['speaking_audio_json'] = sanitizeSpeakingAudioJson(params['speaking_audio_json'], name, audioFileBelongsTo);
+    params['submitted_at'] = sheetTimestamp();
     if (req.courseId) params['course_id'] = req.courseId; // the client never sent one, so Course 2 rows landed in course 1
     safeAppendRow('Course Progress', HEADERS['Course Progress'], params);
     cacheInvalidateStudent(name);
@@ -3504,7 +3517,7 @@ var POST_HANDLERS = {
   },
 
   // Student submitted the placement test (action=submit_test)
-  submit_test: function(params) {
+  submit_test: function(params, e, session) {
     var name = requireParam(params, 'candidate_name');
     // DATA-2: a retry re-posts under the same submission_id. If the newest row
     // for this student already carries it, the first save landed: don't append
@@ -3514,6 +3527,11 @@ var POST_HANDLERS = {
       var last = findLastByStudent('Initial Test Results', HEADERS['Initial Test Results'], name);
       if (last && String(last['submission_id'] || '').trim() === sid) return;
     }
+    // Recordings are filed under the logged-in student's name (save_audio), so that
+    // is the identity the file ids must belong to, not the typed candidate name.
+    var audioOwner = (session && session.role === 'student' && session.student_name) ? session.student_name : name;
+    params['speaking_audio_json'] = sanitizeSpeakingAudioJson(params['speaking_audio_json'], audioOwner, audioFileBelongsTo);
+    params['submitted_at'] = sheetTimestamp();
     safeAppendRow('Initial Test Results', HEADERS['Initial Test Results'], params);
     cacheInvalidateStudent(name);
     notifyTeacherTestSubmitted(name);

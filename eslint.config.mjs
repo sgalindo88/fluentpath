@@ -67,6 +67,7 @@ export default [
         submissionMatches: 'readonly',
         lessonSaveConfirmed: 'readonly',
         localDateString: 'readonly',
+        speakEnglish: 'readonly',
         compactAnswersJson: 'readonly',
         cleanupLocalStorage: 'readonly',
         Checkpoint: 'writable',

@@ -359,96 +359,194 @@ const DICTATION_TEXT = "Although the weather was unpredictable, they decided to 
 
 // ── SPEAKING: Speech Recognition for Q21-Q24 ──
 var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-var speakingRecorders = {}; // { q21: { recognition, recording, transcript } }
+// ── SPEAKING (Q21–Q24): record the student's voice ──
+// Recording needs only MediaRecorder and a microphone. Speech recognition (the
+// live transcript) is a bonus that iPad/iPhone Safari does not reliably offer,
+// so it must never be what switches recording on or off. The recordings are
+// uploaded when the test is submitted (uploadSpeakingAudio) and played back in
+// the teacher's placement-test panel.
+var speakingRecorders = {};   // { q21: { recognition, recorder, chunks, recording, transcript } }
+var speakingAudio = {};       // { q21: Blob }, the latest take for each question
+var speakingStream = null;
+var speakingAudioJson = null; // set once uploaded; a retry reuses it instead of re-uploading
 
-function toggleSpeakingRec(qId) {
-  if (!SpeechRecognition) {
-    // IOS-1c: do not send an iPad/iPhone user off to install another browser.
-    // The notes box above is the answer; the teacher listens on the video call.
-    var noRec = document.getElementById('rec-status-' + qId);
-    if (noRec) {
-      noRec.style.display = 'block';
-      noRec.textContent = 'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call. / ' +
-        'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.';
-    }
-    return;
+const MSG_NO_SPEAKING = 'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call. / ' +
+  'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.';
+const MSG_NO_MIC = 'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap Record again. / ' +
+  'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca Grabar de nuevo.';
+
+function getAudioMimeType() {
+  const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+  for (const t of types) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
   }
-  if (!speakingRecorders[qId]) {
-    speakingRecorders[qId] = { recognition: null, recording: false, transcript: '' };
+  return '';
+}
+function audioExtension(mime) { return mime.includes('mp4') ? 'mp4' : 'webm'; }
+function canRecordAudio() { return !!window.MediaRecorder && !!getAudioMimeType(); }
+
+async function getSpeakingStream() {
+  if (speakingStream && speakingStream.active) return speakingStream;
+  try {
+    speakingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return speakingStream;
+  } catch (e) {
+    console.warn('[FluentPath] Could not acquire mic for audio recording:', e);
+    return null;
   }
+}
+
+function releaseSpeakingStream() {
+  if (speakingStream) {
+    speakingStream.getTracks().forEach(function (t) { t.stop(); });
+    speakingStream = null;
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function stopSpeakingRec(qId) {
   var rec = speakingRecorders[qId];
+  if (!rec || !rec.recording) return;
+  rec.recording = false;
+  if (rec.recognition) { try { rec.recognition.stop(); } catch (e) {} }
+  if (rec.recorder && rec.recorder.state !== 'inactive') { try { rec.recorder.stop(); } catch (e) {} }
   var btn = document.getElementById('rec-btn-' + qId);
   var statusEl = document.getElementById('rec-status-' + qId);
+  btn.textContent = '🎤 Record again';
+  btn.style.background = 'var(--ink)';
+  statusEl.style.display = 'block';
+  statusEl.textContent = canRecordAudio()
+    ? '✓ Recording saved. Tap Record again to replace it. / Grabación guardada. Toca Grabar de nuevo para reemplazarla.'
+    : 'Recording stopped.';
+  state.textAnswers[qId + '_transcript'] = rec.transcript;
+}
+
+async function toggleSpeakingRec(qId) {
+  var statusEl = document.getElementById('rec-status-' + qId);
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!canRecordAudio() && !SR) {
+    // IOS-1c: do not send an iPad/iPhone user off to install another browser.
+    // The notes box above is the answer; the teacher listens on the video call.
+    statusEl.style.display = 'block';
+    statusEl.textContent = MSG_NO_SPEAKING;
+    return;
+  }
+
+  var rec = speakingRecorders[qId];
+  if (!rec) rec = speakingRecorders[qId] = { recognition: null, recorder: null, chunks: [], recording: false, starting: false, transcript: '' };
+  if (rec.recording) { stopSpeakingRec(qId); return; }
+  if (rec.starting) return; // a second tap while the mic permission prompt is open
+
+  // One question at a time.
+  Object.keys(speakingRecorders).forEach(function (k) { if (k !== qId) stopSpeakingRec(k); });
+
+  var btn = document.getElementById('rec-btn-' + qId);
   var transcriptEl = document.getElementById('rec-transcript-' + qId);
+  statusEl.style.display = 'block';
 
-  if (rec.recording) {
-    // Stop recording
-    rec.recording = false;
-    if (rec.recognition) rec.recognition.stop();
-    btn.textContent = '🎤 Record again';
-    btn.style.background = 'var(--ink)';
-    statusEl.style.display = 'block';
-    statusEl.textContent = 'Recording stopped.';
-    // Save transcript as the speaking answer
-    state.textAnswers[qId + '_transcript'] = rec.transcript;
-  } else {
-    // Start recording
-    rec.transcript = '';
-    rec.recording = true;
-    btn.textContent = '■ Stop Recording';
-    btn.style.background = 'var(--rust)';
-    statusEl.style.display = 'block';
-    statusEl.textContent = 'Listening… speak now.';
-    transcriptEl.style.display = 'block';
-    transcriptEl.textContent = '…';
+  // Ask for the microphone first, inside the tap that started this (iOS requires it).
+  var stream = null;
+  if (canRecordAudio()) {
+    rec.starting = true;
+    stream = await getSpeakingStream();
+    rec.starting = false;
+    if (!stream && !SR) { statusEl.textContent = MSG_NO_MIC; return; }
+  }
 
-    var recognition = new SpeechRecognition();
+  rec.transcript = '';
+  rec.recording = true;
+  btn.textContent = '■ Stop Recording';
+  btn.style.background = 'var(--rust)';
+  statusEl.textContent = 'Recording… speak now. / Grabando… habla ahora.';
+
+  if (stream) {
+    var mime = getAudioMimeType();
+    rec.chunks = [];
+    rec.recorder = new MediaRecorder(stream, { mimeType: mime });
+    rec.recorder.ondataavailable = function (ev) { if (ev.data && ev.data.size > 0) rec.chunks.push(ev.data); };
+    rec.recorder.onstop = function () {
+      if (!rec.chunks.length) return;
+      speakingAudio[qId] = new Blob(rec.chunks, { type: mime });
+      speakingAudioJson = null; // the take changed: upload again at submit
+      var player = document.getElementById('rec-audio-' + qId);
+      if (!player) {
+        player = document.createElement('audio');
+        player.id = 'rec-audio-' + qId;
+        player.controls = true;
+        player.style.cssText = 'display:block;width:100%;max-width:360px;margin-top:8px;';
+        statusEl.insertAdjacentElement('afterend', player);
+      }
+      if (player.src) URL.revokeObjectURL(player.src);
+      player.src = URL.createObjectURL(speakingAudio[qId]);
+    };
+    rec.recorder.start();
+  }
+
+  if (SR) {
+    var recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
-
-    recognition.onresult = function(event) {
+    recognition.onresult = function (event) {
       var text = '';
-      for (var i = 0; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
-      }
+      for (var i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
       rec.transcript = text;
+      transcriptEl.style.display = 'block';
       transcriptEl.textContent = text || '…';
     };
-
-    recognition.onerror = function(e) {
-      if (e.error !== 'aborted') {
-        statusEl.textContent = 'Error: ' + e.error;
+    recognition.onerror = function (e) {
+      // The recording is what matters; a refused or failed recogniser only costs the transcript.
+      if (e.error !== 'aborted' && e.error !== 'no-speech' && e.error !== 'not-allowed' && e.error !== 'service-not-allowed') {
+        console.warn('[FluentPath] Speech recognition error:', e.error);
       }
     };
-
-    recognition.onend = function() {
-      if (rec.recording) {
-        // Restart if ended unexpectedly while still recording
-        try { recognition.start(); } catch(e) {}
-      }
+    recognition.onend = function () {
+      if (rec.recording) { try { recognition.start(); } catch (e) {} }
     };
-
     rec.recognition = recognition;
-    recognition.start();
+    try { recognition.start(); } catch (err) { rec.recognition = null; }
+  }
+}
+
+/**
+ * Upload the Q21–Q24 recordings (once) and return the speaking_audio_json string
+ * for the sheet row, or '' if nothing was recorded or the upload failed. A failed
+ * upload must not block the test: the written answers still go in.
+ */
+async function uploadSpeakingAudio() {
+  if (speakingAudioJson) return speakingAudioJson;
+  var keys = Object.keys(speakingAudio);
+  if (!keys.length) return '';
+  var recordings = {};
+  for (var k = 0; k < keys.length; k++) {
+    var blob = speakingAudio[keys[k]];
+    if (!blob || !blob.size) continue;
+    try { recordings[keys[k]] = { data: await blobToBase64(blob), ext: audioExtension(blob.type || '') }; }
+    catch (e) { console.warn('[FluentPath] Could not encode audio for', keys[k], e); }
+  }
+  if (!Object.keys(recordings).length) return '';
+  try {
+    var json = await FP.api.postText(GOOGLE_SHEET_WEBHOOK + '?action=save_audio',
+      JSON.stringify({ action: 'save_audio', day_number: 'test', recordings: recordings }), { timeout: 90000 });
+    if (json && json.result === 'error') console.error('[FluentPath] Audio upload server error:', json.message);
+    speakingAudioJson = (json && json.audio_json) || null;
+    return speakingAudioJson || '';
+  } catch (e) {
+    console.error('[FluentPath] Audio upload failed:', e);
+    return '';
   }
 }
 
 function speakText(text, onEnd) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 0.88;
-  utt.pitch = 1;
-  utt.lang = 'en-GB';
-  // Pick a natural English voice if available
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
-    || voices.find(v => v.lang.startsWith('en-GB'))
-    || voices.find(v => v.lang.startsWith('en'));
-  if (preferred) utt.voice = preferred;
-  if (onEnd) utt.onend = onEnd;
-  window.speechSynthesis.speak(utt);
+  speakEnglish(text, onEnd); // shared voice: same as the lessons (utils.js)
 }
 
 // ── Listening audio with stop button and play-time tracking ──
@@ -544,6 +642,9 @@ if (window.speechSynthesis) {
 
 // ── FINAL RESULTS — auto-submit ──
 async function finishTest() {
+  var wasRecording = Object.keys(speakingRecorders).some(function (k) { return speakingRecorders[k].recording; });
+  Object.keys(speakingRecorders).forEach(stopSpeakingRec);
+  if (wasRecording) await new Promise(function (r) { setTimeout(r, 400); }); // let the recorder hand over its last chunk
   testInProgress = false;
   state.endTime = new Date();
   showScreen('screen-submitting');
@@ -624,6 +725,19 @@ async function submitResults() {
     ? formatDuration(state.endTime - state.startTime)
     : 'unknown';
 
+  // Typed notes plus, when the device could transcribe, what was said. The audio
+  // itself travels separately (speaking_audio_json).
+  const speakingAnswer = (q) => {
+    const notes = (state.textAnswers[q] || '').trim();
+    const said = (state.textAnswers[q + '_transcript'] || '').trim();
+    const recorded = !!speakingAudio[q];
+    const parts = [];
+    if (notes) parts.push(notes);
+    if (said) parts.push('[Spoken] ' + said);
+    if (!parts.length) return recorded ? '(audio recording only)' : '(blank)';
+    return parts.join('\n');
+  };
+
   const payload = {
     submitted_at:           new Date().toLocaleString(),
     candidate_name:         document.getElementById('candidateName').value || '(not provided)',
@@ -642,10 +756,10 @@ async function submitResults() {
     q13_error_correction:   state.textAnswers['q13'] || '(blank)',
     q14_writing_task:       `[Option ${state.chosenTask || '?'}] ${state.textAnswers['q14'] || '(blank)'}`,
     q20_dictation:          state.textAnswers['q20'] || '(blank)',
-    q21_speaking_notes:     state.textAnswers['q21'] || '(blank)',
-    q22_speaking_notes:     state.textAnswers['q22'] || '(blank)',
-    q23_speaking_notes:     state.textAnswers['q23'] || '(blank)',
-    q24_speaking_notes:     state.textAnswers['q24'] || '(blank)',
+    q21_speaking_notes:     speakingAnswer('q21'),
+    q22_speaking_notes:     speakingAnswer('q22'),
+    q23_speaking_notes:     speakingAnswer('q23'),
+    q24_speaking_notes:     speakingAnswer('q24'),
   };
 
   // DATA-2: one opaque id per test attempt (minted at startTest, kept in the
@@ -654,11 +768,10 @@ async function submitResults() {
   // landed is recognised (and ignored server-side) instead of duplicated.
   if (!state.submissionId) state.submissionId = newSubmissionId();
   const submissionId = state.submissionId;
-  // The sheet gets an ISO timestamp and the id; the Formspree email keeps its
-  // original readable fields.
+  // The sheet row gets the id (and the server's own timestamp); the Formspree
+  // email keeps its original readable fields.
   const sheetPayload = Object.assign({ action: 'submit_test' }, payload, {
-    submitted_at: new Date().toISOString(),
-    submission_id: submissionId,
+    submission_id: submissionId, // the server stamps submitted_at
   });
 
   const results = { email: 'skipped', sheet: 'skipped', verified: false };
@@ -670,6 +783,13 @@ async function submitResults() {
       results.email = 'ok';
     } catch { results.email = 'error'; }
   }
+
+  // ── Speaking recordings → Drive (before the row, so the row can reference them) ──
+  if (!missingSheet && Object.keys(speakingAudio).length) {
+    FP.updateSaveOverlay('Uploading your recordings…');
+    sheetPayload.speaking_audio_json = await uploadSpeakingAudio();
+  }
+  releaseSpeakingStream(); // the mic is no longer needed
 
   // ── Google Sheet (form-encoded + no-cors — required for Apps Script) ──
   // NOTE: postForm uses mode:'no-cors', so the response is opaque and it
@@ -781,6 +901,23 @@ function restartTest() {
   state.endTime = null;
   state.listeningPlays = 0;
   state.dictationPlays = 0;
+
+  // Reset speaking recordings
+  Object.keys(speakingRecorders).forEach(stopSpeakingRec);
+  speakingRecorders = {};
+  speakingAudio = {};
+  speakingAudioJson = null;
+  releaseSpeakingStream();
+  ['q21', 'q22', 'q23', 'q24'].forEach(function (q) {
+    var player = document.getElementById('rec-audio-' + q);
+    if (player) { if (player.src) URL.revokeObjectURL(player.src); player.remove(); }
+    var st = document.getElementById('rec-status-' + q);
+    if (st) { st.style.display = 'none'; st.textContent = ''; }
+    var tr = document.getElementById('rec-transcript-' + q);
+    if (tr) { tr.style.display = 'none'; tr.textContent = ''; }
+    var b = document.getElementById('rec-btn-' + q);
+    if (b) { b.textContent = '🎤 Record your answer'; b.style.background = 'var(--ink)'; }
+  });
 
   // Reset all MCQ buttons
   document.querySelectorAll('.option-btn').forEach(btn => {
