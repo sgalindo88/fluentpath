@@ -43,7 +43,7 @@
       </div>
       <div class="field-group">
         <label>Date</label>
-        <input type="date" id="candidateDate" required readonly style="background:var(--cream);cursor:default;">
+        <input type="date" id="candidateDate" required readonly>
       </div>
     </div>
     <div class="sections-overview">
@@ -205,7 +205,7 @@
     </div>
 
     <div class="nav-buttons">
-      <div style="font-size:13px;color:var(--muted);font-style:italic;">Reading · 20 marks</div>
+      <div class="marks-note i18n-text">Reading · 20 marks</div>
       <button class="btn-nav primary" onclick="finishReading()">Continue to Writing →</button>
     </div>
   </div>
@@ -230,7 +230,7 @@
       <span class="q-num-big">Question 11 &nbsp;·&nbsp; Passive Voice</span>
       <div class="q-prompt">Rewrite the following sentence in the <strong>passive voice</strong>:<br><em>"The chef prepared the meal in less than ten minutes."</em></div>
       <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" oninput="saveText('q11')" required>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q11')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q11')"> Skip this question</label>
     </div>
 
     <!-- Q12 -->
@@ -238,7 +238,7 @@
       <span class="q-num-big">Question 12 &nbsp;·&nbsp; Combining Sentences</span>
       <div class="q-prompt">Combine these two sentences into one using an appropriate connector:<br><em>"She was tired." &nbsp; "She stayed up to finish her essay."</em></div>
       <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" oninput="saveText('q12')" required>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q12')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q12')"> Skip this question</label>
     </div>
 
     <!-- Q13 -->
@@ -246,7 +246,7 @@
       <span class="q-num-big">Question 13 &nbsp;·&nbsp; Error Correction</span>
       <div class="q-prompt">Correct all errors in the following sentence and write the corrected version:<br><em>"Yesterday, he go to the market and buyed some vegetable for his mother."</em></div>
       <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" oninput="saveText('q13')" required>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q13')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q13')"> Skip this question</label>
     </div>
 
     <!-- Q14 -->
@@ -265,11 +265,11 @@
       </div>
       <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" oninput="updateWordCount()" required></textarea>
       <div class="word-count" id="wordCount">0 words</div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q14')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q14')"> Skip this question</label>
     </div>
 
     <div class="nav-buttons">
-      <div style="font-size:13px;color:var(--muted);font-style:italic;">Writing · 25 marks</div>
+      <div class="marks-note i18n-text">Writing · 25 marks</div>
       <button class="btn-nav primary" onclick="showScreen('screen-listening-intro')">Continue to Listening →</button>
     </div>
   </div>
@@ -289,15 +289,15 @@
 <div class="screen" id="screen-listening">
   <div class="question-area">
 
-    <div class="audio-box" id="listeningAudioBox" style="cursor:default;">
-      <div class="play-btn" id="playBtn" onclick="playListeningAudio()" style="cursor:pointer;">▶</div>
-      <div class="play-btn" id="stopBtn" onclick="stopListeningAudio()" style="cursor:pointer;display:none;background:var(--rust);color:white;">■</div>
+    <div class="audio-box is-static" id="listeningAudioBox">
+      <div class="play-btn" id="playBtn" onclick="playListeningAudio()">▶</div>
+      <div class="play-btn play-btn--stop" id="stopBtn" onclick="stopListeningAudio()" style="display:none;">■</div>
       <div class="audio-info">
         <strong>Community Centre Announcement</strong>
         <span id="audioStatus">Press play to listen — you may play this up to 3 times</span>
-        <span id="audioPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
+        <span id="audioPlayTime" class="audio-time" style="display:none;"></span>
       </div>
-      <div id="audioPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
+      <div id="audioPlaysLeft" class="audio-plays-left">3 plays left</div>
     </div>
 
     <!-- Q15 -->
@@ -370,22 +370,22 @@
     <div class="question-card">
       <span class="q-num-big">Question 20 &nbsp;·&nbsp; Dictation (5 marks)</span>
       <div class="q-prompt">Listen to the sentence and write exactly what you hear. You may play it up to <strong>3 times</strong>.</div>
-      <div class="audio-box" id="dictationAudioBox" style="margin-bottom:14px;cursor:default;">
-        <div class="play-btn" id="dictPlayBtn" onclick="playDictationAudio()" style="cursor:pointer;">▶</div>
-        <div class="play-btn" id="dictStopBtn" onclick="stopDictationAudio()" style="cursor:pointer;display:none;background:var(--rust);color:white;">■</div>
+      <div class="audio-box is-static mb-14" id="dictationAudioBox">
+        <div class="play-btn" id="dictPlayBtn" onclick="playDictationAudio()">▶</div>
+        <div class="play-btn play-btn--stop" id="dictStopBtn" onclick="stopDictationAudio()" style="display:none;">■</div>
         <div class="audio-info">
           <strong>Dictation Sentence</strong>
           <span id="dictAudioStatus">Press play to hear the sentence</span>
-          <span id="dictPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
+          <span id="dictPlayTime" class="audio-time" style="display:none;"></span>
         </div>
-        <div id="dictPlaysLeft" style="margin-left:auto;font-size:11px;color:var(--gold);letter-spacing:0.1em;white-space:nowrap;">3 plays left</div>
+        <div id="dictPlaysLeft" class="audio-plays-left">3 plays left</div>
       </div>
       <textarea class="text-input-area" id="q20" placeholder="Write what you heard here…" rows="3" oninput="saveText('q20')" required></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleSkipQ(this,'q20')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q20')"> Skip this question</label>
     </div>
 
     <div class="nav-buttons">
-      <div style="font-size:13px;color:var(--muted);font-style:italic;">Listening · 15 marks</div>
+      <div class="marks-note i18n-text">Listening · 15 marks</div>
       <button class="btn-nav primary" onclick="showScreen('screen-speaking-intro')">Continue to Speaking →</button>
     </div>
   </div>
@@ -420,9 +420,9 @@
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q21')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
-        <div id="rec-status-q21" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
-        <div id="rec-transcript-q21" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
+        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" type="button">🎤 Record your answer</button>
+        <div id="rec-status-q21" class="rec-status" style="display:none;"></div>
+        <div id="rec-transcript-q21" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
@@ -437,9 +437,9 @@
       <div class="speaking-input">
         <label>Notes / Key Points (optional)</label>
         <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q22')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
-        <div id="rec-status-q22" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
-        <div id="rec-transcript-q22" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
+        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" type="button">🎤 Record your answer</button>
+        <div id="rec-status-q22" class="rec-status" style="display:none;"></div>
+        <div id="rec-transcript-q22" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
@@ -454,9 +454,9 @@
       <div class="speaking-input">
         <label>Preparation Notes (1 minute)</label>
         <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" rows="4" oninput="saveText('q23')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
-        <div id="rec-status-q23" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
-        <div id="rec-transcript-q23" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
+        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" type="button">🎤 Record your answer</button>
+        <div id="rec-status-q23" class="rec-status" style="display:none;"></div>
+        <div id="rec-transcript-q23" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
@@ -471,14 +471,14 @@
       <div class="speaking-input">
         <label>Notes / Key Arguments (optional)</label>
         <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" rows="3" oninput="saveText('q24')" required></textarea>
-        <button class="record-speaking-btn" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" style="margin-top:10px;padding:10px 20px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;cursor:pointer;font-family:var(--font-family-primary);font-size:13px;transition:background 0.2s;">🎤 Record your answer</button>
-        <div id="rec-status-q24" style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;display:none;"></div>
-        <div id="rec-transcript-q24" style="background:var(--cream);border:1px solid var(--rule);padding:10px 14px;margin-top:8px;font-size:13px;font-style:italic;display:none;"></div>
+        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" type="button">🎤 Record your answer</button>
+        <div id="rec-status-q24" class="rec-status" style="display:none;"></div>
+        <div id="rec-transcript-q24" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
     <div class="nav-buttons">
-      <div style="font-size:13px;color:var(--muted);font-style:italic;">Speaking · 20 marks</div>
+      <div class="marks-note i18n-text">Speaking · 20 marks</div>
       <button class="btn-nav primary" onclick="finishTest()">Finish Test & See Results →</button>
     </div>
   </div>
@@ -486,11 +486,11 @@
 
 <!-- ══════════════════ SUBMITTING OVERLAY ══════════════════ -->
 <div class="screen" id="screen-submitting">
-  <div style="min-height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 32px;">
-    <div style="font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:20px;">Please wait</div>
-    <div style="font-family:var(--font-family-primary);font-size:40px;font-weight:700;color:var(--ink);margin-bottom:12px;">Submitting your<br><em style="color:var(--rust);">results…</em></div>
-    <div style="width:48px;height:48px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.8s linear infinite;margin:28px auto;"></div>
-    <div id="submittingStatus" style="font-size:14px;color:var(--muted);font-style:italic;max-width:400px;line-height:1.7;"></div>
+  <div class="submitting">
+    <div class="submitting-eyebrow i18n-text">Please wait</div>
+    <div class="submitting-title">Submitting your<br><em>results…</em></div>
+    <div class="submitting-spinner" aria-hidden="true"></div>
+    <div id="submittingStatus" class="submitting-status"></div>
   </div>
 </div>
 
@@ -506,16 +506,16 @@
       <h2>Thank <em>You!</em></h2>
     </div>
 
-    <div style="text-align:center;max-width:520px;margin:0 auto 40px;font-size:16px;color:var(--muted);line-height:1.8;font-style:italic;">
+    <div class="results-lede i18n-text">
       Your test has been submitted. Your examiner will review all sections — including writing and speaking — and get back to you with your full results.
     </div>
 
     <!-- Time summary -->
-    <div id="timeSummary" style="background:white;border:1px solid var(--rule);padding:20px 24px;margin-bottom:28px;display:flex;gap:32px;justify-content:center;flex-wrap:wrap;text-align:center;"></div>
+    <div id="timeSummary" class="time-summary"></div>
 
     <div class="cefr-guide">
       <div class="cg-title">CEFR Level Reference Guide</div>
-      <div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:14px;">Your examiner will use this scale to assign your final level once all sections are graded.</div>
+      <div class="cefr-note i18n-text">Your examiner will use this scale to assign your final level once all sections are graded.</div>
       <div class="cefr-row"><span class="cefr-level">A1</span><span class="cefr-range">0–10 pts</span><span>Beginner: can understand and use very basic expressions</span></div>
       <div class="cefr-row"><span class="cefr-level">A2</span><span class="cefr-range">11–20 pts</span><span>Elementary: can communicate in simple, routine tasks</span></div>
       <div class="cefr-row"><span class="cefr-level">B1</span><span class="cefr-range">21–35 pts</span><span>Intermediate: can deal with most situations while travelling or working</span></div>
@@ -524,14 +524,14 @@
       <div class="cefr-row"><span class="cefr-level">C2</span><span class="cefr-range">66–80 pts</span><span>Proficiency: near-native mastery; precise, spontaneous, effortless use</span></div>
     </div>
 
-    <div style="margin-top:28px;background:var(--cream);border:1px solid var(--rule);padding:20px 24px;font-size:13.5px;color:var(--muted);line-height:1.8;">
-      <strong style="color:var(--ink);font-size:11px;letter-spacing:0.15em;text-transform:uppercase;display:block;margin-bottom:8px;">What happens next?</strong>
+    <div class="next-box">
+      <strong class="next-title i18n-text">What happens next?</strong>
       Your examiner will grade your writing (Q11–14) and speaking (Q21–24) sections and combine them with your reading and listening scores to produce a final result. You will be contacted once grading is complete.
     </div>
 
-    <div id="submitStatus" style="display:none;margin-top:16px;padding:12px 16px;font-size:13px;"></div>
+    <div id="submitStatus" class="submit-status" style="display:none;"></div>
 
-    <a href="../app.html" style="display:block;text-align:center;margin-top:28px;padding:16px;background:var(--ink);color:var(--paper);text-decoration:none;font-family:var(--font-family-primary);font-size:17px;font-style:italic;border-radius:4px;transition:background 0.2s;" onmouseover="this.style.background='var(--rust)'" onmouseout="this.style.background='var(--ink)'">Return to FluentPath</a>
+    <a href="../app.html" class="fp-btn fp-btn--secondary fp-btn--block fp-mt-6">Return to FluentPath</a>
   </div>
 </div>
 

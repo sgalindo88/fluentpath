@@ -44,15 +44,15 @@
     <div class="student-form">
       <div class="fg fg-full">
         <label>Your Name</label>
-        <input type="text" id="studentName" readonly style="background:var(--cream);cursor:default;">
+        <input type="text" id="studentName" readonly>
       </div>
       <div class="fg fg-full">
         <label>Today's Date</label>
-        <input type="date" id="lessonDate" readonly style="background:var(--cream);cursor:default;">
+        <input type="date" id="lessonDate" readonly>
       </div>
     </div>
 
-    <p id="levelInstruction" style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:24px;max-width:420px;">Your level is set by your teacher.</p>
+    <p id="levelInstruction" class="level-instruction i18n-text">Your level is set by your teacher.</p>
 
     <div class="level-grid">
       <div class="level-card theme-a1" data-level="A1">
@@ -101,10 +101,10 @@
 <div class="screen" id="screen-lesson">
   <div class="main">
     <!-- Step progress -->
-    <div style="max-width:720px;margin:0 auto 24px;padding:0 24px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div style="font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:var(--muted);font-weight:600;" id="lessonLabel">Day 1 · A1 · Everyday Survival</div>
-        <div style="font-size:11px;color:var(--muted);" id="stepCountLabel">Step 1 of 7</div>
+    <div class="lesson-head">
+      <div class="lesson-head-row">
+        <div class="lesson-label i18n-text" id="lessonLabel">Day 1 · A1 · Everyday Survival</div>
+        <div class="step-count" id="stepCountLabel">Step 1 of 7</div>
       </div>
       <div class="step-dots" id="stepDots"></div>
     </div>
@@ -152,7 +152,7 @@
       </div>
     </div>
     <div class="save-status" id="saveStatus">Saving your progress…</div>
-    <a href="../app.html" class="btn-begin" id="btnViewProgress" style="display:none;text-decoration:none;text-align:center;margin-top:16px;">View Progress & Next Lesson →</a>
+    <a href="../app.html" class="btn-begin btn-link-center" id="btnViewProgress" style="display:none;">View Progress & Next Lesson →</a>
   </div>
 </div>
 

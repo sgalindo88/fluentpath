@@ -27,9 +27,9 @@
     <div class="login-card">
       <label for="loginEmail">Email</label>
       <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username" aria-label="Email">
-      <label for="loginPassword" style="display:block;margin-top:14px;">Password</label>
+      <label for="loginPassword" class="login-label-spaced">Password</label>
       <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" aria-label="Password">
-      <p class="login-hint" id="loginError" style="display:none;color:var(--rust);"></p>
+      <p class="login-hint is-error" id="loginError" style="display:none;"></p>
       <p class="login-hint">Use the email and password your teacher gave you.</p>
     </div>
 
@@ -57,7 +57,7 @@
     <div class="login-card">
       <p>Your placement test is free. To begin your daily lessons, a one-time
          payment unlocks the full course — permanently.</p>
-      <p class="login-hint" id="paywallError" style="display:none;color:var(--rust);"></p>
+      <p class="login-hint is-error" id="paywallError" style="display:none;"></p>
     </div>
 
     <button class="btn-enter" id="btnPay" onclick="startCheckout()">Continue to Payment</button>
@@ -74,7 +74,7 @@
 <div id="screen-loading" class="screen">
   <div class="container loading-center">
     <div class="spinner"></div>
-    <p style="color:var(--muted);font-style:italic;">Looking up your progress&hellip;</p>
+    <p class="loading-note i18n-text">Looking up your progress&hellip;</p>
   </div>
 </div>
 

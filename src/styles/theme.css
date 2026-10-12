@@ -113,6 +113,9 @@ body {
   background: var(--surface-primary);
 }
 
+/* Read-only fields (name, date) look settled, not editable. */
+input[readonly] { background: var(--surface-primary); cursor: default; }
+
 /* Remove the default outline only when not using keyboard (mouse/touch).
    The visible ring itself is the :focus-visible rule in tokens.css. */
 :focus:not(:focus-visible) {

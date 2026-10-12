@@ -21,6 +21,7 @@
 .fp-block-center { display: block; margin-left: auto; margin-right: auto; }
 .fp-mt-3 { margin-top: var(--space-3); }
 .fp-mt-4 { margin-top: var(--space-4); }
+.fp-mt-6 { margin-top: var(--space-6); }
 .fp-mb-4 { margin-bottom: var(--space-4); }
 .fp-mb-8 { margin-bottom: var(--space-8); }
 .fp-text-center { text-align: center; }

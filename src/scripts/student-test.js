@@ -421,7 +421,7 @@ function stopSpeakingRec(qId) {
   var btn = document.getElementById('rec-btn-' + qId);
   var statusEl = document.getElementById('rec-status-' + qId);
   btn.textContent = '🎤 Record again';
-  btn.style.background = 'var(--ink)';
+  btn.classList.remove('is-recording');
   statusEl.style.display = 'block';
   statusEl.textContent = canRecordAudio()
     ? '✓ Recording saved. Tap Record again to replace it. / Grabación guardada. Toca Grabar de nuevo para reemplazarla.'
@@ -464,7 +464,7 @@ async function toggleSpeakingRec(qId) {
   rec.transcript = '';
   rec.recording = true;
   btn.textContent = '■ Stop Recording';
-  btn.style.background = 'var(--rust)';
+  btn.classList.add('is-recording');
   statusEl.textContent = 'Recording… speak now. / Grabando… habla ahora.';
 
   if (stream) {
@@ -914,7 +914,7 @@ function restartTest() {
     var tr = document.getElementById('rec-transcript-' + q);
     if (tr) { tr.style.display = 'none'; tr.textContent = ''; }
     var b = document.getElementById('rec-btn-' + q);
-    if (b) { b.textContent = '🎤 Record your answer'; b.style.background = 'var(--ink)'; }
+    if (b) { b.textContent = '🎤 Record your answer'; b.classList.remove('is-recording'); }
   });
 
   // Reset all MCQ buttons
