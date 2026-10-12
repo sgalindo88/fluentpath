@@ -179,8 +179,6 @@ const I18n = (() => {
     'Tap to see meaning':           'Toca para ver el significado',
     '🔊 Hear it':                   '🔊 Escuchar',
     'No plays left':                'No quedan reproducciones',
-    'Speech recognition is not available in this browser. Please use Chrome.':
-      'El reconocimiento de voz no está disponible en este navegador. Por favor usa Chrome.',
 
     /* ── Level names ────────────────────────────────────── */
     'Beginner':                     'Principiante',
@@ -249,8 +247,6 @@ const I18n = (() => {
     'Recording… speak clearly':     'Grabando… habla con claridad',
     'Recording saved. You can record again if you want.':
       'Grabación guardada. Puedes grabar de nuevo si quieres.',
-    'Speech recognition requires Chrome browser.':
-      'El reconocimiento de voz requiere el navegador Chrome.',
     '🎤 Record again':              '🎤 Grabar de nuevo',
     '🎤 Try again':                 '🎤 Intentar de nuevo',
     '🎤 Record yourself':           '🎤 Grábate',

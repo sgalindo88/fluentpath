@@ -43,7 +43,7 @@ const SHARED_FILES = [
 ];
 
 // Teacher service worker (generated from this repo's sw.js).
-const TEACHER_CACHE_VERSION = 'fp-teacher-v5'; // bump to evict old caches
+const TEACHER_CACHE_VERSION = 'fp-teacher-v6'; // bump to evict old caches
 const TEACHER_APP_SHELL = [
   './',
   './index.html',

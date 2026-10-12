@@ -363,7 +363,14 @@ var speakingRecorders = {}; // { q21: { recognition, recording, transcript } }
 
 function toggleSpeakingRec(qId) {
   if (!SpeechRecognition) {
-    alert('Speech recognition is not available in this browser. Please use Chrome.');
+    // IOS-1c: do not send an iPad/iPhone user off to install another browser.
+    // The notes box above is the answer; the teacher listens on the video call.
+    var noRec = document.getElementById('rec-status-' + qId);
+    if (noRec) {
+      noRec.style.display = 'block';
+      noRec.textContent = 'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call. / ' +
+        'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.';
+    }
     return;
   }
   if (!speakingRecorders[qId]) {

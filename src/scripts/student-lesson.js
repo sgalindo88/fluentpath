@@ -773,7 +773,6 @@ var _TR = {
   'No more plays': 'No más reproducciones',
   '✓ Correct!': '✓ ¡Correcto!',
   'Saving your progress…': 'Guardando tu progreso…',
-  'Speech recognition requires Chrome browser.': 'El reconocimiento de voz requiere el navegador Chrome.',
   'Finish Lesson ✓': 'Terminar Lección ✓',
   'Continue →': 'Continuar →',
   'You said:': 'Dijiste:',
@@ -1089,14 +1088,33 @@ async function uploadAudioRecordings() {
   }
 }
 
+/**
+ * IOS-1b: recording the student's voice needs only MediaRecorder and a
+ * microphone. Speech recognition (the live transcript and the pronunciation
+ * score) is a bonus that iPad/iPhone Safari does not reliably offer, so it must
+ * never be what switches recording on or off.
+ */
+function canRecordAudio() { return !!window.MediaRecorder && !!getAudioMimeType(); }
+function canTranscribe()  { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+
+/** Bilingual (always both languages: it is shown before/without a known level). */
+var MSG_NO_RECORDING = 'Recording is not available on this device or browser. Update your device and open FluentPath in Safari, or practise aloud with your teacher on the video call. / ' +
+  'La grabación no está disponible en este dispositivo o navegador. Actualiza tu dispositivo y abre FluentPath en Safari, o practica en voz alta con tu profesor en la videollamada.';
+var MSG_MIC_DENIED = 'Microphone access was denied. Please allow the microphone for this site in your device settings. / ' +
+  'Se denegó el acceso al micrófono. Permite el micrófono para este sitio en los ajustes de tu dispositivo.';
+
 function renderSpeaking(wrap, data) {
-  const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const browserWarning = hasSpeechAPI ? '' : `
+  const canRecord = canRecordAudio() || canTranscribe();
+  const transcribe = canTranscribe();
+  const browserWarning = canRecord ? (transcribe ? '' : `
+    <div style="background:#eef4fb;border:1px solid #9bb7d4;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#1e3f66;">
+      ${biText('Your voice will be recorded for your teacher. Automatic feedback is not available on this device.', 'Tu voz se grabará para tu profesor. La retroalimentación automática no está disponible en este dispositivo.')}
+    </div>`) : `
     <div style="background:#fff3e0;border:1px solid #e6a817;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7a5600;">
-      <strong>${biText('Browser not supported', 'Navegador no compatible')}</strong><br>
-      ${biText('Speech recording requires Chrome or Edge. You can still listen to the model pronunciation and practise aloud with your teacher on the video call.', 'La grabación de voz requiere Chrome o Edge. Aún puedes escuchar la pronunciación modelo y practicar en voz alta con tu profesor en la videollamada.')}
+      <strong>${biText('Recording not available', 'Grabación no disponible')}</strong><br>
+      ${biText('Recording is not available on this device or browser. Update your device and open FluentPath in Safari, or practise aloud with your teacher on the video call.', 'La grabación no está disponible en este dispositivo o navegador. Actualiza tu dispositivo y abre FluentPath en Safari, o practica en voz alta con tu profesor en la videollamada.')}
     </div>`;
-  const recDisabled = hasSpeechAPI ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;background:var(--muted);"';
+  const recDisabled = canRecord ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;background:var(--muted);"';
 
   const drills = (data.drills || []).map(d => `
     <div class="activity-card" style="margin-bottom:16px;">
@@ -1120,9 +1138,9 @@ function renderSpeaking(wrap, data) {
       <div class="ac-heading">${biText(data.conversationPrompt || 'Speaking Practice', data.conversationPrompt_es)}</div>
       <div class="ac-body" style="margin-bottom:16px;">${biText(data.instruction || '', data.instruction_es)}</div>
       <div class="recorder-box" id="convRecorder">
-        <button class="record-btn" id="convBtn" onclick="toggleConvRecording()" ${hasSpeechAPI ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>🎤</button>
+        <button class="record-btn" id="convBtn" onclick="toggleConvRecording()" ${canRecord ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>🎤</button>
         <div class="record-label">${biText('FREE SPEAKING', 'CONVERSACIÓN LIBRE')}</div>
-        <div class="record-status" id="convStatus">${hasSpeechAPI ? biText('Press to start speaking — aim for 30+ seconds', 'Presiona para empezar a hablar — intenta 30+ segundos') : biText('Speech recording not available in this browser', 'Grabación de voz no disponible en este navegador')}</div>
+        <div class="record-status" id="convStatus">${canRecord ? biText('Press to start speaking — aim for 30+ seconds', 'Presiona para empezar a hablar — intenta 30+ segundos') : biText('Recording not available on this device', 'Grabación no disponible en este dispositivo')}</div>
       </div>
       <div id="conv-transcript" class="record-transcript"></div>
     </div>
@@ -1133,8 +1151,8 @@ function renderSpeaking(wrap, data) {
 var activeDrills = {};
 
 function startDrill(id, phrase) {
-  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-    alert('Speech recognition is not available in this browser. Please use Chrome.');
+  if (!canRecordAudio() && !canTranscribe()) {
+    alert(MSG_NO_RECORDING);
     return;
   }
   const btn = document.getElementById(`drill-btn-${id}`);
@@ -1156,11 +1174,15 @@ function startDrill(id, phrase) {
   let mediaRec = null;
   const audioChunks = [];
 
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const rec = new SR();
-  rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
+  // IOS-1b: ask for the microphone first, inside the tap that started this.
+  const streamPromise = canRecordAudio() ? getSpeakingStream() : Promise.resolve(null);
 
   var fullTranscript = '';
+  const SR = canTranscribe() ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  let rec = null;
+  if (SR) {
+  rec = new SR();
+  rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = true;
 
   rec.onresult = (e) => {
     var text = '';
@@ -1172,35 +1194,59 @@ function startDrill(id, phrase) {
   };
   rec.onend = () => {
     // Restart if the user hasn't explicitly stopped
-    if (activeDrills[id]) {
+    if (activeDrills[id] && activeDrills[id].rec) {
       try { rec.start(); } catch(e) {}
     }
   };
   rec.onerror = (ev) => {
-    if (ev.error === 'not-allowed') {
-      alert('Microphone access was denied. Please allow microphone access in your browser settings.');
-      delete activeDrills[id];
-      btn.textContent = tr('🎤 Try again');
-      btn.style.background = 'var(--ink)';
+    if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+      // Recognition is refused. The recording itself may still work (iOS), so
+      // drop only the transcript side and keep going if we can record.
+      if (activeDrills[id]) activeDrills[id].rec = null;
+      if (!canRecordAudio()) {
+        alert(MSG_MIC_DENIED);
+        delete activeDrills[id];
+        btn.textContent = tr('🎤 Try again');
+        btn.style.background = 'var(--ink)';
+      }
     } else if (ev.error !== 'aborted' && ev.error !== 'no-speech') {
       console.warn('[FluentPath] Speech recognition error:', ev.error, ev.message);
     }
   };
+  }
 
   activeDrills[id] = { rec: rec, mediaRec: null, phrase: phrase, getTranscript: () => fullTranscript };
 
-  try {
-    rec.start();
-  } catch (err) {
-    console.error('[FluentPath] Could not start speech recognition:', err);
-    btn.textContent = tr('🎤 Try again');
-    btn.style.background = 'var(--ink)';
-    delete activeDrills[id];
-    return;
+  if (rec) {
+    try {
+      rec.start();
+    } catch (err) {
+      // IOS-1b: a recogniser that will not start must not cost the student the recording.
+      console.warn('[FluentPath] Could not start speech recognition:', err);
+      activeDrills[id].rec = null;
+      rec = null;
+      if (!canRecordAudio()) {
+        btn.textContent = tr('🎤 Try again');
+        btn.style.background = 'var(--ink)';
+        delete activeDrills[id];
+        return;
+      }
+    }
   }
 
-  getSpeakingStream().then(stream => {
-    if (!stream || !activeDrills[id]) return;
+  streamPromise.then(stream => {
+    if (!activeDrills[id]) return;
+    if (!stream) {
+      // No audio capture. With a working recogniser the transcript still counts;
+      // without one there is nothing to record, so say so instead of hanging.
+      if (!activeDrills[id].rec) {
+        alert(MSG_MIC_DENIED);
+        delete activeDrills[id];
+        btn.textContent = tr('🎤 Try again');
+        btn.style.background = 'var(--ink)';
+      }
+      return;
+    }
     mediaRec = new MediaRecorder(stream, { mimeType: mime });
     mediaRec.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
     mediaRec.onstop = () => {
@@ -1244,14 +1290,18 @@ function stopDrill(id) {
     }
     saveAnswer(`drill_${id}`, said);
     saveAnswer(`drill_${id}_score`, Math.round(score * 100) / 100);
-  } else {
+  } else if (drill.rec || canTranscribe()) {
     if (tEl) tEl.textContent = tr('No speech detected — try again.');
+  } else if (tEl) {
+    // IOS-1b: recording-only device. There is no transcript to show, but the audio is kept.
+    tEl.textContent = tr('Recording saved. You can record again if you want.');
+    tEl.classList.add('show');
   }
 }
 
 function toggleConvRecording() {
-  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-    alert(tr('Speech recognition requires Chrome browser.'));
+  if (!canRecordAudio() && !canTranscribe()) {
+    alert(MSG_NO_RECORDING);
     return;
   }
   const btn = document.getElementById('convBtn');
@@ -1269,8 +1319,17 @@ function toggleConvRecording() {
     // Start MediaRecorder using the shared stream (already granted by the drills).
     const mime = getAudioMimeType();
     const audioChunks = [];
-    getSpeakingStream().then(stream => {
-      if (!stream) return;
+    (canRecordAudio() ? getSpeakingStream() : Promise.resolve(null)).then(stream => {
+      if (!stream) {
+        if (!canTranscribe()) { // nothing can capture the answer: say so, don't sit on "Recording…"
+          alert(MSG_MIC_DENIED);
+          convRecording = false;
+          btn.classList.remove('recording'); box.classList.remove('recording');
+          btn.textContent = '🎤';
+          statusEl.textContent = '';
+        }
+        return;
+      }
       convMediaRecorder = new MediaRecorder(stream, { mimeType: mime });
       convMediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
       convMediaRecorder.onstop = () => {
@@ -1280,6 +1339,7 @@ function toggleConvRecording() {
       convMediaRecorder.start();
     }).catch(err => console.warn('[FluentPath] MediaRecorder failed for conversation:', err));
 
+    if (!canTranscribe()) { recognition = null; return; } // IOS-1b: audio only; the recorder above is already running
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SR();
     recognition.lang = 'en-US'; recognition.interimResults = true; recognition.continuous = true;
@@ -1299,13 +1359,20 @@ function toggleConvRecording() {
       if (e.error !== 'aborted' && e.error !== 'no-speech') {
         console.warn('[FluentPath] Conversation speech recognition error:', e.error, e.message);
       }
-      convRecording = false;
-      btn.classList.remove('recording'); box.classList.remove('recording');
-      btn.textContent = '🎤';
+      // IOS-1b: a refused/failed recogniser ends the transcript, not the recording.
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') recognition = null;
+      if (!convMediaRecorder || convMediaRecorder.state === 'inactive') {
+        convRecording = false;
+        btn.classList.remove('recording'); box.classList.remove('recording');
+        btn.textContent = '🎤';
+      }
       // Do not stop convMediaRecorder here — the user may click stop manually,
       // and continuous recognition fires onerror transiently without ending the session
     };
-    recognition.start();
+    try { recognition.start(); } catch (err) {
+      console.warn('[FluentPath] Could not start conversation speech recognition:', err);
+      recognition = null; // the recorder keeps going
+    }
   } else {
     convRecording = false;
     recognition?.stop();
