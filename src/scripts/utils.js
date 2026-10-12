@@ -179,3 +179,11 @@ function lessonSaveConfirmed(progress, submissionId) {
     return String(l && l.submission_id || '').trim() === String(submissionId);
   });
 }
+
+/** N-14: today's date (or `d`) as YYYY-MM-DD in the device's LOCAL time zone.
+ *  toISOString() is UTC, so a Toronto student after ~8 pm got tomorrow's date. */
+function localDateString(d) {
+  d = d || new Date();
+  var m = d.getMonth() + 1, day = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}

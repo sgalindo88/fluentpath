@@ -66,6 +66,7 @@ export default [
         newSubmissionId: 'readonly',
         submissionMatches: 'readonly',
         lessonSaveConfirmed: 'readonly',
+        localDateString: 'readonly',
         cleanupLocalStorage: 'readonly',
         Checkpoint: 'writable',
         I18n: 'writable',

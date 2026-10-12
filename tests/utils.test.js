@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { loadUtils } from './helpers.js';
 
 let u;
@@ -149,5 +149,37 @@ describe('timeAgo', () => {
 
   it('returns "over a day" for very old timestamps', () => {
     expect(u.timeAgo(Date.now() - 25 * 3600000)).toMatch(/over a day/);
+  });
+});
+
+// ── localDateString (N-14) ──────────────────────────────
+
+describe('localDateString', () => {
+  const origTZ = process.env.TZ;
+  afterEach(() => {
+    if (origTZ === undefined) delete process.env.TZ; else process.env.TZ = origTZ;
+  });
+
+  it('uses the local day in UTC-5 after 8 pm (the bug: UTC said tomorrow)', () => {
+    process.env.TZ = 'America/Toronto'; // EDT = UTC-4 in September
+    const d = new Date('2026-09-14T01:30:00Z'); // 9:30 pm on the 13th in Toronto
+    expect(d.toISOString().split('T')[0]).toBe('2026-09-14'); // old behaviour
+    expect(u.localDateString(d)).toBe('2026-09-13');
+  });
+
+  it('is correct in winter UTC-5 just before and after local midnight', () => {
+    process.env.TZ = 'America/Toronto'; // EST = UTC-5
+    expect(u.localDateString(new Date('2026-01-15T04:59:59Z'))).toBe('2026-01-14'); // 23:59:59 local
+    expect(u.localDateString(new Date('2026-01-15T05:00:00Z'))).toBe('2026-01-15'); // 00:00:00 local
+  });
+
+  it('zero-pads month and day and handles year end', () => {
+    process.env.TZ = 'America/Toronto';
+    expect(u.localDateString(new Date('2026-03-05T17:00:00Z'))).toBe('2026-03-05');
+    expect(u.localDateString(new Date('2027-01-01T04:30:00Z'))).toBe('2026-12-31');
+  });
+
+  it('defaults to now and matches YYYY-MM-DD', () => {
+    expect(u.localDateString()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

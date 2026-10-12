@@ -187,7 +187,7 @@ async function startCourse() {
   if (!state.level) { alert('Please select your level.'); return; }
 
   state.studentName = name;
-  state.lessonDate  = document.getElementById('lessonDate').value || new Date().toISOString().split('T')[0];
+  state.lessonDate  = document.getElementById('lessonDate').value || localDateString();
 
   // Calculate course day (next day after last completed)
   state.dayNumber = getCourseDay();
@@ -1777,7 +1777,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Session guard — the daily course requires a logged-in student.
   if (FP.getSession && !FP.getSession()) { FP.redirectToLogin(); return; }
 
-  document.getElementById('lessonDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('lessonDate').value = localDateString();
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
   // Auto-fill name from hub

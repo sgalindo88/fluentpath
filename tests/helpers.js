@@ -41,6 +41,7 @@ export function loadUtils() {
     newSubmissionId: globalThis.newSubmissionId,
     submissionMatches: globalThis.submissionMatches,
     lessonSaveConfirmed: globalThis.lessonSaveConfirmed,
+    localDateString: globalThis.localDateString,
   };
 }
 

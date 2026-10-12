@@ -212,7 +212,7 @@ function startTest() {
   }
   nameEl.style.borderColor = '';
   dateEl.style.borderColor = '';
-  if (!dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+  if (!dateEl.value) dateEl.value = localDateString();
   testInProgress = true;
   state.startTime = new Date();
   state.submissionId = newSubmissionId(); // DATA-2
@@ -822,7 +822,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Session guard — the placement test requires a logged-in student (free, not public).
   if (FP.getSession && !FP.getSession()) { FP.redirectToLogin(); return; }
 
-  document.getElementById('candidateDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('candidateDate').value = localDateString();
 
   // Auto-fill name from hub (localStorage)
   var nameField = document.getElementById('candidateName');
