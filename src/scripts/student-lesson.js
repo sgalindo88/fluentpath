@@ -766,6 +766,7 @@ var _TR = {
   'Continue →': 'Continuar →',
   'You said:': 'Dijiste:',
   'Day': 'Día',
+  '⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.': '⚠ Tus grabaciones no se subieron, así que tu profesor no puede escucharlas. Por favor avísale a tu profesor.',
 };
 function tr(en) {
   var lvl = (state.level || '').toUpperCase();
@@ -1058,17 +1059,9 @@ async function uploadAudioRecordings() {
   };
 
   try {
-    // Use text/plain so the browser sends a simple request (no CORS preflight).
-    // Apps Script reads e.postData.contents regardless of content-type.
-    var audioUrl = GOOGLE_SHEET_WEBHOOK + '?action=save_audio';
-    if (FP.APP_TOKEN) audioUrl += '&token=' + encodeURIComponent(FP.APP_TOKEN);
-    const resp = await fetch(audioUrl, {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(body)
-    });
-    const json = await resp.json();
+    // postText sends text/plain (no CORS preflight; Apps Script reads
+    // e.postData.contents regardless) and appends token + session (N-1).
+    const json = await FP.api.postText(GOOGLE_SHEET_WEBHOOK + '?action=save_audio', JSON.stringify(body), { timeout: 60000 });
     if (json.result === 'error') {
       console.error('[FluentPath] Audio upload server error:', json.message);
     }
@@ -1617,12 +1610,14 @@ async function finishLesson() {
   // Upload audio recordings first (may take a few seconds)
   const statusEl = document.getElementById('saveStatus');
   let speakingAudioJson = null;
+  let audioUploadFailed = false;
   if (!GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT') && Object.keys(audioRecordings).length > 0) {
     FP.updateSaveOverlay('Uploading your recordings…');
     statusEl.textContent = tr('Uploading your recordings… please wait.');
     statusEl.className = 'save-status';
     speakingAudioJson = await uploadAudioRecordings();
     if (!speakingAudioJson) {
+      audioUploadFailed = true;
       statusEl.textContent = tr('⚠ Audio upload failed — your written work will still be saved.');
       statusEl.className = 'save-status warn';
     }
@@ -1658,6 +1653,12 @@ async function finishLesson() {
     }
   } else {
     statusEl.textContent = '⚠ Could not save to Google Sheets. Your progress was saved locally.';
+    statusEl.className = 'save-status warn';
+  }
+  // The status line above is overwritten by the save result, so re-add the
+  // audio warning: otherwise the student never learns the teacher can't hear them.
+  if (audioUploadFailed) {
+    statusEl.textContent += ' ' + tr('⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.');
     statusEl.className = 'save-status warn';
   }
   FP.hideSaveOverlay();

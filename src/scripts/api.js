@@ -173,7 +173,29 @@ FP.api = (function () {
     }).then(_checkAuth);
   }
 
-  return { get: get, postForm: postForm, postJson: postJson, postRead: postRead };
+  /**
+   * POST a pre-serialised body as text/plain (a "simple" request, so no CORS
+   * preflight) with a READABLE JSON response. Used for large JSON bodies such
+   * as audio uploads. The body travels untouched (no truncation); auth token
+   * and session go in the query string, where the backend reads them.
+   */
+  function postText(url, bodyString, options) {
+    var opt = options || {};
+    return _fetch(_appendToken(url), {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain' },
+      body: bodyString,
+    }, opt.timeout).then(function (resp) {
+      if (!resp.ok) throw new Error('POST failed: ' + resp.status);
+      return resp.json();
+    }).then(_checkAuth);
+  }
+
+  return {
+    get: get, postForm: postForm, postJson: postJson, postRead: postRead,
+    postText: postText, appendToken: _appendToken,
+  };
 })();
 
 
