@@ -565,8 +565,11 @@ const I18n = (() => {
       }
     });
 
-    // Translate inline styled elements (prompts, instructions inside cards)
-    document.querySelectorAll('[style*="italic"], [style*="uppercase"]').forEach(function(el) {
+    // Translate prompts and instructions inside cards. `.i18n-text` is the opt-in
+    // marker: this used to match on inline style text ([style*="italic"]), which
+    // silently stopped working as soon as an inline style became a class. The style
+    // selectors stay only for markup that has not been converted yet.
+    document.querySelectorAll('.i18n-text, [style*="italic"], [style*="uppercase"]').forEach(function(el) {
       if (el.dataset.i18nSwapped || el.children.length > 1) return;
       var text = el.textContent.trim();
       var spanish = t(text);

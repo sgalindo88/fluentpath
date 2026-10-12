@@ -61,7 +61,19 @@ function makeFakeIndexedDB() {
   };
 }
 
-function loadSw({ fetchImpl } = {}) {
+// Minimal Cache Storage: match() by URL, open().put/addAll
+function makeFakeCaches(store = new Map()) {
+  return {
+    keys: async () => [],
+    match: async (req) => { const r = store.get(typeof req === 'string' ? req : req.url); return r ? r.clone() : undefined; },
+    open: async () => ({
+      addAll: async () => {},
+      put: async (req, resp) => { store.set(typeof req === 'string' ? req : req.url, resp); },
+    }),
+  };
+}
+
+function loadSw({ fetchImpl, cacheStore } = {}) {
   const idb = makeFakeIndexedDB();
   const fetchMock = vi.fn(fetchImpl || (async () => new Response('{}', { status: 200 })));
   const listeners = {};
@@ -72,7 +84,7 @@ function loadSw({ fetchImpl } = {}) {
     location: { origin: 'https://fluentpath.ca' },
   };
   const api = new Function('self', 'indexedDB', 'fetch', 'caches', `${SW_CODE}
-    return { handlePost, replayQueue, isQueueable, queuePost };`)(self, idb, fetchMock, { keys: async () => [], open: async () => ({ addAll: async () => {} }) });
+    return { handlePost, replayQueue, isQueueable, queuePost, networkFirst, isShellRequest };`)(self, idb, fetchMock, makeFakeCaches(cacheStore));
   return { ...api, idb, fetchMock, self, listeners };
 }
 
@@ -205,5 +217,68 @@ describe('SW-2: activation', () => {
     const sw = loadSw();
     sw.listeners.activate({ waitUntil: () => {} });
     expect(sw.self.clients.claim).not.toHaveBeenCalled();
+  });
+});
+
+describe('SW-1: shell files come from one deploy', () => {
+  const URL_CSS = 'https://fluentpath.ca/src/styles/theme.css';
+  const get = (u) => new Request(u);
+
+  it('classifies HTML, CSS, JS and the manifest as shell; fonts, icons and images as static', () => {
+    const { isShellRequest } = loadSw();
+    const shell = (u) => isShellRequest(get(u), new URL(u));
+    for (const u of ['https://fluentpath.ca/', 'https://fluentpath.ca/app.html', 'https://fluentpath.ca/src/styles/theme.css',
+      'https://fluentpath.ca/src/scripts/hub.js', 'https://fluentpath.ca/manifest.webmanifest']) expect(shell(u)).toBe(true);
+    for (const u of ['https://fluentpath.ca/src/fonts/montserrat-latin-400.woff2', 'https://fluentpath.ca/src/icons/icon-mic.svg',
+      'https://fluentpath.ca/icon-192x192.png', 'https://fluentpath.ca/favicon.svg']) expect(shell(u)).toBe(false);
+  });
+
+  it('serves the NEW file when online even though an old copy is cached (the iPad mismatch)', async () => {
+    const store = new Map([[URL_CSS, new Response('OLD')]]);
+    const sw = loadSw({ cacheStore: store, fetchImpl: async () => new Response('NEW') });
+    const r = await sw.networkFirst(get(URL_CSS), 'c', 4000);
+    expect(await r.text()).toBe('NEW');
+    await new Promise((res) => setTimeout(res, 5));
+    expect(await store.get(URL_CSS).text()).toBe('NEW'); // and the cache is refreshed
+  });
+
+  it('serves the cached copy when offline', async () => {
+    const store = new Map([[URL_CSS, new Response('CACHED')]]);
+    const sw = loadSw({ cacheStore: store, fetchImpl: async () => { throw new TypeError('Failed to fetch'); } });
+    expect(await (await sw.networkFirst(get(URL_CSS), 'c', 4000)).text()).toBe('CACHED');
+  });
+
+  it('falls back to the cache when the network is slower than the timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = new Map([[URL_CSS, new Response('CACHED')]]);
+      const sw = loadSw({ cacheStore: store, fetchImpl: () => new Promise((res) => setTimeout(() => res(new Response('SLOW')), 20000)) });
+      const p = sw.networkFirst(get(URL_CSS), 'c', 4000);
+      await vi.advanceTimersByTimeAsync(4001);
+      expect(await (await p).text()).toBe('CACHED');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('with nothing cached and a slow network it waits for the network', async () => {
+    vi.useFakeTimers();
+    try {
+      const sw = loadSw({ fetchImpl: () => new Promise((res) => setTimeout(() => res(new Response('SLOW')), 6000)) });
+      const p = sw.networkFirst(get(URL_CSS), 'c', 4000);
+      await vi.advanceTimersByTimeAsync(6001);
+      expect(await (await p).text()).toBe('SLOW');
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('reports 503 offline with nothing cached', async () => {
+    const sw = loadSw({ fetchImpl: offline });
+    expect((await sw.networkFirst(get(URL_CSS), 'c', 4000)).status).toBe(503);
+  });
+
+  it('routes same-origin css/js through the network-first path in the fetch listener', async () => {
+    const sw = loadSw({ fetchImpl: async () => new Response('NEW') });
+    let responded;
+    sw.listeners.fetch({ request: get(URL_CSS), respondWith: (p) => { responded = p; } });
+    expect(await (await responded).text()).toBe('NEW');
+    expect(sw.fetchMock).toHaveBeenCalled();
   });
 });
