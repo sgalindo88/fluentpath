@@ -1,7 +1,7 @@
 {
   "name": "fluentpath",
   "version": "0.21.0",
-  "description": "FluentPath — Language learning platform for adult immigrants",
+  "description": "FluentPath \u2014 Language learning platform for adult immigrants",
   "private": true,
   "scripts": {
     "lint": "eslint src/scripts/",
@@ -15,7 +15,8 @@
     "dev": "npx serve .",
     "clasp:push": "clasp push",
     "clasp:deploy": "clasp push && clasp deploy -d \"$(git log -1 --format=%s)\"",
-    "clasp:status": "clasp status"
+    "clasp:status": "clasp status",
+    "test:ui": "vitest run --config vitest.ui.config.mjs"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
     "@google/clasp": "^3.3.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
+    "playwright-core": "^1.49.1",
     "prettier": "^3.8.2",
     "vitest": "^2.1.9"
   }

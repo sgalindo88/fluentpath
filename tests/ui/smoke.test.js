@@ -1,0 +1,114 @@
+/**
+ * Smoke tests for the student path: login, placement-test start, course name +
+ * level, and the record toggle. They exist so the reskin (Phase B/C) cannot
+ * silently break the ids and classes the scripts depend on.
+ */
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { serve, launch, newPage, LEVEL_PROGRESS } from './harness.js';
+
+let srv, browser, base;
+beforeAll(async () => {
+  srv = await serve();
+  base = srv.url;
+  browser = await launch();
+});
+afterAll(async () => {
+  await browser?.close();
+  srv?.server.close();
+});
+
+const open = async (opts, path) => {
+  const t = await newPage(browser, opts);
+  await t.page.goto(base + path, { waitUntil: 'load' });
+  return t;
+};
+
+describe('login (app.html)', () => {
+  const handlers = {
+    login: (p) => (p.password === 'good'
+      ? { ok: true, session: 's1', role: 'student', student_name: 'Maria Lopez', expires_at: '2099-01-01T00:00:00Z' }
+      : { ok: false, error: 'Wrong email or password.' }),
+    get_progress: () => LEVEL_PROGRESS({ lessons_completed: 2, max_day: 2, next_day: 3 }),
+    get_settings: () => ({ found: true }),
+  };
+
+  it('shows the login form when logged out', async () => {
+    const { page, ctx } = await open({ handlers, session: false }, '/app.html');
+    expect(await page.isVisible('#screen-welcome.active')).toBe(true);
+    for (const id of ['#loginEmail', '#loginPassword', '#btnEnter']) expect(await page.isVisible(id)).toBe(true);
+    await ctx.close();
+  });
+
+  it('a wrong password stays on the login screen with a message', async () => {
+    const { page, ctx } = await open({ handlers, session: false }, '/app.html');
+    await page.fill('#loginEmail', 'maria@example.com');
+    await page.fill('#loginPassword', 'bad');
+    await page.click('#btnEnter');
+    await page.waitForSelector('#loginError', { state: 'visible' });
+    expect(await page.textContent('#loginError')).toMatch(/wrong email or password/i);
+    expect(await page.isVisible('#screen-welcome.active')).toBe(true);
+    await ctx.close();
+  });
+
+  it('a good login lands on the hub for the server-resolved student', async () => {
+    const { page, ctx, errors } = await open({ handlers, session: false }, '/app.html');
+    await page.fill('#loginEmail', 'maria@example.com');
+    await page.fill('#loginPassword', 'good');
+    await page.click('#btnEnter');
+    await page.waitForSelector('#screen-dashboard.active');
+    expect(await page.textContent('#screen-dashboard')).toContain('Maria Lopez');
+    expect(await page.evaluate(() => localStorage.getItem('fp_session'))).toBe('s1');
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
+describe('placement test (student-initial-test.html)', () => {
+  it('prefills the name from the session and starts the test', async () => {
+    const { page, ctx, errors } = await open({}, '/src/student-initial-test.html');
+    expect(await page.inputValue('#candidateName')).toBe('Maria Lopez');
+    expect(await page.isVisible('#screen-cover.active')).toBe(true);
+    await page.evaluate(() => startTest());
+    await page.waitForSelector('#screen-reading-intro.active');
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('the record button toggles: record, stop, record again, with a playback control', async () => {
+    const { page, ctx, errors } = await open({}, '/src/student-initial-test.html');
+    await page.evaluate(() => { startTest(); showScreen('screen-speaking'); });
+    const btn = '#rec-btn-q21';
+    expect(await page.textContent(btn)).toMatch(/Record your answer/);
+    await page.click(btn);
+    await page.waitForFunction(() => /Stop Recording/.test(document.getElementById('rec-btn-q21').textContent), null, { timeout: 15000 });
+    await page.waitForTimeout(800);
+    await page.click(btn);
+    await page.waitForFunction(() => /Record again/.test(document.getElementById('rec-btn-q21').textContent));
+    await page.waitForSelector('#rec-audio-q21');
+    expect(await page.textContent('#rec-status-q21')).toMatch(/Recording saved/);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
+describe('course landing (student-course.html)', () => {
+  const handlers = { get_progress: () => LEVEL_PROGRESS({ max_day: 7, next_day: 8, lessons_completed: 7 }), get_settings: () => ({ found: true }) };
+
+  it('shows the logged-in name read-only and the server-assigned level, locked', async () => {
+    const { page, ctx, errors } = await open({ handlers }, '/src/student-course.html');
+    await page.waitForFunction(() => !document.getElementById('btnBeginLesson').disabled);
+    expect(await page.inputValue('#studentName')).toBe('Maria Lopez');
+    expect(await page.getAttribute('#studentName', 'readonly')).not.toBeNull();
+    expect(await page.getAttribute('.level-card[data-level="A2"]', 'class')).toMatch(/selected/);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('a student with no level cannot begin and is told why', async () => {
+    const h = { get_progress: () => LEVEL_PROGRESS({ cefr_level: null, test_completed: false }), get_settings: () => ({ found: true }) };
+    const { page, ctx } = await open({ handlers: h }, '/src/student-course.html');
+    await page.waitForFunction(() => /not set your level/i.test(document.getElementById('levelInstruction').textContent));
+    expect(await page.isDisabled('#btnBeginLesson')).toBe(true);
+    await ctx.close();
+  });
+});

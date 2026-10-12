@@ -25,6 +25,21 @@ jobs:
       - name: Test
         run: npm test
 
+  # Browser smoke tests (login, placement-test start, course name + level, record
+  # toggle) against a stubbed backend. Guards the ids/classes the reskin must keep.
+  ui-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - name: UI smoke tests
+        run: npm run test:ui
+
   # Propagate the shared frontend files (config/api/utils/i18n/call-request +
   # theme/mobile CSS) from this canonical repo into the teacher repo.
   # Dormant until you opt in: set repo variables ENABLE_TEACHER_SYNC=true and
