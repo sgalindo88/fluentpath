@@ -54,7 +54,37 @@ const Checkpoint = (() => {
     } catch (e) { /* quota exceeded or unavailable */ }
   }
 
+  /**
+   * One-time migration of checkpoints written BEFORE they were student-scoped
+   * (keys 'fp_ckpt_<key>_a|_b|<none>'). load() only reads scoped keys, so a
+   * student who was mid-test across the upgrade could never resume, and the
+   * orphan was never cleaned. We adopt an unscoped checkpoint only when the
+   * name stored inside it matches the logged-in student; otherwise it may be
+   * someone else's and is left alone (DATA-1: never offer another student's
+   * work). Adopted keys move to the scoped name and the old key is removed.
+   */
+  function _migrateUnscoped(key) {
+    try {
+      var mine = scope();
+      if (!mine) return; // nobody logged in: scoped and unscoped keys are the same
+      var who = (localStorage.getItem('fp_student_name') || '').toLowerCase().trim();
+      ['_a', '_b', ''].forEach(function (suffix) {
+        var oldKey = PREFIX + key + suffix;
+        var raw = localStorage.getItem(oldKey);
+        if (!raw) return;
+        var data;
+        try { data = JSON.parse(raw); } catch (e) { return; }
+        var owner = String((data && (data.studentName || data.candidateName)) || '').toLowerCase().trim();
+        if (!owner || owner !== who) return;
+        var newKey = baseKey(key) + suffix;
+        if (localStorage.getItem(newKey) === null) localStorage.setItem(newKey, raw);
+        localStorage.removeItem(oldKey);
+      });
+    } catch (e) { /* storage unavailable */ }
+  }
+
   function load(key) {
+    _migrateUnscoped(key);
     var a = _loadSlot(key, 'a');
     var b = _loadSlot(key, 'b');
     // Also try the old single-key format (migration from pre-double-buffer)

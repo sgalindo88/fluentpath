@@ -116,12 +116,17 @@ FP.clearSession = function () {
  * Collects keys first, then removes, because removing inside an index-based
  * localStorage loop reindexes it and silently skips entries.
  */
+// Device preferences, not student data: they survive the purge. fp_lang is the
+// landing page's EN/ES choice (index.html); wiping it on logout dropped a
+// Spanish-speaking family back to English.
+FP.PURGE_KEEP = ['fp_lang'];
+
 FP.purgeStudentState = function () {
   try {
     var doomed = [];
     for (var i = 0; i < localStorage.length; i++) {
       var k = localStorage.key(i);
-      if (k && k.indexOf('fp_') === 0) doomed.push(k);
+      if (k && k.indexOf('fp_') === 0 && FP.PURGE_KEEP.indexOf(k) === -1) doomed.push(k);
     }
     for (var j = 0; j < doomed.length; j++) localStorage.removeItem(doomed[j]);
   } catch (e) { /* storage unavailable — nothing to purge */ }
