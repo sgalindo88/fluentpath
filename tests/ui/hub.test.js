@@ -97,6 +97,40 @@ describe('the video call button after a fresh log in', () => {
   });
 });
 
+describe('password dialogs: spacing', () => {
+  const gaps = (page) => page.evaluate(() => {
+    const view = [...document.querySelectorAll('.fp-reset__view')].find((v) => getComputedStyle(v).display !== 'none');
+    const kids = [...view.children].filter((c) => c.offsetParent && c.getBoundingClientRect().height > 0);
+    return { display: getComputedStyle(view).display, gaps: kids.slice(1).map((k, i) => Math.round(k.getBoundingClientRect().top - kids[i].getBoundingClientRect().bottom)) };
+  });
+
+  it('every view (set, done, forgot, change) is a flex column with air between its parts', async () => {
+    const t = await newPage(browser, { session: false, viewport: { width: 520, height: 800 }, handlers: { reset_password: () => ({ ok: true }) } });
+    await t.page.goto(base + '/app.html?reset=abc', { waitUntil: 'load' });
+    await t.page.waitForSelector('#fp-reset-modal.is-open');
+    let g = await gaps(t.page);
+    expect(g.display).toBe('flex');
+    expect(Math.min(...g.gaps)).toBeGreaterThanOrEqual(12); // fields no longer touch each other or the buttons
+    await t.page.fill('#fp-reset-pw', 'newpass1');
+    await t.page.fill('#fp-reset-pw2', 'newpass1');
+    await t.page.click('#fp-reset-save');
+    await t.page.waitForSelector('#fp-reset-done');
+    g = await gaps(t.page);
+    expect(Math.min(...g.gaps)).toBeGreaterThanOrEqual(12); // "Password updated": text and button are apart
+    await t.page.click('#fp-reset-done');
+    await t.page.evaluate(() => FP.passwordReset.openForgot());
+    g = await gaps(t.page);
+    expect(g.display).toBe('flex');
+    expect(Math.min(...g.gaps)).toBeGreaterThanOrEqual(12);
+    await t.page.evaluate(() => FP.passwordReset.openChange());
+    g = await gaps(t.page);
+    expect(g.display).toBe('flex');
+    expect(Math.min(...g.gaps)).toBeGreaterThanOrEqual(12);
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+});
+
 describe('forgot-password dialog', () => {
   it('opens bilingual with focus in the email field; Escape closes and returns focus to the link', async () => {
     const { page, ctx } = await open(states.mid, { session: false });

@@ -192,9 +192,9 @@
   function show(view) {
     injectModal();
     opener = document.activeElement;
-    el('fp-view-forgot').style.display = view === 'forgot' ? 'block' : 'none';
-    el('fp-view-set').style.display = view === 'set' ? 'block' : 'none';
-    el('fp-view-change').style.display = view === 'change' ? 'block' : 'none';
+    el('fp-view-forgot').style.display = view === 'forgot' ? 'flex' : 'none';
+    el('fp-view-set').style.display = view === 'set' ? 'flex' : 'none';
+    el('fp-view-change').style.display = view === 'change' ? 'flex' : 'none';
     el('fp-reset-modal').classList.add('is-open');
     var focusTarget = el(view === 'forgot' ? 'fp-reset-email' : view === 'change' ? 'fp-change-cur' : 'fp-reset-pw');
     if (focusTarget) focusTarget.focus();
