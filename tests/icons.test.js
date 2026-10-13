@@ -13,9 +13,9 @@ beforeAll(() => {
 });
 
 describe('FP.icon', () => {
-  it('has the 49 distinct icons of the design list (51 uses; edit and description are used twice) plus 4 lesson extras', () => {
-    expect(Object.keys(FP.ICONS).length).toBe(53); // + play_arrow, celebration, lock, replay
-    for (const n of ['play_arrow', 'celebration', 'lock', 'replay']) expect(FP.ICONS[n], n).toBeTruthy();
+  it('has the 49 distinct icons of the design list (51 uses; edit and description are used twice) plus 5 extras', () => {
+    expect(Object.keys(FP.ICONS).length).toBe(54); // + play_arrow, celebration, lock, replay, menu
+    for (const n of ['play_arrow', 'celebration', 'lock', 'replay', 'menu']) expect(FP.ICONS[n], n).toBeTruthy();
     for (const n of ['mic', 'stop', 'check_small', 'close_small', 'arrow_right_alt', 'order_approve', 'keep', 'wand_stars', 'sentiment_very_satisfied'])
       expect(FP.ICONS[n], n).toBeTruthy();
   });
