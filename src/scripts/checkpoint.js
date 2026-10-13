@@ -173,13 +173,14 @@ const Checkpoint = (() => {
       '</div>';
     document.body.appendChild(overlay);
 
-    var resumeBtn = overlay.querySelector('#ckptResume');
-    var restartBtn = overlay.querySelector('#ckptRestart');
+    var modal = overlay.querySelector('.fp-ckpt');
+    var mainHtml = modal.innerHTML;
 
     // Keep Tab inside the dialog; Escape is deliberately not a choice.
     function onKeydown(e) {
       if (e.key !== 'Tab') return;
-      var first = resumeBtn, last = restartBtn;
+      var btns = Array.prototype.slice.call(modal.querySelectorAll('button'));
+      var first = btns[0], last = btns[btns.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
@@ -189,9 +190,34 @@ const Checkpoint = (() => {
       document.removeEventListener('keydown', onKeydown);
       overlay.remove();
     }
-    resumeBtn.onclick = function () { cleanup(); if (opts.onResume) opts.onResume(); };
-    restartBtn.onclick = function () { cleanup(); if (opts.onStartOver) opts.onStartOver(); };
-    resumeBtn.focus();
+
+    function showMain() {
+      modal.innerHTML = mainHtml;
+      modal.setAttribute('aria-labelledby', 'ckptTitle');
+      modal.setAttribute('aria-describedby', 'ckptMsg');
+      modal.querySelector('#ckptResume').onclick = function () { cleanup(); if (opts.onResume) opts.onResume(); };
+      modal.querySelector('#ckptRestart').onclick = showConfirm;
+      modal.querySelector('#ckptResume').focus();
+    }
+
+    // "Start over" throws the saved work away, so it asks first. The safe choice is the primary one.
+    function showConfirm() {
+      modal.innerHTML =
+        '<div class="fp-ckpt__icon">' + FP.icon('warning', { size: 'lg' }) + '</div>' +
+        '<h2 class="fp-modal__title" id="ckptConfirmTitle">' + bi('Start over?', '¿Empezar de nuevo?') + '</h2>' +
+        '<p class="fp-ckpt__msg" id="ckptConfirmMsg">' + bi('Your saved answers will be deleted. This cannot be undone.', 'Tus respuestas guardadas se borrarán. No se puede deshacer.') + '</p>' +
+        '<div class="fp-ckpt__actions">' +
+          '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptKeep">' + bi('No, keep my progress', 'No, conservar mi progreso') + '</button>' +
+          '<button type="button" class="fp-btn fp-btn--text" id="ckptConfirm">' + bi('Yes, start over', 'Sí, empezar de nuevo') + '</button>' +
+        '</div>';
+      modal.setAttribute('aria-labelledby', 'ckptConfirmTitle');
+      modal.setAttribute('aria-describedby', 'ckptConfirmMsg');
+      modal.querySelector('#ckptKeep').onclick = showMain;
+      modal.querySelector('#ckptConfirm').onclick = function () { cleanup(); if (opts.onStartOver) opts.onStartOver(); };
+      modal.querySelector('#ckptKeep').focus();
+    }
+
+    showMain();
   }
 
   function esc(str) {

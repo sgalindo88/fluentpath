@@ -454,6 +454,24 @@ describe('resume dialog (checkpoint.js)', () => {
     await ctx.close();
   });
 
+  it('Start over asks first: the safe choice is primary and focused; keeping returns to the dialog; saved work survives until confirmed', async () => {
+    const { page, ctx } = await withCheckpoint();
+    await page.click('#ckptRestart');
+    const text = await page.innerText('.fp-ckpt');
+    for (const t of ['Start over?', '¿Empezar de nuevo?', 'cannot be undone', 'No se puede deshacer']) expect(text).toContain(t);
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptKeep');
+    expect(await page.locator('.fp-ckpt .fp-btn--primary').count()).toBe(1);
+    expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('fp_ckpt_')))).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await page.isVisible('#ckptKeep')).toBe(true);
+    await page.click('#ckptKeep');
+    expect(await page.isVisible('#ckptResume')).toBe(true);
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptResume');
+    await page.click('#ckptResume');
+    await page.waitForSelector('#screen-lesson.active');
+    await ctx.close();
+  });
+
   it('the source has no auto-resume timer', () => {
     const src = readFileSync(new URL('../../src/scripts/checkpoint.js', import.meta.url), 'utf-8');
     expect(src).not.toMatch(/AUTO_RESUME|setInterval|style="width/);
@@ -463,7 +481,10 @@ describe('resume dialog (checkpoint.js)', () => {
     const { page, ctx } = await withCheckpoint('B2');
     expect(await page.locator('.fp-ckpt .fp-bi__es:visible').count()).toBe(0);
     await page.click('#ckptRestart');
-    await page.waitForSelector('#ckptResume', { state: 'detached' });
+    expect(await page.innerText('.fp-ckpt')).toContain('Start over?');
+    expect(await page.locator('.fp-ckpt .fp-bi__es:visible').count()).toBe(0);
+    await page.click('#ckptConfirm');
+    await page.waitForSelector('.fp-ckpt', { state: 'detached' });
     expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('fp_ckpt_')))).toEqual([]);
     expect(await page.isVisible('#screen-landing.active')).toBe(true);
     await ctx.close();
