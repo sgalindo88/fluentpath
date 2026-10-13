@@ -63,6 +63,28 @@ d('teacher portal', () => {
   });
 });
 
+d('teacher portal: loop and way back', () => {
+  it('an Unauthorized reply on the portal shows the login form instead of reloading', async () => {
+    const t = await newPage(browser, { handlers: { get_students: () => ({ error: 'Unauthorized' }) } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    const navs = [];
+    t.page.on('framenavigated', (f) => { if (f === t.page.mainFrame()) navs.push(f.url()); });
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    await t.page.waitForSelector('#loginView:not(.fp-hidden)');
+    await t.page.waitForTimeout(1500);
+    expect(navs.length).toBe(1);
+    await t.ctx.close();
+  });
+
+  it('the login page links back to the brochure (logo and a text link)', async () => {
+    const t = await newPage(browser, { handlers, session: false });
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    expect(await t.page.locator('a[href="https://fluentpath.ca/"]').count()).toBe(2);
+    expect(await t.page.textContent('.footer')).toContain('Back to fluentpath.ca');
+    await t.ctx.close();
+  });
+});
+
 d('teacher dashboard', () => {
   it('desktop: navy rail with icon links as buttons; no emoji on any panel', async () => {
     const { page, ctx, errors } = await openPanel();

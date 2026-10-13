@@ -841,6 +841,12 @@ function hideOfflineBanner() {
 /* ─────────────────────────────────────────────────────────────
    Auto-login if a valid (non-expired) session exists
    ───────────────────────────────────────────────────────────── */
+// An 'Unauthorized' reply while we are on this page means: show the login screen (not reload).
+FP.isLoginPage = true;
+FP.onLoginRequired = function () {
+  showScreen('screen-welcome');
+};
+
 (function init() {
   var teacherLink = document.getElementById('teacherLink');
   if (teacherLink) teacherLink.href = FP.TEACHER_URL;

@@ -149,6 +149,14 @@ FP.purgeStudentState = function () {
 
 /** Redirect to the appropriate login screen (teacher dashboard vs student app). */
 FP.redirectToLogin = function () {
+  // Already ON the login page: navigating to it again reloads it, and if something on that
+  // page asks the server for data without a session ("Unauthorized"), that is a reload loop.
+  // Just tell the page to show its login screen instead.
+  var onLogin = FP.isLoginPage === true; // the login pages (hub, teacher portal) set this themselves
+  if (onLogin) {
+    if (typeof FP.onLoginRequired === 'function') FP.onLoginRequired();
+    return;
+  }
   var inSrc = location.pathname.indexOf('/src/') >= 0;
   var root = inSrc ? '../' : './';
   location.href = root + (FP.IS_TEACHER_SITE ? 'teacher.html' : 'app.html');

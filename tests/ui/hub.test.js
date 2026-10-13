@@ -278,3 +278,39 @@ describe('talking to the teacher is an in-page card, not a floating button', () 
     await t.ctx.close();
   });
 });
+
+describe('log in page: no reload loop, and a way back to the brochure', () => {
+  const unauthorized = () => ({ error: 'Unauthorized' });
+  const countNavs = (page) => { const urls = []; page.on('framenavigated', (f) => { if (f === page.mainFrame()) urls.push(f.url()); }); return urls; };
+
+  it('a remembered name without a session does not poll the server or reload the page', async () => {
+    const t = await newPage(browser, { session: false, handlers: { get_active_call_request: unauthorized, get_progress: unauthorized, get_settings: () => ({ found: true }) } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_student_name', 'Maria Lopez'));
+    const navs = countNavs(t.page);
+    await t.page.goto(base + '/app.html', { waitUntil: 'load' });
+    await t.page.waitForTimeout(2500);
+    expect(navs.length).toBe(1);
+    expect(await t.page.isVisible('#screen-welcome.active')).toBe(true);
+    expect(t.calls.filter((c) => c.action === 'get_active_call_request')).toEqual([]);
+    await t.ctx.close();
+  });
+
+  it('a stale session the server rejects ends on the login screen, not in a reload loop', async () => {
+    const t = await newPage(browser, { handlers: { get_progress: unauthorized, get_active_call_request: unauthorized, get_settings: () => ({ found: true }) } });
+    const navs = countNavs(t.page);
+    await t.page.goto(base + '/app.html', { waitUntil: 'load' });
+    await t.page.waitForSelector('#screen-welcome.active');
+    await t.page.waitForTimeout(2000);
+    expect(navs.length).toBe(1);
+    expect(await t.page.evaluate(() => localStorage.getItem('fp_session'))).toBeNull();
+    await t.ctx.close();
+  });
+
+  it('the log in screen links back to the brochure (logo and a text link, in both languages)', async () => {
+    const { page, ctx } = await open(states.mid, { session: false });
+    expect(await page.getAttribute('#homeLink', 'href')).toBe('./');
+    expect(await page.textContent('#homeLink')).toContain('Volver al inicio');
+    expect(await page.locator('#screen-welcome a[href="./"] img.fp-logo--stacked').count()).toBe(1);
+    await ctx.close();
+  });
+});

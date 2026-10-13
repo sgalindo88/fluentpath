@@ -181,6 +181,7 @@ var CallRequest = (function () {
   async function refresh() {
     var name = getStudentName();
     if (!name) return;
+    if (!(FP.getSession && FP.getSession())) return;
     try {
       var data = await apiGet('get_active_call_request', { student: name });
       if (data && data.found) {
@@ -224,6 +225,7 @@ var CallRequest = (function () {
     state.mountEl = opts && opts.mount ? document.querySelector(opts.mount) : null;
     state.compact = !!(opts && opts.compact);
     if (!getStudentName()) return; // no name yet — don't show button
+    if (!(FP.getSession && FP.getSession())) return; // not logged in: nothing to ask the server
     ensureButton();
     renderButton();
     refresh();
