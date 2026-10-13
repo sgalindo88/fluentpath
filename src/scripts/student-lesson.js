@@ -185,6 +185,8 @@ function tryResumeLesson() {
       state.level = data.level;
       state.lessonDate = data.lessonDate;
       state.dayNumber = data.dayNumber;
+      state.dayKnown = true;
+      if (typeof CallRequest !== 'undefined') CallRequest.setDay(state.dayNumber);
       state.submissionId = data.submissionId || newSubmissionId();
       state.lessonContent = data.lessonContent;
       state.answers = data.answers || {};
@@ -291,7 +293,9 @@ function startCourse() {
 /** The video-call request lives in a help card at the end of each step (not in the header). */
 function initCallControl() {
   if (typeof CallRequest !== 'undefined') {
-    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber, mount: '#callSlot' });
+    // N-23: state.dayNumber starts at 1 as a placeholder; only pass it once the server (or a resumed
+    // lesson) has set it, otherwise a request made early would name Day 1.
+    CallRequest.init({ page: 'lesson', dayNumber: state.dayKnown ? state.dayNumber : '', mount: '#callSlot' });
   }
 }
 
@@ -341,6 +345,7 @@ async function loadCourseState() {
   }
   state.level = cs.level;
   state.dayNumber = cs.dayNumber;
+  state.dayKnown = true;
   FP.ui.setLevel(state.level);
   lockLevelGrid(cs.level);
   btn.disabled = false;

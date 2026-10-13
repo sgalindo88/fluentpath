@@ -4,6 +4,14 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.61.1] - 2026-10-13
+
+### Fixed — Small frontend and doc items (Phase E batch D: N-23, N-26, N-21; student `fp-v27`, teacher `fp-teacher-v15`; frontend only; the backend stays 0.61.0)
+- **N-23:** the call request from the lesson page named Day 1 until the course state arrived, and kept the server's next day after a saved lesson was resumed (a lesson from another day). The lesson page now passes the day only once it is known (`state.dayKnown`) and tells the control when a lesson is resumed (`CallRequest.setDay`).
+- **N-26:** the service worker no longer caches a page URL that carries a secret (`reset`, `token`, `session`, `code` in the query): it is fetched from the network and never stored. Page navigations are stored by path and matched ignoring the query, so `/app?paid=1` (the Stripe return) is served offline from the cached `/app`, and the cache does not grow one entry per query string.
+- **N-21:** documentation only (README, "Tokens in GET query strings"): why tokens ride in GET URLs, what to do about it, and the audit that nothing logs a URL or query string (the Error Log redacts credential parameters).
+- Tests: 5 new service worker tests (`tests/sw.test.js`) and 2 UI tests (`tests/ui/lesson.test.js`; the resume one fails without the fix).
+
 ## [0.61.0] - 2026-10-13
 
 ### Fixed — Data correctness (Phase E batch C: BE-3, BE-4, BE-7; backend 0.61.0)

@@ -230,6 +230,11 @@ var CallRequest = (function () {
 
   // ── INIT ───────────────────────────────────────────────
 
+  /** N-23: the lesson page knows the day only after the server answers; tell the control then. */
+  function setDay(day) {
+    state.dayNumber = day || '';
+  }
+
   function init(opts) {
     state.page = (opts && opts.page) || 'hub';
     state.dayNumber = (opts && opts.dayNumber) || '';
@@ -251,5 +256,5 @@ var CallRequest = (function () {
     }
   }
 
-  return { init: init, refresh: refresh, dismiss: dismiss };
+  return { init: init, setDay: setDay, refresh: refresh, dismiss: dismiss };
 })();

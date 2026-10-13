@@ -65,7 +65,16 @@ function makeFakeIndexedDB() {
 function makeFakeCaches(store = new Map()) {
   return {
     keys: async () => [],
-    match: async (req) => { const r = store.get(typeof req === 'string' ? req : req.url); return r ? r.clone() : undefined; },
+    match: async (req, opts) => {
+      const url = typeof req === 'string' ? req : req.url;
+      let r = store.get(url);
+      if (!r && opts && opts.ignoreSearch) {
+        const bare = (u) => u.split('?')[0];
+        const k = [...store.keys()].find((key) => bare(key) === bare(url));
+        r = k && store.get(k);
+      }
+      return r ? r.clone() : undefined;
+    },
     open: async () => ({
       addAll: async () => {},
       put: async (req, resp) => { store.set(typeof req === 'string' ? req : req.url, resp); },
@@ -304,5 +313,49 @@ describe('app shell lists', () => {
       const onDisk = (f) => existsSync(resolve(import.meta.dirname, '..', f));
       expect(onDisk(p) || onDisk(p + '.html'), p).toBe(true);
     }
+  });
+});
+
+describe('N-26: navigations and secret URLs', () => {
+  const nav = (u) => ({ url: u, mode: 'navigate' });
+  const tick = () => new Promise((res) => setTimeout(res, 5));
+
+  it('serves /app?paid=1 offline from the cached /app (the query is ignored)', async () => {
+    const store = new Map([['https://fluentpath.ca/app', new Response('APP')]]);
+    const sw = loadSw({ cacheStore: store, fetchImpl: offline });
+    expect(await (await sw.networkFirst(nav('https://fluentpath.ca/app?paid=1'), 'c', 4000)).text()).toBe('APP');
+  });
+
+  it('stores a navigation by path, so one copy serves every query', async () => {
+    const store = new Map();
+    const sw = loadSw({ cacheStore: store, fetchImpl: async () => new Response('APP') });
+    await sw.networkFirst(nav('https://fluentpath.ca/app?paid=1'), 'c', 4000);
+    await tick();
+    expect([...store.keys()]).toEqual(['https://fluentpath.ca/app']);
+  });
+
+  it('never caches a URL that carries a secret, but still serves it online', async () => {
+    for (const q of ['?reset=abc123', '?token=t', '?x=1&session=s']) {
+      const store = new Map();
+      const sw = loadSw({ cacheStore: store, fetchImpl: async () => new Response('RESET PAGE') });
+      const r = await sw.networkFirst(nav('https://fluentpath.ca/app' + q), 'c', 4000);
+      expect(await r.text()).toBe('RESET PAGE');
+      await tick();
+      expect(store.size).toBe(0);
+    }
+  });
+
+  it('offline, a reset link gets the plain cached page, not an error', async () => {
+    const store = new Map([['https://fluentpath.ca/app', new Response('APP')]]);
+    const sw = loadSw({ cacheStore: store, fetchImpl: offline });
+    expect(await (await sw.networkFirst(nav('https://fluentpath.ca/app?reset=abc'), 'c', 4000)).text()).toBe('APP');
+  });
+
+  it('non-navigation files still cache under their own URL', async () => {
+    const store = new Map();
+    const sw = loadSw({ cacheStore: store, fetchImpl: async () => new Response('JS') });
+    await sw.networkFirst(new Request('https://fluentpath.ca/src/scripts/hub.js?v=2'), 'c', 4000);
+    await tick();
+    expect([...store.keys()]).toEqual(['https://fluentpath.ca/src/scripts/hub.js?v=2']);
   });
 });

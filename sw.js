@@ -10,7 +10,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v26'; // bumped: Phase B foundation (tokens, Montserrat, components, icons, brand assets, network-first shell)
+var CACHE_VERSION = 'fp-v27'; // bumped: N-26 (no cached token URLs; navigations match without the query)
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 // STUDENT-scoped: only the student site's files. The teacher dashboard lives in
@@ -159,6 +159,35 @@ function isShellRequest(request, url) {
   );
 }
 
+// N-26: query parameters that carry a secret (password-reset link, tokens). A
+// request with one is fetched from the network but never written to the cache.
+var SECRET_PARAMS = ['reset', 'token', 'session', 'code'];
+
+function hasSecretQuery(url) {
+  for (var i = 0; i < SECRET_PARAMS.length; i++) {
+    if (url.searchParams.has(SECRET_PARAMS[i])) return true;
+  }
+  return false;
+}
+
+/**
+ * What to store a response under, or null to not store it.
+ * A page navigation is stored by path alone (/app, not /app?paid=1), so one copy
+ * serves every query and the cache does not grow per query string. Anything
+ * carrying a secret is not stored at all.
+ */
+function cacheKeyFor(request) {
+  var url = new URL(request.url);
+  if (hasSecretQuery(url)) return null;
+  if (request.mode === 'navigate') return url.origin + url.pathname;
+  return request;
+}
+
+/** Offline, a navigation to /app?paid=1 or /app?reset=... is served the cached /app. */
+function matchOptionsFor(request) {
+  return request.mode === 'navigate' ? { ignoreSearch: true } : undefined;
+}
+
 /**
  * Network first; fall back to the cache if the network fails OR is slower than
  * `timeoutMs` (a student on a weak connection gets the cached copy rather than a
@@ -168,14 +197,17 @@ function networkFirst(request, cacheName, timeoutMs) {
   var network = fetch(request).then(function (response) {
     if (response.ok) {
       var clone = response.clone();
-      caches.open(cacheName).then(function (cache) {
-        cache.put(request, clone);
-      });
+      var key = cacheKeyFor(request);
+      if (key) {
+        caches.open(cacheName).then(function (cache) {
+          cache.put(key, clone);
+        });
+      }
     }
     return response;
   });
   var fallback = function () {
-    return caches.match(request).then(function (cached) {
+    return caches.match(cacheKeyFor(request) || request, matchOptionsFor(request)).then(function (cached) {
       return (
         cached ||
         new Response('Offline — please reconnect and try again.', {
@@ -189,7 +221,7 @@ function networkFirst(request, cacheName, timeoutMs) {
   var timer;
   var timeout = new Promise(function (resolve) {
     timer = setTimeout(function () {
-      caches.match(request).then(function (cached) {
+      caches.match(cacheKeyFor(request) || request, matchOptionsFor(request)).then(function (cached) {
         resolve(cached || null);
       });
     }, timeoutMs);

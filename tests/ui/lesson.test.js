@@ -582,3 +582,31 @@ describe('fits a phone', () => {
     await ctx.close();
   });
 });
+
+describe('N-23: the call request names the real day', () => {
+  async function requestedDay(resumeFromDay) {
+    const seen = [];
+    const { handlers } = makeHandlers({ request_video_call: (params) => { seen.push(params); return { result: 'success' }; } });
+    const { page, ctx } = await open({ handlers });
+    await begin(page); // the control lives in the lesson's help card
+    if (resumeFromDay) {
+      await page.evaluate((d) => { state.dayNumber = d; saveLessonCheckpoint(); }, resumeFromDay);
+      await page.reload({ waitUntil: 'load' });
+      await page.waitForSelector('#ckptResume');
+      await page.click('#ckptResume');
+      await page.waitForSelector('#screen-lesson.active');
+    }
+    await page.click('#fp-call-btn');
+    await page.waitForSelector('#fp-call-wrap.is-pending');
+    await ctx.close();
+    return String(seen[0].day_number);
+  }
+
+  it('sends the day the server chose (3), not the placeholder 1', async () => {
+    expect(await requestedDay()).toBe('3');
+  });
+
+  it('after resuming a saved lesson it sends the resumed lesson\'s day, not the server\'s next day', async () => {
+    expect(await requestedDay(7)).toBe('7');
+  });
+});

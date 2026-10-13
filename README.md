@@ -185,6 +185,9 @@ One `doGet` and one `doPost` dispatch through tables (`GET_HANDLERS`, `POST_HAND
 
 Passwords are salted, peppered, iterated SHA-256. Login creates a server-side session (students about 30 days, teachers about 12 hours); only a hash of the token is stored. Logins are throttled (10 failures per email per 15 minutes). Identity always comes from the session: for a student session the server overwrites `student_name`. Teachers act through a teacher session; the old public teacher token is gone. The full per-action authorisation table is the SEC-5 comment above `TEACHER_ACTIONS` in `apps-script.js`.
 
+### Tokens in GET query strings (N-21)
+Apps Script web apps read their GET parameters from the query string, so the app token and the session token travel in the URL of GET reads (`?action=…&token=…&session=…`). This is a known limit of the platform, not something the app can avoid. Keep it harmless: never paste an `/exec?…` URL into a ticket, chat, email or screenshot; the backend never writes a URL or query string anywhere (the Error Log stores only the parameters, with `session`, `token`, `password`, `reset_token` and similar names replaced by `[redacted]`: `redactParams`); the pages and the service worker never log URLs; the service worker lets Apps Script requests pass straight to the network and never caches a page URL that carries `reset`, `token`, `session` or `code`. Writes (POST) carry the session in the body, not the URL. A leaked session ends at log out or expiry (students about 30 days, teachers about 12 hours).
+
 ### Actions (overview)
 
 | Who | Actions |
@@ -238,7 +241,7 @@ The teacher dashboard lives in the `fluentpath-teacher` repo (`teacher.fluentpat
 
 ## Offline and the service worker
 
-`sw.js` is network-first for HTML, CSS and JS (a page never mixes two deploys), keeps a shell for offline use, and queues writes in IndexedDB for replay (never auth requests or anything with a password). Bump `CACHE_VERSION` in `sw.js` on every frontend change that must reach returning visitors; the teacher service worker is **generated** and its version is `TEACHER_CACHE_VERSION` in `scripts/sync-shared.mjs`.
+`sw.js` is network-first for HTML, CSS and JS (a page never mixes two deploys), keeps a shell for offline use, and queues writes in IndexedDB for replay (never auth requests or anything with a password). A page navigation is cached by path only and matched ignoring the query, so `/app?paid=1` works offline from the cached `/app`; a URL carrying `reset`, `token`, `session` or `code` is never cached. Bump `CACHE_VERSION` in `sw.js` on every frontend change that must reach returning visitors; the teacher service worker is **generated** and its version is `TEACHER_CACHE_VERSION` in `scripts/sync-shared.mjs`.
 
 ---
 
