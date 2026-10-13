@@ -50,7 +50,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.60.0';
+var BACKEND_VERSION = '0.61.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -2706,6 +2706,27 @@ function handleGetTestResults(studentName) {
 }
 
 
+/**
+ * BE-3: read a time out of a sheet cell. The sheets hold Date objects, ISO strings
+ * and locale strings. Returns milliseconds, or null when it cannot be read; never throws.
+ */
+function parseSheetTime(v) {
+  if (v === null || v === undefined || v === '') return null;
+  var t;
+  if (Object.prototype.toString.call(v) === '[object Date]') t = v.getTime();
+  else if (typeof v === 'number') t = v;
+  else t = Date.parse(String(v).trim());
+  return (typeof t === 'number' && isFinite(t)) ? t : null;
+}
+
+/** True if a row at time `at` should replace the current best (`best`, at `bestAt`). Later rows win ties. */
+function isNewerSubmission(at, bestAt, best) {
+  if (!best) return true;
+  if (at === null) return bestAt === null;      // unreadable only replaces another unreadable (row order)
+  if (bestAt === null) return true;             // any dated row beats an undated one
+  return at >= bestAt;
+}
+
 // ── GET: get_latest_submission ─────────────────────────
 // Returns the most recent lesson submission (prefers ungraded; falls back to latest graded)
 // Also includes existing marks if the submission has been graded
@@ -2751,16 +2772,19 @@ function handleGetLatestSubmission(studentName, optionalDay) {
     return { found: false };
   }
 
-  // Find the latest ungraded submission; track latest overall as fallback
-  var latestUngraded = null;
-  var latestOverall = null;
+  // Find the latest ungraded submission; track latest overall as fallback.
+  // BE-3: "latest" goes by submitted_at. Rows whose time cannot be read count as
+  // older than any dated row, and ties (or all-unreadable) fall back to sheet order.
+  var latestUngraded = null, latestUngradedAt = null;
+  var latestOverall = null, latestOverallAt = null;
   for (var i = 0; i < progressRows.length; i++) {
     var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
     if (name === target) {
-      latestOverall = progressRows[i];
+      var at = parseSheetTime(progressRows[i]['submitted_at']);
+      if (isNewerSubmission(at, latestOverallAt, latestOverall)) { latestOverall = progressRows[i]; latestOverallAt = at; }
       var dayNum = String(progressRows[i]['day_number'] || '');
-      if (!gradedDays[dayNum]) {
-        latestUngraded = progressRows[i];
+      if (!gradedDays[dayNum] && isNewerSubmission(at, latestUngradedAt, latestUngraded)) {
+        latestUngraded = progressRows[i]; latestUngradedAt = at;
       }
     }
   }
@@ -3309,6 +3333,9 @@ function buildTeacherGuidanceBlock(difficulty, level, defaultMinWords) {
 // LESSON LIBRARY — helpers
 // ══════════════════════════════════════════════════════
 
+// BE-4: most lessons kept per (level, day). Enough to vary, bounded so the sheet cannot balloon.
+var LIBRARY_BUCKET_CAP = 12;
+
 var SLIDER_KEYS = [
   'vocabulary_density', 'sentence_complexity', 'speaking_duration',
   'writing_length', 'listening_speed', 'grammar_complexity'
@@ -3381,36 +3408,53 @@ function findLibraryMatch(entries, difficulty) {
 
   function sv(prof, k) { return parseInt(prof[k], 10) || 3; }
 
-  // Strict pass
+  // Strict pass (BE-4: collect every hit, then offer the least-served one)
+  var strictHits = [];
   for (var i = 0; i < entries.length; i++) {
     var ep     = (entries[i].difficulty && entries[i].difficulty.difficultyProfile) ? entries[i].difficulty.difficultyProfile : {};
     var efTags = (entries[i].difficulty && entries[i].difficulty.focusTags)         ? entries[i].difficulty.focusTags          : [];
     var strictOk = SLIDER_KEYS.every(function(k) { return Math.abs(sv(profile, k) - sv(ep, k)) <= 1; });
     var tagOk    = (incoming.length === 0) || incoming.some(function(t) { return efTags.indexOf(t) >= 0; });
-    if (strictOk && tagOk) return entries[i];
+    if (strictOk && tagOk) strictHits.push(entries[i]);
   }
+  if (strictHits.length) return pickLeastServed(strictHits);
 
   // Lenient pass
+  var lenientHits = [];
   for (var j = 0; j < entries.length; j++) {
     var ep2  = (entries[j].difficulty && entries[j].difficulty.difficultyProfile) ? entries[j].difficulty.difficultyProfile : {};
     var dist = SLIDER_KEYS.reduce(function(sum, k) { return sum + Math.abs(sv(profile, k) - sv(ep2, k)); }, 0);
-    if (dist <= 4) return entries[j];
+    if (dist <= 4) lenientHits.push(entries[j]);
   }
 
-  return null;
+  return lenientHits.length ? pickLeastServed(lenientHits) : null;
+}
+
+/** BE-4: of several matching entries, the one served least; ties are broken at random so a bucket rotates. */
+function pickLeastServed(list) {
+  var min = Infinity;
+  list.forEach(function(e) { min = Math.min(min, e.times_served || 0); });
+  var pool = list.filter(function(e) { return (e.times_served || 0) === min; });
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 /**
- * True if any existing entry at this (level, day) has all 6 sliders
- * identical to `difficulty` — prevents near-duplicate writes (decision 9).
- * Only used on the write path; not for serving.
+ * True if an existing entry at this (level, day) is a duplicate of what is about to
+ * be written. Only used on the write path; not for serving.
+ * BE-4: with `lesson`, a duplicate is the same six sliders AND the same lesson
+ * text, so a fresh lesson for familiar sliders is kept and the library varies.
+ * Without `lesson` (older callers) the sliders alone decide.
  */
-function nearDuplicateExists(entries, difficulty) {
+function nearDuplicateExists(entries, difficulty, lesson) {
   var profile = (difficulty && difficulty.difficultyProfile) ? difficulty.difficultyProfile : {};
   function sv(prof, k) { return parseInt(prof[k], 10) || 3; }
+  var fingerprint = lesson ? JSON.stringify(lesson) : null;
   return entries.some(function(e) {
     var ep = (e.difficulty && e.difficulty.difficultyProfile) ? e.difficulty.difficultyProfile : {};
-    return SLIDER_KEYS.every(function(k) { return sv(profile, k) === sv(ep, k); });
+    var same = SLIDER_KEYS.every(function(k) { return sv(profile, k) === sv(ep, k); });
+    if (!same) return false;
+    if (fingerprint === null) return true;
+    return !!e.lesson && JSON.stringify(e.lesson) === fingerprint;
   });
 }
 
@@ -3429,7 +3473,7 @@ function findClosestEntry(entries, difficulty) {
 
 /**
  * Append a lesson to the library, subject to the near-duplicate dedup check (decision 9).
- * Returns true if written, false if skipped (duplicate exists).
+ * Returns true if written, false if skipped (same lesson already there, or the bucket is full).
  */
 function addToLibrary(level, day, lesson, difficulty, sourceStudent) {
   // BE-1: read-then-append. Reached from the generate_lesson GET, so it is not
@@ -3437,7 +3481,8 @@ function addToLibrary(level, day, lesson, difficulty, sourceStudent) {
   // only, never around the AI call that produced `lesson`.
   return withScriptLock(function () {
     var entries = getLibraryEntries(level, day);
-    if (nearDuplicateExists(entries, difficulty || {})) return false;
+    if (entries.length >= LIBRARY_BUCKET_CAP) return false;
+    if (nearDuplicateExists(entries, difficulty || {}, lesson)) return false;
 
     var id = 'lib_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
     safeAppendRow('Lesson Library', HEADERS['Lesson Library'], {
@@ -3871,22 +3916,25 @@ function getMarksForStudent(studentName) {
 // Run this as a time-driven trigger (Edit → Triggers → Add → dailyBackup → Day timer).
 // Copies the entire spreadsheet to a "FluentPath Backups" folder in Drive.
 // Keeps only the last 7 backups.
+var BACKUP_NAME_PREFIX = 'FluentPath Backup ';
 function dailyBackup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var root = DriveApp.getRootFolder();
   var folder = getOrCreateSubfolder(root, 'FluentPath Backups');
   var dateSuffix = new Date().toISOString().split('T')[0];
-  var backupName = 'FluentPath Backup ' + dateSuffix;
+  var backupName = BACKUP_NAME_PREFIX + dateSuffix;
 
   // Copy the spreadsheet
   var copy = ss.copy(backupName);
   copy.moveTo(folder);
 
-  // Prune old backups: keep only the 7 most recent
+  // Prune old backups: keep only the 7 most recent. BE-7: only spreadsheets whose
+  // name starts with the backup prefix; anything else in the folder is left alone.
   var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
   var all = [];
   while (files.hasNext()) {
     var f = files.next();
+    if (String(f.getName()).indexOf(BACKUP_NAME_PREFIX) !== 0) continue;
     all.push({ file: f, date: f.getDateCreated() });
   }
   all.sort(function(a, b) { return b.date - a.date; });

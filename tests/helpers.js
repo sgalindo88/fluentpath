@@ -227,13 +227,24 @@ export function loadAppsScriptAuth(props = {}) {
   let fetchHandler = () => ({ getResponseCode: () => 200, getContentText: () => '{}' });
   globalThis.UrlFetchApp = { fetch: (url, opts) => fetchHandler(url, opts) };
   // A fake Drive: FluentPath Audios / one folder per student. `drive.trashed` lists the names moved to the trash.
-  const drive = { folders: [], trashed: [] };
+  const drive = { folders: [], trashed: [], backups: [] }; // backups: files in 'FluentPath Backups' { name, created, mime, trashed }
   const iter = (arr) => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; };
+  const backupFolder = {
+    getFilesByType: (mime) => iter(drive.backups.filter((f) => !f.trashed && f.mime === mime).map((f) => ({
+      getName: () => f.name, getDateCreated: () => f.created, setTrashed: () => { f.trashed = true; },
+    }))),
+  };
+  globalThis.MimeType = { GOOGLE_SHEETS: 'sheets' };
+  ss.copy = (name) => {
+    const f = { name, created: new Date(Date.now() + drive.backups.length), mime: 'sheets', trashed: false };
+    drive.backups.push(f);
+    return { moveTo: () => {} };
+  };
   globalThis.DriveApp = {
     getRootFolder: () => ({
       getFoldersByName: (n) => iter(n === 'FluentPath Audios' ? [{
         getFolders: () => iter(drive.folders.filter((f) => !drive.trashed.includes(f)).map((name) => ({ getName: () => name, setTrashed: () => { drive.trashed.push(name); } }))),
-      }] : []),
+      }] : n === 'FluentPath Backups' ? [backupFolder] : []),
     }),
   };
   const mail = [];
@@ -361,5 +372,12 @@ export function loadAppsScriptAuth(props = {}) {
     getLibraryEntries: globalThis.getLibraryEntries,
     readColumns: globalThis.readColumns,
     libraryFallbackLesson: globalThis.libraryFallbackLesson,
+    handleGetLatestSubmission: globalThis.handleGetLatestSubmission,
+    parseSheetTime: globalThis.parseSheetTime,
+    findLibraryMatch: globalThis.findLibraryMatch,
+    nearDuplicateExists: globalThis.nearDuplicateExists,
+    addToLibrary: globalThis.addToLibrary,
+    dailyBackup: globalThis.dailyBackup,
+    LIBRARY_BUCKET_CAP: globalThis.LIBRARY_BUCKET_CAP,
   };
 }

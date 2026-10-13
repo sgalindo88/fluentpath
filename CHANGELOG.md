@@ -4,6 +4,14 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.61.0] - 2026-10-13
+
+### Fixed — Data correctness (Phase E batch C: BE-3, BE-4, BE-7; backend 0.61.0)
+- **BE-3:** `get_latest_submission` now returns the submission with the newest `submitted_at`, not the last row in the sheet. Times are read as Date objects, ISO strings or locale strings (`parseSheetTime`, never throws); a row whose time cannot be read never beats a dated one, and when nothing is readable the old row order applies. "Prefer ungraded, else latest" and the explicit `day` request are unchanged.
+- **BE-4:** the Lesson Library now varies. A new lesson is kept unless an entry with the same six sliders **and the same lesson text** exists (before, the sliders alone decided, so each slider profile held one lesson forever). When several entries match, the least-served one is offered and ties are broken at random. Each level and day keeps at most 12 entries (`LIBRARY_BUCKET_CAP`). `recycleProbability` is unchanged.
+- **BE-7:** `dailyBackup` prunes only Google Sheets named `FluentPath Backup …` (keeps the 7 newest); other files in the backup folder are never trashed.
+- Tests: `tests/data-correctness.test.js` (18); the fake Drive in `tests/helpers.js` now has a backup folder.
+
 ## [0.60.0] - 2026-10-13
 
 ### Changed — Hub speed (Phase E batch B: N-20, BE-8, BE-5; backend 0.60.0)
