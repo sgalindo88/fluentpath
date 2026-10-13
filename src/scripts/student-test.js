@@ -168,6 +168,8 @@ function showScreen(id) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   updateNav(id);
   updateProgress(id);
+  // the help card (call request) shows on the question and intro screens only
+  document.getElementById('testHelp').classList.toggle('fp-hidden', ['screen-cover', 'screen-submitting', 'screen-results'].includes(id));
   if (ckptInterval) saveTestCheckpoint();
   // Focus management: move focus to first interactive element in new screen
   setTimeout(function() {
@@ -1063,7 +1065,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize video call request button (re-init when student enters name)
   function initCallRequest() {
-    if (typeof CallRequest !== 'undefined') CallRequest.init({ page: 'test', mount: '#callSlot', compact: true });
+    if (typeof CallRequest !== 'undefined') CallRequest.init({ page: 'test', mount: '#callSlot' });
   }
   initCallRequest();
   nameField.addEventListener('blur', initCallRequest);

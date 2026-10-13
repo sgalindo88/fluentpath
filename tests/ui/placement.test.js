@@ -50,6 +50,24 @@ describe('cover', () => {
   });
 });
 
+describe('video call request', () => {
+  it('is a help card on the question screens (not in the header), hidden on the cover and results', async () => {
+    const { page, ctx, errors } = await open();
+    expect(await page.isVisible('#testHelp')).toBe(false);
+    await start(page);
+    await page.waitForSelector('#screen-reading-intro.active');
+    await page.waitForSelector('#testHelp #fp-call-btn');
+    expect(await page.isVisible('#testHelp')).toBe(true);
+    expect(await page.textContent('#testHelp')).toContain('¿Necesitas ayuda?');
+    expect(await page.locator('.test-header #fp-call-btn').count()).toBe(0);
+    expect(await page.locator('.fp-fab').count()).toBe(0);
+    await page.evaluate(() => showScreen('screen-results'));
+    expect(await page.isVisible('#testHelp')).toBe(false);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+});
+
 describe('who sees Spanish', () => {
   it('an unplaced student sees both languages', async () => {
     const { page, ctx } = await open();
@@ -251,21 +269,15 @@ describe('results and submit', () => {
 });
 
 describe('talking to the teacher', () => {
-  it('the call control lives in the page header as an icon button, not floating over the questions', async () => {
+  it('the call button in the help card is full width on a phone and 44px tall, and does not float', async () => {
     const { page, ctx } = await open({ viewport: { width: 390, height: 844 } });
-    await page.waitForSelector('.test-header #fp-call-btn');
+    await start(page);
+    await page.waitForSelector('#testHelp #fp-call-btn');
     expect(await page.evaluate(() => getComputedStyle(document.getElementById('fp-call-wrap')).position)).not.toBe('fixed');
     expect(await page.getAttribute('#fp-call-btn', 'aria-label')).toBe('Request a video call / Pedir una videollamada');
-    expect(await page.isVisible('#fp-call-btn .fp-call__label')).toBe(false); // label hides on phones, the name stays
-    const box = await page.locator('#fp-call-btn').boundingBox();
-    expect(box.width).toBeGreaterThanOrEqual(44);
-    expect(box.height).toBeGreaterThanOrEqual(44);
-    await ctx.close();
-  });
-  it('on a tablet the label shows too', async () => {
-    const { page, ctx } = await open();
-    await page.waitForSelector('.test-header #fp-call-btn');
     expect(await page.isVisible('#fp-call-btn .fp-call__label')).toBe(true);
+    const box = await page.locator('#fp-call-btn').boundingBox();
+    expect(box.height).toBeGreaterThanOrEqual(44);
     await ctx.close();
   });
 });
