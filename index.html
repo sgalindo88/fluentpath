@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>FluentPath · English for your life in a new country</title>
 <meta name="description" content="FluentPath is one-on-one English tutoring for adult immigrants — a free placement test, a personalised daily course, and live calls with a real teacher.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -16,265 +16,56 @@
 <meta property="og:description" content="One-on-one English tutoring for adult immigrants. Free placement test, personalised daily lessons, and a real teacher.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://fluentpath.ca/">
-
-<!-- Self-contained brochure: inline styles + inline i18n, no app dependencies.
-     The student app lives at /app.html; the teacher portal at teacher.fluentpath.ca. -->
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400;8..60,600&display=swap');
-
-  :root {
-    --ink: #1a1208;
-    --paper: #f5f0e8;
-    --cream: #ede8dc;
-    --rust: #b8471e;
-    --gold: #c9933a;
-    --rule: #c8bfa8;
-    --muted: #5a5040;
-  }
-
-  * { box-sizing: border-box; }
-
-  html { -webkit-text-size-adjust: 100%; }
-
-  body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: 'Source Serif 4', Georgia, serif;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  a { color: var(--rust); }
-
-  :focus-visible { outline: 2px solid var(--rust); outline-offset: 3px; }
-
-  /* ── Header ── */
-  .site-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: var(--paper);
-    border-bottom: 1px solid var(--rule);
-  }
-  .site-header .bar {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 13px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px 18px;
-    flex-wrap: wrap;
-  }
-  .nav-access {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 15px;
-  }
-  .nav-access a {
-    color: var(--ink);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    padding-bottom: 1px;
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .nav-access a:hover { color: var(--rust); border-bottom-color: var(--rust); }
-  .nav-sep { color: var(--rule); }
-  .lang-toggle {
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    border: 1px solid var(--rule);
-    border-radius: 999px;
-    padding: 4px 13px;
-    white-space: nowrap;
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .lang-toggle:hover { color: var(--rust); border-color: var(--rust); }
-
-  .wrap {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-
-  /* ── Hero ── */
-  .hero {
-    text-align: center;
-    padding: 52px 0 36px;
-  }
-
-  .wordmark {
-    font-family: 'Playfair Display', serif;
-    font-weight: 700;
-    font-size: clamp(44px, 11vw, 68px);
-    line-height: 1;
-    margin: 0;
-    letter-spacing: -0.01em;
-  }
-  .wordmark .accent { color: var(--rust); }
-
-  .tagline {
-    font-style: italic;
-    font-size: clamp(18px, 4.5vw, 23px);
-    color: var(--muted);
-    margin: 18px auto 0;
-    max-width: 30ch;
-  }
-
-  .divider {
-    width: 64px;
-    height: 2px;
-    background: var(--gold);
-    border: 0;
-    margin: 32px auto 0;
-  }
-
-  .intro {
-    text-align: center;
-    font-size: clamp(17px, 4vw, 19px);
-    margin: 28px auto 0;
-    max-width: 46ch;
-  }
-
-  /* ── How it works ── */
-  section { padding: 8px 0; }
-
-  .section-title {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(26px, 6vw, 32px);
-    text-align: center;
-    margin: 48px 0 8px;
-  }
-
-  .steps {
-    list-style: none;
-    counter-reset: step;
-    padding: 0;
-    margin: 28px 0 0;
-  }
-  .step {
-    counter-increment: step;
-    position: relative;
-    padding: 22px 0 22px 64px;
-    border-top: 1px solid var(--rule);
-  }
-  .step:last-child { border-bottom: 1px solid var(--rule); }
-  .step::before {
-    content: counter(step);
-    position: absolute;
-    left: 0;
-    top: 20px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--cream);
-    border: 1px solid var(--rule);
-    color: var(--rust);
-    font-family: 'Playfair Display', serif;
-    font-size: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .step h3 {
-    font-family: 'Playfair Display', serif;
-    font-weight: 700;
-    font-size: 21px;
-    margin: 2px 0 4px;
-  }
-  .step p { margin: 0; color: var(--muted); }
-
-  /* ── Pricing note ── */
-  .pricing {
-    background: var(--cream);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 28px 26px;
-    text-align: center;
-    margin: 48px 0 0;
-  }
-  .pricing h3 {
-    font-family: 'Playfair Display', serif;
-    font-size: 23px;
-    margin: 0 0 8px;
-  }
-  .pricing p { margin: 6px auto 0; max-width: 44ch; color: var(--muted); }
-  .badge {
-    display: inline-block;
-    margin-top: 16px;
-    padding: 5px 14px;
-    border-radius: 999px;
-    background: var(--gold);
-    color: var(--ink);
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  /* ── Footer ── */
-  footer {
-    text-align: center;
-    padding: 52px 0 48px;
-    margin-top: 56px;
-    border-top: 1px solid var(--rule);
-    color: var(--muted);
-    font-size: 15px;
-  }
-
-  @media (max-width: 480px) {
-    .site-header .bar { padding: 11px 18px; }
-    .nav-access { font-size: 13.5px; gap: 8px; }
-  }
-</style>
+<link rel="stylesheet" href="src/styles/tokens.css">
+<link rel="stylesheet" href="src/styles/theme.css">
+<link rel="stylesheet" href="src/styles/components.css">
+<link rel="stylesheet" href="src/styles/brochure.css">
 </head>
 <body>
 
-<!-- ── Top header: access links (left) + language toggle (right) ── -->
-<header class="site-header">
-  <div class="bar">
-    <nav class="nav-access" aria-label="Access">
-      <a href="app.html" data-i18n="navStudent">Student Access</a>
-      <span class="nav-sep" aria-hidden="true">|</span>
-      <a href="https://teacher.fluentpath.ca" data-i18n="navTeacher">Teacher Access</a>
-    </nav>
-    <a id="langToggle" class="lang-toggle" href="?lang=es" hreflang="es">Español</a>
-  </div>
+<!-- ── Header: logo, access links, language toggle ── -->
+<header class="fp-header site-header">
+  <a class="site-logo" href="./" aria-label="FluentPath"><img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath"></a>
+  <nav class="nav-access" aria-label="Access">
+    <a class="fp-btn fp-btn--text" href="app.html" data-i18n="navStudent">Student Access</a>
+    <a class="fp-btn fp-btn--text" href="https://teacher.fluentpath.ca" data-i18n="navTeacher">Teacher Access</a>
+    <a id="langToggle" class="fp-btn fp-btn--text lang-toggle" href="?lang=es" hreflang="es">Español</a>
+  </nav>
 </header>
 
 <main class="wrap">
 
   <!-- ── Hero ── -->
-  <div class="hero">
-    <h1 class="wordmark">Fluent<span class="accent">Path</span></h1>
-    <p class="tagline" data-i18n="tagline">English for your life in a new country.</p>
-    <hr class="divider">
+  <section class="hero">
+    <img class="fp-logo fp-logo--stacked hero-logo" src="src/img/logo-stacked.svg" alt="">
+    <h1 class="tagline" data-i18n="tagline">English for your life in a new country.</h1>
     <p class="intro" data-i18n="intro">
       One-on-one English tutoring built for working adults. Learn with a real
       teacher, at your own pace, around your own schedule — no classrooms, no
       rigid timetables.
     </p>
-  </div>
+    <a class="fp-btn fp-btn--primary hero-cta" href="app.html"><span data-i18n="ctaStart">Take the free placement test</span><i data-icon="arrow_right_alt"></i></a>
+    <p class="cta-note" data-i18n="ctaNote">No payment, no account fees. It takes about 40 minutes.</p>
+  </section>
 
-  <!-- ── How it works ── -->
-  <section>
-    <h2 class="section-title" data-i18n="howTitle">How it works</h2>
-    <ol class="steps">
-      <li class="step">
+  <!-- ── How it works: a route with three stops ── -->
+  <section aria-labelledby="howTitle">
+    <h2 class="section-title" id="howTitle" data-i18n="howTitle">How it works</h2>
+    <ol class="route">
+      <li class="stop">
+        <span class="stop__node" aria-hidden="true"></span>
         <h3 data-i18n="step1Title">Take the free placement test</h3>
         <p data-i18n="step1Body">A short test across reading, writing, listening and speaking finds your
            level — completely free, no payment needed.</p>
       </li>
-      <li class="step">
+      <li class="stop">
+        <span class="stop__node" aria-hidden="true"></span>
         <h3 data-i18n="step2Title">Follow your personalised course</h3>
         <p data-i18n="step2Body">A structured daily course is tailored to your level, with a new lesson
            each day you can fit around work and family.</p>
       </li>
-      <li class="step">
+      <li class="stop">
+        <span class="stop__node" aria-hidden="true"></span>
         <h3 data-i18n="step3Title">Meet your teacher one-on-one</h3>
         <p data-i18n="step3Body">Your teacher marks your work, tracks your progress, and is available for
            live video calls whenever you need a hand.</p>
@@ -283,22 +74,22 @@
   </section>
 
   <!-- ── Pricing ── -->
-  <section>
-    <div class="pricing">
-      <h3 data-i18n="priceTitle">Simple, one-time pricing</h3>
+  <section aria-labelledby="priceTitle">
+    <div class="fp-card pricing">
+      <h2 class="pricing__title" id="priceTitle" data-i18n="priceTitle">Simple, one-time pricing</h2>
       <p data-i18n="priceBody">The placement test is always free. When you're ready, a single one-time
          payment unlocks your full course — permanently, with no subscription.</p>
-      <span class="badge" data-i18n="priceBadge">Payments coming soon</span>
+      <span class="fp-badge fp-badge--warning" data-i18n="priceBadge">Payments coming soon</span>
     </div>
   </section>
 
-  <!-- ── Footer ── -->
-  <footer>
-    <p data-i18n-html="footer">A <strong>Fluentora</strong> programme.</p>
-  </footer>
-
 </main>
 
+<footer class="site-footer">
+  <p>fluentpath.ca</p>
+</footer>
+
+<script src="src/scripts/icons.js"></script>
 <script>
 (function () {
   // Inline two-language dictionary. Keys map to [data-i18n] / [data-i18n-html]
@@ -323,7 +114,8 @@
       priceTitle: 'Simple, one-time pricing',
       priceBody: "The placement test is always free. When you're ready, a single one-time payment unlocks your full course — permanently, with no subscription.",
       priceBadge: 'Payments coming soon',
-      footer: 'A <strong>Fluentora</strong> programme.'
+      ctaStart: 'Take the free placement test',
+      ctaNote: 'No payment, no account fees. It takes about 40 minutes.'
     },
     es: {
       _title: 'FluentPath · Inglés para tu vida en un nuevo país',
@@ -344,7 +136,8 @@
       priceTitle: 'Precio simple, un solo pago',
       priceBody: 'La prueba de nivel siempre es gratis. Cuando estés listo, un único pago desbloquea tu curso completo — para siempre, sin suscripción.',
       priceBadge: 'Pagos próximamente',
-      footer: 'Un programa de <strong>Fluentora</strong>.'
+      ctaStart: 'Haz la prueba de nivel gratis',
+      ctaNote: 'Sin pagos ni costos ocultos. Dura unos 40 minutos.'
     }
   };
 

@@ -19,6 +19,7 @@ var CACHE_VERSION = 'fp-v19'; // bumped: Phase B foundation (tokens, Montserrat,
 var APP_SHELL = [
   './',
   './index.html',
+  './src/styles/brochure.css',
   './app.html',
   './favicon.svg',
   './manifest.webmanifest',
