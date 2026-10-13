@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>FluentPath · Component sheet</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/theme.css">
+<link rel="stylesheet" href="styles/components.css">
+<link rel="stylesheet" href="styles/design-system.css">
+<script src="scripts/icons.js"></script>
+</head>
+<body>
+<!-- A rendered sheet of the base components, for design review. Not linked from the app and not cached offline. -->
+<header class="fp-header"><img class="fp-logo" src="img/logo-primary-horizontal.svg" alt="FluentPath"><span class="ds-tag">Component sheet</span></header>
+<main class="ds">
+
+<section><h2>Buttons</h2>
+  <div class="ds-row">
+    <button class="fp-btn fp-btn--primary" type="button">Primary</button>
+    <button class="fp-btn fp-btn--primary" type="button"><span>With icon</span><i data-icon="arrow_right_alt"></i></button>
+    <button class="fp-btn fp-btn--primary is-loading" type="button">Loading</button>
+    <button class="fp-btn fp-btn--primary is-error" type="button">Error</button>
+    <button class="fp-btn fp-btn--primary" type="button" disabled>Disabled</button>
+  </div>
+  <div class="ds-row">
+    <button class="fp-btn fp-btn--secondary" type="button">Secondary</button>
+    <button class="fp-btn fp-btn--secondary" type="button" disabled>Disabled</button>
+    <button class="fp-btn fp-btn--text" type="button">Text button</button>
+    <button class="fp-btn fp-btn--primary" type="button"><span class="fp-bi">Bilingual label<span class="fp-bi__es" lang="es">Etiqueta bilingüe</span></span></button>
+  </div>
+</section>
+
+<section><h2>Form fields</h2>
+  <div class="ds-grid">
+    <div class="fp-field"><label class="fp-label" for="a">Default</label><input class="fp-input" id="a" placeholder="Placeholder"></div>
+    <div class="fp-field"><label class="fp-label" for="b">Error</label><input class="fp-input is-error" id="b" value="maria@" aria-invalid="true"><span class="fp-field-error"><i data-icon="warning" data-icon-size="sm"></i>Enter a valid email.</span></div>
+    <div class="fp-field"><label class="fp-label" for="c">Disabled</label><input class="fp-input" id="c" value="Read only" disabled></div>
+    <div class="fp-field"><label class="fp-label" for="d">Text area</label><textarea class="fp-textarea" id="d" rows="3" placeholder="Write here"></textarea></div>
+  </div>
+</section>
+
+<section><h2>Cards and level tiles</h2>
+  <div class="ds-grid">
+    <div class="fp-card"><strong>Card</strong><p>Static content on a white surface.</p></div>
+    <div class="fp-card fp-card--interactive" tabindex="0"><strong>Interactive card</strong><p>Border darkens on hover.</p></div>
+    <div class="fp-tile"><strong>A1</strong><br>Tile</div>
+    <div class="fp-tile is-selected"><strong>A2</strong><br>Selected</div>
+    <div class="fp-tile is-locked"><strong>B1</strong><br>Locked</div>
+  </div>
+</section>
+
+<section><h2>Answer tiles</h2>
+  <div class="ds-stack">
+    <button class="fp-answer" type="button">Default option</button>
+    <button class="fp-answer is-selected" type="button">Selected option</button>
+    <button class="fp-answer is-correct" type="button">Correct option<span class="fp-answer__verdict"><i data-icon="check_small" data-icon-size="sm"></i>Correct</span></button>
+    <button class="fp-answer is-wrong" type="button">Wrong option<span class="fp-answer__verdict"><i data-icon="close_small" data-icon-size="sm"></i>Incorrect</span></button>
+    <button class="fp-answer" type="button" disabled>Disabled option</button>
+  </div>
+</section>
+
+<section><h2>Record button states</h2>
+  <div class="ds-row ds-labels">
+    <div><button class="fp-mic-btn" type="button" aria-label="Idle"><i data-icon="mic"></i></button><span>Idle</span></div>
+    <div><button class="fp-mic-btn is-requesting" type="button" aria-label="Requesting"></button><span>Requesting</span></div>
+    <div><button class="fp-mic-btn is-recording" type="button" aria-label="Recording"><i data-icon="stop"></i></button><span>Recording</span></div>
+    <div><button class="fp-mic-btn is-recorded" type="button" aria-label="Recorded"><i data-icon="mic"></i></button><span>Recorded</span></div>
+    <div><button class="fp-mic-btn is-uploading" type="button" aria-label="Uploading"><i data-icon="mic"></i></button><span>Uploading</span></div>
+    <div><button class="fp-mic-btn is-failed" type="button" aria-label="Failed"><i data-icon="mic"></i></button><span>Failed</span></div>
+    <div><button class="fp-mic-btn" type="button" disabled aria-label="Disabled"><i data-icon="mic"></i></button><span>Disabled</span></div>
+  </div>
+</section>
+
+<section><h2>Waypoints and step bar</h2>
+  <div class="ds-row">
+    <span class="fp-waypoint is-completed"><i data-icon="check_small"></i></span>
+    <span class="fp-waypoint is-completed"><i data-icon="check_small"></i></span>
+    <span class="fp-waypoint is-current"></span>
+    <span class="fp-waypoint"></span>
+    <span class="fp-waypoint"></span>
+  </div>
+  <div class="fp-steps ds-steps"><i class="fp-steps__seg is-completed"></i><i class="fp-steps__seg is-completed"></i><i class="fp-steps__seg is-current"></i><i class="fp-steps__seg"></i><i class="fp-steps__seg"></i><i class="fp-steps__seg"></i><i class="fp-steps__seg"></i></div>
+</section>
+
+<section><h2>Badges</h2>
+  <div class="ds-row"><span class="fp-badge">Default</span><span class="fp-badge fp-badge--success">Success</span><span class="fp-badge fp-badge--warning">Warning</span><span class="fp-badge fp-badge--error">Error</span></div>
+</section>
+
+<section><h2>Banners and toast</h2>
+  <div class="ds-stack">
+    <div class="fp-banner fp-banner--info"><i data-icon="lightbulb" data-icon-class="fp-banner__icon"></i><div class="fp-banner__body">Info: a tip or neutral note.</div></div>
+    <div class="fp-banner fp-banner--success"><i data-icon="check" data-icon-class="fp-banner__icon"></i><div class="fp-banner__body">Success: your progress is saved.</div></div>
+    <div class="fp-banner fp-banner--warning"><i data-icon="warning" data-icon-class="fp-banner__icon"></i><div class="fp-banner__body">Warning: we could not confirm the save.</div></div>
+    <div class="fp-banner fp-banner--error"><i data-icon="warning" data-icon-class="fp-banner__icon"></i><div class="fp-banner__body">Error: that password is not right.</div></div>
+    <div class="fp-banner fp-banner--offline"><i data-icon="warning" data-icon-class="fp-banner__icon"></i><div class="fp-banner__body">You are offline. Changes are kept on this device.</div><div class="fp-banner__actions"><button class="fp-btn fp-btn--secondary" type="button">Retry</button></div></div>
+  </div>
+</section>
+
+<section><h2>Modal</h2>
+  <div class="ds-frame"><div class="fp-modal ds-modal"><h3 class="fp-modal__title">Dialog title</h3><p>Short explanation of the choice.</p><div class="ds-stack"><button class="fp-btn fp-btn--primary fp-btn--block" type="button">Primary action</button><button class="fp-btn fp-btn--text" type="button">Cancel</button></div></div></div>
+</section>
+
+<section><h2>Audio player</h2>
+  <div class="fp-card"><div class="fp-audio"><button class="fp-audio__play" type="button" aria-label="Play"><i data-icon="play_arrow"></i></button><div class="fp-audio__track"><div class="fp-audio__fill ds-fill"></div></div><span class="fp-audio__plays">2 plays left</span></div></div>
+</section>
+
+<section><h2>Table</h2>
+  <div class="fp-table-wrap"><table class="fp-table fp-table--zebra"><thead><tr><th>Student</th><th>Level</th><th>Progress</th></tr></thead><tbody><tr><td>Maria Lopez</td><td>A2</td><td>7 / 20</td></tr><tr><td>Carlos Ruiz</td><td>B1</td><td>12 / 20</td></tr><tr><td>Ana Perez</td><td>A1</td><td>3 / 20</td></tr></tbody></table></div>
+</section>
+
+</main>
+</body>
+</html>
