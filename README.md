@@ -1,518 +1,277 @@
-# FluentPath -- Language Learning & Assessment Platform
+# FluentPath: English tutoring for adult immigrants
 
-[![CI](https://github.com/sgalindo88/english-course/actions/workflows/ci.yml/badge.svg)](https://github.com/sgalindo88/english-course/actions/workflows/ci.yml)
+[![CI](https://github.com/sgalindo88/fluentpath/actions/workflows/ci.yml/badge.svg)](https://github.com/sgalindo88/fluentpath/actions/workflows/ci.yml)
 
-A browser-based English language learning and assessment system by **Fluentora**, designed for **adult immigrants** (ages 20--50) who lack the time or resources for formal schooling. The platform supports **one-on-one tutoring** with live video calls and asynchronous self-study.
+One-on-one English tutoring for adult immigrants (mostly Spanish speakers, mostly on an iPad or iPhone). A student takes a four-skill placement test, the teacher grades it and sets a CEFR level, and the student then follows a 20-day course of AI-generated daily lessons, with live video calls whenever they need help.
 
-Two audiences -- **students** taking tests and completing lessons, and **teachers** marking work and managing course progress. All interfaces share a cohesive visual identity (Playfair Display + Source Serif 4 typography, cream/ink/rust palette) and integrate with Google Sheets, a pluggable AI provider (Gemini / Anthropic / OpenAI), and a student-initiated video call request system.
+- **Student site:** [fluentpath.ca](https://fluentpath.ca) (this repo, served by GitHub Pages)
+- **Teacher site:** [teacher.fluentpath.ca](https://teacher.fluentpath.ca) (separate repo, `fluentpath-teacher`)
+- **Backend:** one Google Apps Script web app (`apps-script.js`, lives only in this repo) with Google Sheets as the database and Google Drive for recordings.
 
-**Live at:** [sgalindo88.github.io/fluentpath](https://sgalindo88.github.io/fluentpath/)
-
----
-
-## Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [File Descriptions](#file-descriptions)
-  - [app.html -- Student Hub](#1-apphtml--student-hub)
-  - [teacher.html -- Teacher Portal](#2-teacherhtml--teacher-portal)
-  - [student-initial-test.html -- Placement Test](#3-student-initial-testhtml--placement-test)
-  - [student-course.html -- Daily Lesson](#4-student-coursehtml--daily-lesson)
-  - [examiner-panel.html -- Teacher Dashboard](#5-examiner-panelhtml--teacher-dashboard)
-- [Shared Utilities](#shared-utilities)
-- [Level-Aware Translation System](#level-aware-translation-system)
-- [Shared Design System](#shared-design-system)
-- [Integration Points](#integration-points)
-- [Google Sheets Schema](#google-sheets-schema)
-- [Technology Stack](#technology-stack)
-- [CEFR Level Reference](#cefr-level-reference)
+Accounts are **invite-only**: a visitor asks for an account on the brochure, the teacher creates it, and the student gets an email with a link to choose their own password.
 
 ---
 
-## Architecture Overview
+## Table of contents
+
+- [How it fits together](#how-it-fits-together)
+- [The student journey](#the-student-journey)
+- [Project structure](#project-structure)
+- [Student app](#student-app)
+- [Shared frontend code](#shared-frontend-code)
+- [Design system and Spanish](#design-system-and-spanish)
+- [Backend (Apps Script)](#backend-apps-script)
+- [Google Sheets schema](#google-sheets-schema)
+- [Teacher site](#teacher-site)
+- [Offline and the service worker](#offline-and-the-service-worker)
+- [Tests, tooling and CI](#tests-tooling-and-ci)
+- [Working and deploying](#working-and-deploying)
+- [CEFR level reference](#cefr-level-reference)
+
+---
+
+## How it fits together
 
 ```
-  index.html (public landing/brochure at /) ──→ app.html
-
-  ┌──────────────────┐          ┌──────────────────┐
-  │    app.html      │          │  teacher.html     │
-  │  (Student Hub)   │          │ (Teacher Portal)  │
-  └────────┬─────────┘          └────────┬──────────┘
-           │                             │
-           │                             ▼
-           │                   ┌──────────────────────┐
-           │                   │  examiner-panel.html  │
-           │                   │  (Teacher Dashboard)  │
-           │                   │  - Grade placement test  │
-           │                   │  - Grade lessons         │
-           │                   │  - Track attendance      │
-           │                   │  - Adjust difficulty     │
-           │                   └──────────────────────┘
-           │
-     ┌─────┴──────┐
-     │            │
-     ▼            ▼
-  Phase 1      Phase 2
-  Placement    Course
-     │            │
-     ▼            ▼
-  student-     student-
-  initial-     course.html
-  test.html    (daily lessons)
+  fluentpath.ca (this repo)                         teacher.fluentpath.ca (fluentpath-teacher repo)
+  ┌──────────────────────────┐                      ┌───────────────────────────────┐
+  │ index.html  brochure     │                      │ index.html     teacher portal │
+  │ app.html    student hub  │                      │ examiner-panel dashboard      │
+  │ src/…test   placement    │                      │ (grading, attendance, profile,│
+  │ src/…course daily lesson │                      │  difficulty, library, archive)│
+  └────────────┬─────────────┘                      └───────────────┬───────────────┘
+               │  fetch (GET reads, form POST writes), app token + session
+               ▼                                                    ▼
+        ┌──────────────────────────────────────────────────────────────────┐
+        │  Google Apps Script web app (apps-script.js)                     │
+        │  accounts + sessions · course authority · AI lessons · Stripe    │
+        │  email (MailApp) · rate limits · script lock                     │
+        └───────────────┬───────────────────────────────┬──────────────────┘
+                        ▼                               ▼
+                Google Sheets (17 tabs)         Google Drive (FluentPath Audios)
 ```
 
-**Phase 1 -- Placement:** Student completes a four-skill proficiency test. The teacher marks it in the dashboard, assigns a CEFR level (A1--C2), and the student is placed into the right course tier. Students can skip the test if the teacher allows it.
-
-**Phase 2 -- Course:** Student works through a 20-day structured course with AI-generated lessons. Each day's lesson is served from the **Lesson Library** when a matching entry exists (recycling activates at 5+ entries per `(level, day)` bucket) or generated fresh by the AI provider if not. Freshly generated lessons are written back to the library so later students benefit from the pool. Lessons generated with teacher-specific `aiInstructions` are never recycled. All lessons are cached per student/day in localStorage so reloads don't re-bill the API. If the API is unavailable, a 5-lesson offline fallback library cycles by day and a banner notifies the student. The teacher marks submissions, tracks attendance, adjusts difficulty, and writes weekly summaries. No approval workflow -- lessons start immediately.
-
-**Video calls** are available on all student pages via an optional floating "Request a Video Call" button; the teacher responds from the dashboard with a meeting link (same mechanism as the teacher dashboard).
+- **Two repos.** Shared frontend files (`config.js`, `api.js`, `utils.js`, `ui.js`, `icons.js`, `call-request.js`, `password-reset.js`, `checkpoint.js`, the design-system CSS, fonts, logos and the generated service worker) are authored here and copied into the teacher repo by `npm run sync`; `npm run sync:check` fails if they drift.
+- **No framework, no build step.** Plain HTML, CSS and vanilla JavaScript. The only generated file is `src/scripts/icons.js` (`npm run icons`).
+- **The server decides.** Level, course, day and topic come from the backend, not from the browser; a student session can only ever write as itself.
 
 ---
 
-## Project Structure
+## The student journey
 
-> **Two-repo split.** This is the **student app + backend** repo (served at `fluentpath.ca`). The **teacher dashboard** (`teacher.html`, `examiner-panel.*`, `teacher-portal.js`) lives in a separate repo served at `teacher.fluentpath.ca`. Shared frontend files (`config.js`, `api.js`, `utils.js`, `i18n.js`, `call-request.js`, `password-reset.js`, `theme.css`, `mobile.css`) are authored here and propagated to the teacher repo via `npm run sync`. The Apps Script backend (`apps-script.js`) is shared by both and lives only here.
+1. **Ask for an account.** The brochure's "Request a free account" form (name, email, optional message, English or Spanish) goes to the teacher by email and appears in the teacher portal.
+2. **Account created.** The teacher creates the account (the password is optional). The student is emailed, in English and Spanish, a link that lets them choose their own password (valid 7 days).
+3. **Hub.** After logging in the student sees their route: Placement test, Your level, Your course. There is a "Need to talk to your teacher?" card, Settings, and Log out.
+4. **Placement test** (80 marks: reading, writing, listening, speaking). It never reveals whether an answer was right. Speaking answers are recorded and uploaded.
+5. **Grading.** The teacher marks it, sets the CEFR level and switches on free course access (or the student pays, once payments are live).
+6. **Daily lessons.** Seven steps (warm-up, vocabulary, listening, speaking, practice, writing, review), generated for the student's level and day. The teacher grades each lesson and keeps attendance.
+7. **Help.** The student can request a video call (the teacher answers with a meeting link by email and on the hub), report a problem, suggest a feature, or ask to practise certain topics (the teacher approves or declines; approved topics only steer future lessons).
+8. **Leaving.** The teacher can archive a student (login off, reversible) or permanently delete one (all rows plus Drive recordings).
+
+---
+
+## Project structure
 
 ```
 fluentpath/
-├── index.html                     # Public landing/brochure page (the entry point at /)
-├── app.html                       # Student app (login → hub → journey)
-├── sw.js                          # Service worker (offline resilience, app shell)
-├── CNAME                          # Custom domain (fluentpath.ca)
-├── apps-script.js                 # Google Apps Script backend (deploy via clasp)
-├── appsscript.json                # Apps Script manifest (V8 runtime, OAuth scopes)
-├── package.json                   # npm project (lint, test, sync, clasp scripts)
-├── eslint.config.mjs              # ESLint 9 flat config
-├── .github/workflows/ci.yml       # CI (lint + test; optional teacher-repo sync)
+├── index.html                      # Public brochure (EN/ES toggle, account request form)
+├── app.html                        # Student app: login, hub, paywall, Settings
+├── sw.js                           # Service worker (network-first shell, offline POST queue)
+├── apps-script.js                  # Backend (deployed with clasp). Version: BACKEND_VERSION
+├── appsscript.json                 # Apps Script manifest (V8, web app, OAuth scopes)
+├── manifest.webmanifest, CNAME, favicon.svg, apple-touch-icon.png, icon-*.png
+├── .claspignore                    # clasp pushes only apps-script.js and appsscript.json
+├── .github/workflows/ci.yml        # lint, format check, unit tests, browser tests
 ├── src/
-│   ├── student-initial-test.html  # Placement test (student)
-│   ├── student-course.html        # Daily lesson (student)
+│   ├── student-initial-test.html   # Placement test
+│   ├── student-course.html         # Daily lesson
+│   ├── design-system.html          # Component sheet for design review (not linked, not cached)
 │   ├── scripts/
-│   │   ├── config.js              # Shared config (endpoints, env, session helpers)
-│   │   ├── config.local.js        # Dev overrides (gitignored)
-│   │   ├── api.js                 # Fetch wrapper (token/session, save overlay, SW)
-│   │   ├── utils.js               # Shared formatting utilities
-│   │   ├── i18n.js                # Level-aware Spanish translation
-│   │   ├── call-request.js        # Student-initiated video-call requests
-│   │   ├── password-reset.js      # Shared password-reset modal (forgot / set-new)
-│   │   ├── hub.js                 # Student hub: journey, achievements, paywall
-│   │   ├── student-test.js        # Placement test logic
-│   │   ├── student-lesson.js      # Daily lesson logic (timer, pause, SRS)
-│   │   └── checkpoint.js          # Session recovery / auto-save
-│   └── styles/                    # theme, mobile, hub, student-test, student-lesson
+│   │   ├── config.js               # Endpoints, environment, session helpers, levels, storage keys
+│   │   ├── config.local.js         # Dev overrides (gitignored)
+│   │   ├── api.js                  # Fetch wrapper: token + session, timeouts, Unauthorized handling
+│   │   ├── utils.js                # escHtml, local dates, small helpers
+│   │   ├── ui.js                   # Bilingual helpers (bi/es/label), level rule, toasts, banners
+│   │   ├── icons.js                # GENERATED: Material Symbols icon map (npm run icons)
+│   │   ├── hub.js                  # Login, hub dashboard, paywall, achievements
+│   │   ├── hub-settings.js         # Settings screen: topic requests, bug reports, feature ideas
+│   │   ├── call-request.js         # Video-call request card (hub, test, lesson)
+│   │   ├── password-reset.js       # Forgot / set / change password dialogs (shared with teacher)
+│   │   ├── student-test.js         # Placement test logic and recording
+│   │   ├── student-lesson.js       # Lesson logic: timer, pause, recording, save and verify
+│   │   └── checkpoint.js           # Autosave and the resume dialog
+│   ├── styles/                     # tokens, theme, components, hub, student-test, student-lesson, brochure, mobile
+│   ├── fonts/                      # Self-hosted Montserrat (WOFF2 + licence)
+│   ├── img/                        # Logos (navy and cream variants)
+│   └── icons/                      # Icon licence
 ├── scripts/
-│   └── sync-shared.mjs            # Propagate shared files → teacher repo (npm run sync)
-└── tests/                         # vitest: utils, apps-script, auth, stripe, password-reset, backend
+│   ├── sync-shared.mjs             # Copy shared files to the teacher repo; owns TEACHER_CACHE_VERSION
+│   └── build-icons.mjs             # Build icons.js from @material-symbols/svg-400
+└── tests/                          # unit tests (vitest) and browser tests (tests/ui, Playwright)
 ```
 
 ---
 
-## File Descriptions
+## Student app
 
-### 1. `app.html` -- Student Hub
+### `index.html`: brochure
 
-> **Entry point note:** `fluentpath.ca/` serves `index.html`, a self-contained public **landing/brochure page** (what FluentPath is, how it works, pricing, and **Student login** / **Teacher login** buttons — no app dependencies, inline CSS). Its "Student login" button links to `app.html`, the student app described here.
+What FluentPath is, three route stops, one-time pricing ("Payments coming soon"), an English/Spanish toggle, and the account-request form. The main button reads **Request a free account**; "Already have an account? Log in" links to `app.html`. The form calls the public `request_account` action (validated and throttled; a hidden honeypot field catches bots; an address that already has an account gets the same "thank you", so nothing leaks).
 
-**Purpose:** The student app. Name-based login, fetches progress from Google Sheets, and displays a journey timeline pointing the student to their next action.
+### `app.html`: login, hub, settings
 
-#### Screens
+| Screen | What it does |
+|---|---|
+| Welcome | Email and password log in, "Forgot password?", links back to the brochure and to the teacher site |
+| Loading | While progress and settings are fetched |
+| Paywall | Shown when the course is locked and payments are on |
+| Dashboard | Route (Placement test → Your level → Your course), next-step card, video-call card, lesson list, achievements |
+| Settings | **What do you want to practise?** (up to 5 topics and a note, reviewed by the teacher), **Report a problem**, **Suggest a feature**, **Change password** |
 
-| # | Screen | Description |
-|---|--------|-------------|
-| 1 | **Welcome** | Name input. Returning students auto-logged-in via localStorage. |
-| 2 | **Loading** | Spinner while progress and teacher settings are fetched from Google Sheets. |
-| 3 | **Dashboard** | Journey timeline with three milestones and context-aware CTA. |
+Spanish appears under the English for A1 to B1 and for students without a level; B2 and above see English only. Headers keep Settings and Log out compact; Settings is icon-only on small phones.
 
-#### Journey Milestones
+### `src/student-initial-test.html`: placement test
 
-| # | Milestone | States |
-|---|-----------|--------|
-| 1 | **Placement Test** | Not started (CTA + optional "Skip to Course" if teacher allows) / Completed (green, with score) |
-| 2 | **Your Level** | Locked / Awaiting review (pending badge) / Assigned (CEFR badge) |
-| 3 | **Your Course** | Locked / Ready to begin / In progress (Day X/20 progress bar) / Complete |
+80 marks: Reading 20 (auto), Writing 25 (teacher), Listening 15 (10 auto, dictation 5 teacher), Speaking 20 (teacher). Answers show "Answer saved" only, never right or wrong. Instructions, writing options and speaking prompts have Spanish; reading passages, questions and answer options stay English because they are what is tested. Speaking Q21 to Q24 are recorded (MediaRecorder; speech recognition is optional) and uploaded to Drive; the page stops recording if it is hidden. Progress autosaves; a bilingual "Resume your test?" dialog appears after a reload. The save is verified by an opaque `submission_id` before the student sees "saved".
 
-#### Key Features
+### `src/student-course.html`: daily lesson
 
-- **Progress tracking** via Google Sheets (`?action=get_progress`) with localStorage fallback
-- **Teacher settings check** fetches `allow_skip_test` and `allow_retake_test` from Google Sheets
-- **Skip or re-take** placement test options when teacher enables them
-- **Completed lessons list** showing day, topic, time spent, confidence, and date
-- **Auto-login** for returning students
-- **Name validation** -- max 100 characters, letters/accents/hyphens/apostrophes only
-- **Context-aware CTA** that always shows the right next action
-- **Level-aware translation** via the shared i18n system
+Seven steps with a timer, pause dialog and resume after a reload: warm-up, vocabulary (word cards with speech), listening (3 plays), speaking (pronunciation drills and free speaking, both recorded), practice, writing, review with a face rating (required). The server chooses level, course, day and topic. Lessons come from the shared **Lesson Library** when a matching entry exists, otherwise from the AI provider (and are added to the library). Lessons shaped by a teacher's custom instructions or a student's approved topics are never recycled. If the AI is unavailable a level-agnostic offline lesson is shown with a notice. Completion is verified by reading the progress back; a failed save shows a Retry button.
 
 ---
 
-### 2. `teacher.html` -- Teacher Portal
+## Shared frontend code
 
-**Purpose:** Separate landing page for teachers. Fetches registered students from Google Sheets and displays them as selectable cards.
-
-- Branded Fluentora header with "Instructor Access" badge
-- **Student picker** -- loads registered student names from the "Students" tab via `get_students` endpoint
-- Selecting a student navigates to `src/examiner-panel.html?student={name}`, bypassing the setup screen
-
----
-
-### 3. `student-initial-test.html` -- Placement Test
-
-**Purpose:** Four-skill English proficiency placement test (Reading, Writing, Listening, Speaking). 80 marks total, 35 auto-graded, 45 requiring teacher review.
-
-#### Screens & Flow
-
-| # | Screen | Description |
-|---|--------|-------------|
-| 1 | **Cover** | Name, date, optional "Request a Video Call" button |
-| 2--3 | **Reading** | Intro + 10 MCQs on reading passages |
-| 4--5 | **Writing** | Intro + 4 tasks (passive voice, sentence combining, error correction, short writing) |
-| 6--7 | **Listening** | Intro + 4 MCQs, 1 multi-select, 1 dictation (browser TTS audio, 3-play limit) |
-| 8--9 | **Speaking** | Intro + 4 speaking prompts with preparation notes |
-| 10 | **Submitting** | Loading spinner |
-| 11 | **Results** | Time summary and confirmation |
-
-#### Scoring
-
-| Section | Auto | Teacher | Total |
-|---------|------|---------|-------|
-| Reading (Q1--Q10) | 20 | -- | 20 |
-| Writing (Q11--Q14) | -- | 25 | 25 |
-| Listening (Q15--Q20) | 10 | 5 | 15 |
-| Speaking (Q21--Q24) | -- | 20 | 20 |
-| **Total** | **30** | **50** | **80** |
-
-#### Key Features
-
-- **Name auto-filled** from hub, **date read-only** (auto-calculated)
-- **Optional video call** -- floating "Request a Video Call" button sends a request to the teacher, who replies with a meeting link; test can begin without connecting
-- **Listening stop button** with cumulative play-time tracking (main passage and dictation)
-- **Speech recording** on all speaking questions (Q21-Q24) with live transcript and pronunciation feedback
-- **Required + skip** -- all writing/speaking text fields are required, with "Skip this question" checkbox
-- **Session recovery** -- auto-saves every 5s; bilingual resume/start-over modal on page reload
-- **Tap-to-translate** -- default translation mode for the test (B1/B2 style)
-- **"Return to FluentPath"** button on results screen (re-take only via teacher-controlled hub setting)
-- **Real-time MCQ feedback**, word counter, browser TTS, dual submission (Formspree + Google Sheets)
-- **Mobile-optimised** with 48px touch targets, sticky nav, iOS zoom prevention
+| File | Role |
+|---|---|
+| `config.js` | `FP.WEBHOOK_URL`, the public `FP.APP_TOKEN` (not a secret, see the SEC-5 note in `apps-script.js`), environment detection (DEV banner off the production hosts), session helpers, `FP.LEVELS`, storage keys |
+| `api.js` | `FP.api.get`, `postRead` (form-encoded, readable response: the one to use for Apps Script), `postForm` (fire and forget), `postText`; injects token and session; an `Unauthorized` reply shows the login screen (never reloads the login page) |
+| `ui.js` | `FP.ui.bi(en, es)`, `es()`, `label()`, `setLevel()` (puts `fp-no-es` on `<html>` for B2 to C2), toasts, banners, `FP.icon()` hydration |
+| `call-request.js` | The video-call card: request, pending, join link, dismiss. Set up after login, once per student |
+| `password-reset.js` | The dialogs for forgot, set (from an email link) and change password |
+| `checkpoint.js` | Autosave every 5 s and the resume dialog (no auto-resume; Start over asks first) |
+| `hub-settings.js` | The Settings screen (topic requests with `get_my_focus` / `request_focus`, `submit_feedback`) |
 
 ---
 
-### 4. `student-course.html` -- Daily Lesson
+## Design system and Spanish
 
-**Purpose:** AI-powered 90-minute daily lesson with 7 sequential activities. Generated by the configured AI provider, personalised to CEFR level and day. No approval workflow -- lessons start immediately.
-
-#### 7-Step Lesson
-
-| Step | Type | Duration | Activities |
-|------|------|----------|------------|
-| 1 | Warm-Up | 10 min | Free-response prompt |
-| 2 | Vocabulary | 20 min | Word cards with TTS + practice writing |
-| 3 | Listening | 15 min | TTS passage (3-play limit) + MCQs |
-| 4 | Speaking | 20 min | Pronunciation drills (speech recognition) + free conversation |
-| 5 | Practice | 15 min | MCQ comprehension check |
-| 6 | Writing | 15 min | Guided task with word count |
-| 7 | Review | 5 min | Key takeaways + confidence self-assessment |
-
-#### Key Features
-
-- **Name, date, and level auto-filled** from hub; level grid locked when assigned by teacher
-- **No approval workflow** -- lessons start immediately
-- **Optional video call** -- floating "Request a Video Call" button sends a request to the teacher, who replies with a meeting link; lesson can begin without connecting
-- **Level-aware translation** -- A1/A2 gets bilingual AI content via `_es` keys; B1/B2 gets tap-to-translate
-- **41+ translated static strings** covering all UI text (step titles, buttons, status, feedback, labels)
-- **`tr()` runtime translation** for JS-set text at A1/A2 level
-- **Required + skip** -- all text questions required with "Skip this question" checkbox
-- **Listening stop button** with cumulative play-time tracking
-- **Pronunciation drills** use toggle recording (user clicks to start and stop); `continuous: true` mode prevents auto-cutoff; null-safe cleanup in `finishLesson`
-- **Browser compatibility check** -- speaking step detects unsupported browsers, shows bilingual warning, and disables recording buttons
-- **AI lesson generation via Apps Script → AI provider** -- each day's lesson is generated fresh by the configured provider (default `gemini-2.5-flash`) for the student's level, day, and topic; cached in localStorage by `fp_lesson_<level>_d<day>` so reloads don't re-bill the API
-- **Offline fallback library** -- 5 distinct lesson templates (appointments, shopping, workplace, health, family/community) cycled by `(day - 1) % 5`; an "offline" banner appears when the API is unavailable so the teacher notices
-- **Lesson generation timeout** -- 60-second `FP.api.get` abort prevents infinite loading; falls through to the offline library on error
-- **Session recovery** -- auto-saves lesson content and progress every 5s
-- **Course day tracking** -- uses `fp_last_lesson_day + 1`, not day of month
-- **Lesson complete** links back to hub with "View Progress & Next Lesson" (hidden until save finishes); save overlay blocks navigation during save
-- **Save verification** -- reads back progress from sheet to confirm the save landed; shows warning if not found
-- **Forward-only navigation** -- Back button removed to prevent answer loss
-- **90-minute countdown timer** with visual warning when <10 min remain
+- **Tokens** in `tokens.css` (navy `#1E2A38`, cream, ice, coral, green; Montserrat, self-hosted, no third-party requests) and **components** in `components.css` (`fp-btn`, `fp-card`, `fp-field`, `fp-banner`, `fp-scrim` and `fp-modal`, `fp-header`, `fp-mic-btn`, `fp-answer`, and more). `src/design-system.html` renders every component and state.
+- **Icons:** Material Symbols Rounded, weight 400, generated into `icons.js` (`FP.icon('mic')` or `<i data-icon="mic">`); no emoji. Answer verdicts are always a word plus an icon, never colour alone.
+- **Accessibility and touch:** controls are at least 44px, form controls 16px (no iOS zoom), focus rings are outlines, status messages use `role="status"` or `alert`.
+- **Spanish rule.** Static markup: `English<span class="fp-bi__es" lang="es">Español</span>` (a block under the English). B2, C1 and C2 get `fp-no-es` on `<html>`, which hides every Spanish line. Attributes that cannot hold markup use `data-ph-es` and friends, or `FP.ui.label(en, es)`. AI lessons carry `*_es` fields shown the same way. All Spanish copy was written by Claude and needs a native read: `src-files/spanish-review/` (outside the repo) turns every Spanish string into a plain-text CSV and writes corrections back.
 
 ---
 
-### 5. `examiner-panel.html` -- Teacher Dashboard
+## Backend (Apps Script)
 
-**Purpose:** All-in-one teaching dashboard. Manages both placement test marking and daily course operations for one student.
+One `doGet` and one `doPost` dispatch through tables (`GET_HANDLERS`, `POST_HANDLERS`). POST handlers run under a script lock; the AI summary is exempt.
 
-#### Panels
+### Setup (Script Properties)
 
-| # | Section | Panel | Description |
-|---|---------|-------|-------------|
-| -- | -- | **Setup** | Fallback student name entry (normally bypassed via teacher portal student picker) |
-| 1 | Lessons | **Dashboard** | Stats grid, progress bars, activity feed, teacher notes |
-| 2 | Lessons | **Attendance** | 20-day clickable grid (present/absent/unmarked), synced to Google Sheets |
-| 4 | Grading | **Grade Placement Test** | Load test from Google Sheets, auto-score reading/listening, manual sliders for writing/speaking, CEFR calculation, save to Sheets |
-| 5 | Grading | **Grade Lessons** | Daily lesson submission grading — Writing tab (warmup + vocab + writing task, 25pts), Speaking tab (transcript + audio drills, 20pts), All Responses tab (listening + comprehension with colour-coded chips), Final Score (all four skills combined) |
-| 6 | Marking | **Weekly Summaries** | 4-week skill assessments + AI-generated narrative summaries |
-| 7 | Course | **Adjust Difficulty** | 6 sliders (vocabulary, grammar, speaking, writing, listening, sentence complexity) + focus area tags |
-| 8 | Course | **Progress Tracker** | Lesson-by-lesson record table, skills snapshot with progress bars |
-| 9 | Course | **Lesson Library** | 6 × 20 coverage grid colour-coded by entry count; click any cell to list, preview, or soft-delete library entries; stats: total entries, times recycled, days seeded |
-| 10 | Student | **Student Profile** | Settings form (name, email, CEFR level, course month, notes) + permission toggles (allow Spanish, skip test, retake test) synced to Google Sheets |
+| Property | Required | Purpose |
+|---|---|---|
+| `APP_SECRET` | yes | App token (public by design, a speed bump only). Must match `FP.APP_TOKEN` |
+| `PW_PEPPER` | yes | Pepper for password hashing and the signing key for reset and welcome links |
+| `AUTH_ENFORCED` | yes (`true`) | Every write needs a valid session |
+| `AI_API_KEY` | yes | Key for the AI provider |
+| `AI_PROVIDER` / `AI_MODEL` | no | `gemini` (default), `anthropic` or `openai`; default model `gemini-2.5-flash` |
+| `STUDENT_URL` / `TEACHER_URL` | no | Base URLs used in emailed links (defaults to the production sites) |
+| `STRIPE_SECRET`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` | when payments are on | Checkout and the signed webhook |
+| `TEACHER_SECRET` | legacy | Only used while `AUTH_ENFORCED` is off |
 
-#### Placement Test Marking (Panel 4)
+### Accounts and sessions
 
-Pulled directly from the "Initial Test Results" Google Sheets tab (no email pasting required):
-- **Auto-scored:** Reading Q1--Q10 and Listening Q15--Q19 with colour-coded chips
-- **Manual sliders:** Writing Q11--Q13 (0--5 each), Q14 with 4 sub-criteria (0--2.5 each), Speaking Q21--Q24 (0--5 each), Dictation Q20 (0--5)
-- **CEFR calculation:** Automatic level assignment from total score
-- **Save to Sheets:** Exports graded results to "Examiner Results" tab
+Passwords are salted, peppered, iterated SHA-256. Login creates a server-side session (students about 30 days, teachers about 12 hours); only a hash of the token is stored. Logins are throttled (10 failures per email per 15 minutes). Identity always comes from the session: for a student session the server overwrites `student_name`. Teachers act through a teacher session; the old public teacher token is gone. The full per-action authorisation table is the SEC-5 comment above `TEACHER_ACTIONS` in `apps-script.js`.
 
-#### Key Features
+### Actions (overview)
 
-- **Video call** -- pending call-request panel; teacher pastes a meeting link (Zoom, WhatsApp, Meet, etc.) that the student can then join
-- **localStorage persistence** under `fluentpath_teacher` key with auto-save; textarea values (notes, feedback) also restored on reload
-- **AI-powered weekly summaries** via Apps Script proxy (server-side AI provider call)
-- **Webhook URL hardcoded** -- no user configuration needed
-- **No approval workflow** -- lessons start directly, approvals panel removed
-- **Auto-populate grading** -- placement test and lesson submissions auto-load when panels open; previously graded scores restored from Google Sheets (individual question scores, breakdowns, notes) with localStorage fallback
-- **Lesson picker** -- dropdown populated from `get_all_submissions` endpoint; jump to any submitted day; shows graded/ungraded status per entry
-- **Graded/ungraded badge** -- pill badge on submission header shows current grading status
-- **All Responses tab** -- listening and comprehension answers displayed as colour-coded chips (green ✓ correct, red ✗ incorrect) matching placement test styling
-- **Combined final score** -- lesson total includes Writing (/25) + Speaking (/20) + Listening + Comprehension auto-scores
-- **Save overlay** -- full-screen blocking overlay during all async saves (grades, attendance, placement test results)
-- **Dashboard stats** -- days completed, attendance %, avg lesson time, lessons graded; recent activity feed with last 5 lessons
-- **Google Sheets sync** -- fetches course progress on init, merges with localStorage, syncs CEFR level changes
-- **Skills snapshot** -- vocabulary, speaking, writing, and listening progress bars derived from marks and weekly summary ratings
-- **Course day tracking** -- uses actual attendance/lesson count, not calendar day
-- **Google Sheets integration** for marks and settings (via `safeAppendRow` for column-safe writes; `upsertByStudent` for Examiner Results to avoid duplicates)
-- **Course permission toggles** -- allow Spanish UI, skip placement test, retake placement test; synced to Google Sheets Settings tab via `update_settings`
-- **Reset grading data** button on the placement test panel for clearing corrupted or stale scoring state
-- **Demo data** built in for testing without live data
+| Who | Actions |
+|---|---|
+| Anyone with the app token | `login`, `logout`, `request_reset`, `reset_password` (signed single-use token), `request_account` |
+| Any session | `change_password`, `request_my_reset`, `update_call_status` |
+| Student session | `submit_test`, `save_progress` (course access checked), `save_audio`, `request_video_call`, `create_checkout`, `request_focus`, `submit_feedback`; reads such as `get_progress`, `get_settings`, `generate_lesson`, `get_my_focus`, `get_active_call_request` |
+| Teacher session | `create_account`, `archive_student`, `restore_student`, `delete_student`, `save_marks`, `save_attendance`, `update_settings`, `update_teacher_settings`, `review_focus`, `send_call_link`, `update_account_request`, `update_feedback`, `promote_student`, `delete_library_entry`, `ai_summary`; reads such as `get_students`, `get_class_overview`, `get_student_profile`, `get_teacher_settings`, `get_focus_requests`, `get_account_requests`, `get_feedback`, `get_archived_students`, `get_audio`, `get_library`, `get_errors` |
+| Stripe | `?stripe=1` webhook: signature checked, replay-guarded, unlock confirmed by a server-to-Stripe re-fetch |
+
+Health check: `…/exec?action=health` returns `status`, the sheet name, which secrets are set, the AI provider and **`version`** (`BACKEND_VERSION`, bumped on every deploy).
+
+### Behaviour worth knowing
+
+- **Email** (MailApp) goes to the one notification address saved in the teacher's Settings: call requests, test and lesson submissions, account requests, topic requests, feedback. Students get call links and the welcome email. Welcome and reset links are signed tokens (7 days and 24 hours), single-use.
+- **AI lessons:** a provider-adapter layer; Gemini thinking is pinned off and the token limit is 8192 so lessons are not truncated; the server rate-limits generation per student.
+- **Recordings** are stored under `FluentPath Audios/<student>/<Lesson n or Placement Test>` and are readable only through the teacher-only `get_audio`.
+- **Delete a student** removes their rows from every tab and moves their Drive folder to the Drive trash (about 30 days there); the daily spreadsheet backups (7 kept) keep a copy until they rotate out.
+- **Topic requests** are suggestions: approved topics reach the lesson prompt as a preference, never as an instruction.
+- **Caching:** progress and settings use `CacheService` (5 minutes) and are invalidated on every write. Plain numbers are written to the sheet (Sheets would parse "10 / 20" as a date).
 
 ---
 
-## Shared Utilities
+## Google Sheets schema
 
-### `config.js` -- Shared Configuration
-
-- **Webhook URL** -- single source of truth for the Google Apps Script endpoint (previously duplicated in 5 files)
-- **Formspree endpoint** -- email delivery endpoint
-- **CEFR level metadata** -- `FP.LEVELS` with name, theme, and colour for each level (A1--C2)
-- **localStorage keys** -- `FP.KEYS` with standardised key names
-
-### `api.js` -- Shared Fetch Wrapper
-
-- **`FP.api.get(url, options)`** -- GET request with 30-second timeout, returns parsed JSON; throws on non-OK response
-- **`FP.api.postForm(url, payload, options)`** -- POST form-urlencoded in `no-cors` mode for Google Apps Script webhooks; auto-encodes payload with optional value length limit (`maxValueLength`, default 2 000)
-- **`FP.api.postJson(url, payload, options)`** -- POST JSON with readable response (Formspree, Apps Script proxy); returns parsed JSON
-- **`FP.showSaveOverlay(msg)`** / **`FP.updateSaveOverlay(msg)`** / **`FP.hideSaveOverlay()`** -- full-screen blocking overlay with spinner; prevents interaction during async saves across all pages
-- All methods use `AbortController` with a configurable timeout (default 30 seconds)
-
-### `utils.js` -- Shared Utilities
-
-- **`escHtml()`** -- HTML-escapes a string for safe `innerHTML` insertion (previously duplicated in 3 files)
-
-### `theme.css` -- Shared Design Tokens
-
-- **CSS custom properties** -- all colour variables (ink, paper, cream, rust, gold, etc.) defined once
-- **Google Fonts import** -- Playfair Display + Source Serif 4 loaded once instead of per-page
-
-### `call-request.js` -- Video Call Requests
-
-- **`CallRequest.init({page, dayNumber})`** -- wired into the hub, placement test, and daily lesson on `DOMContentLoaded`
-- **Student flow:** floating "Request a Video Call" button POSTs `request_video_call`; button becomes "Request pending…" with a manual Refresh link
-- **Join link:** when the teacher sends a link, a green banner appears at the top of the page with "Join Call" + Dismiss; the floating button transforms to "Join Teacher's Call"
-- **Polling:** on page load + tab focus + manual refresh (no continuous polling); student can Dismiss to clear the request at any time
-- **Teacher side:** the dashboard surfaces pending requests and lets the teacher paste a meeting link (Zoom, WhatsApp, Meet, etc.) or Mark as Done
-
-### `mobile.css` -- Mobile-First Enhancements
-
-- **iOS zoom prevention:** 16px minimum font-size on all inputs
-- **Touch targets:** 48px minimum height (WCAG compliant)
-- **Sticky bottom navigation** on mobile for thumb-reachable Continue/Back buttons
-- **Full-width buttons**, slimmer topbar (46px), small-phone breakpoint (380px)
-- **Desktop hover enhancements** gated behind `(hover: hover)`
-
-### `i18n.js` -- Level-Aware Spanish Translation
-
-See [Level-Aware Translation System](#level-aware-translation-system) below.
-
-### `checkpoint.js` -- Session Recovery
-
-- **Auto-saves every 5 seconds** plus immediate save on screen/step navigation
-- **Bilingual recovery modal** (English + Spanish) with time-ago indicator on page reload
-- **60-second auto-resume countdown** with shrinking progress bar -- prevents sessions from staying stuck on the modal if student walks away
-- **ESC key dismisses** the modal (resumes by default)
-- **Placement test:** Saves screen, all MCQ and text answers, play counts, task choice
-- **Course lesson:** Saves step, answers, full AI-generated lesson content, elapsed timer
-- **Clears automatically** on successful submission or completion
-
----
-
-## Level-Aware Translation System
-
-Translation behaviour adapts to the student's CEFR level:
-
-| Level | Mode | Behaviour |
-|-------|------|-----------|
-| **A1 / A2** | Spanish-primary | UI displayed in Spanish. English shown as smaller italic help text below each element. Placeholders swapped to Spanish. |
-| **B1 / B2** | Tap-to-translate | UI in English. Translatable text has a dotted underline. Tap/click shows a dark tooltip with the Spanish translation (auto-dismisses after 4 seconds). |
-| **Placement test** | Tap-to-translate | Same as B1/B2 (level not yet known). |
-| **C1** | Teacher-gated | UI in English. A small toggle appears in the top-right corner, greyed out until the teacher enables `allow_spanish` in Google Sheets. Once approved, clicking the toggle activates tap-to-translate. |
-| **C2** | English-only | No translation features. Section icons still shown as visual cues. |
-
-**120+ translated strings** covering buttons, headings, instructions, form labels, placeholders, status messages, activity labels, level names, and confidence ratings.
-
-**Section icons** (📖 ✍️ 🎧 🗣️ ☀️ 📝 💪 📋) auto-injected next to section headings in all modes.
-
-**MutationObserver** re-applies translations when the DOM changes dynamically (lesson steps, hub dashboard, etc.).
-
----
-
-## Shared Design System
-
-| Element | Value |
-|---------|-------|
-| **Background** | `#f5f0e8` (warm cream) |
-| **Text** | `#1a1208` (dark ink) |
-| **Primary accent** | `#b8471e` (rust) |
-| **Secondary accent** | `#c9933a` (gold) |
-| **Success** | `#2e6e45` (green) |
-| **Info** | `#1e4d8c` (blue) |
-| **Borders** | `#c8bfa8` (rule) |
-| **Muted text** | `#6b5f4e` |
-| **Heading font** | Playfair Display (serif, 400/700) |
-| **Body font** | Source Serif 4 (serif, 300/400/600) |
-| **Max content width** | 680--900px |
-| **Animation** | `fadeIn` 0.25--0.3s ease with `translateY` |
-| **Responsive breakpoints** | 380px (small phone), 600px (mobile/tablet) |
-
-Print-inspired, academic, warm -- designed to feel calm and professional for adult learners.
-
----
-
-## Integration Points
-
-### Google Sheets (via Apps Script Webhook)
-
-| File | Direction | Data |
-|------|-----------|------|
-| `app.html` | Sends / Receives | Student progress + teacher settings; auto-registers new students in Students tab |
-| `teacher.html` | Receives | Student list from Students tab (via `get_students`) |
-| `student-initial-test.html` | Sends | Test answers, scores, timing |
-| `student-course.html` | Sends / Receives | Lesson requests, approval polling, completion data |
-| `examiner-panel.html` | Sends / Receives | Marks, approvals, settings, test results fetch, CEFR level |
-
-**Authentication:** All API requests require an `APP_SECRET` token (set in Script Properties). Teacher-only endpoints (grading, settings, attendance, library management) additionally require a `TEACHER_SECRET`. Tokens are auto-injected by `api.js`. See `src/scripts/config.local.js` for frontend setup.
-
-**Performance:** GET endpoints use `CacheService` (5-minute TTL) for student progress and settings. `TextFinder` is used for targeted row lookups instead of full-sheet scans. POST handlers automatically invalidate the cache for the affected student.
-
-**Validation:** All POST endpoints validate required parameters and return clear error messages for missing/invalid input. Errors are logged server-side in an "Error Log" sheet tab.
-
-Full schema documented in the [Google Sheets Schema](#google-sheets-schema) section below.
-
-### AI Provider (pluggable) -- via Apps Script Proxy
-
-All AI calls run **server-side** through the Apps Script proxy (keeping the API key off the client) and are routed through a small provider-adapter layer. Switch providers by changing Script Properties only — no code change. Supported providers: **Gemini** (default), **Anthropic**, and **OpenAI**.
-
-| File | Usage |
-|------|-------|
-| `student-course.html` | AI-generated daily lessons via the `generate_lesson` GET action; cached per (level, day) in localStorage |
-| `examiner-panel.html` | AI-drafted weekly summary narratives (routed through the Apps Script `ai_summary` action) |
-
-**Setup:** the Apps Script project requires these **Script Properties** (Project Settings → Script Properties → Add):
-
-| Property | Required | Description |
-|----------|----------|-------------|
-| `AI_API_KEY` | Yes | API key for the chosen provider |
-| `APP_SECRET` | Yes | Random 32-char string shared with frontend `config.local.js` |
-| `TEACHER_SECRET` | Yes | Separate secret for teacher-only endpoints |
-| `AI_PROVIDER` | No | `gemini` (default), `anthropic`, or `openai` |
-| `AI_MODEL` | No | Override default model (default: `gemini-2.5-flash`) |
-
-See the header comment in `apps-script.js` for full deployment steps.
-
-### Video Calls (student-initiated request system)
-
-Students request a call via a floating "Request a Video Call" button; the teacher responds from the dashboard with their preferred link (Zoom, WhatsApp, Meet, etc.). See the CHANGELOG `[0.44.0]` entry for the full flow.
-
-| File | Mechanism |
-|------|-----------|
-| `app.html` | "Request a Video Call" floating button (via `call-request.js`) |
-| `student-initial-test.html` | "Request a Video Call" floating button (via `call-request.js`) |
-| `student-course.html` | "Request a Video Call" floating button (via `call-request.js`) |
-| `examiner-panel.html` | Pending-request panel + Send Link / Mark as Done controls |
-
-### Web Speech API (Browser)
-
-| File | Speech Synthesis | Speech Recognition |
-|------|-----------------|-------------------|
-| `student-initial-test.html` | Listening passages + dictation audio | -- |
-| `student-course.html` | Vocabulary pronunciation + listening passages | Pronunciation drills + free conversation |
-
-### Formspree (Email)
-
-| File | Usage |
-|------|-------|
-| `student-initial-test.html` | POSTs test results as JSON to Formspree endpoint |
-| `examiner-marking.html` | Legacy: parses Formspree emails to import test data |
-
-### localStorage (Client-Side)
-
-| Key | Purpose | Set By |
-|-----|---------|--------|
-| `fp_student_name` | Student auto-login on hub | Hub, test, course |
-| `fp_test_completed` | Test completion flag | Test |
-| `fp_cefr_level` | Assigned CEFR level | Course |
-| `fp_last_lesson_day` | Course progress (day number) | Course |
-| `fp_last_lesson_date` | Last lesson date | Course |
-| `fp_course_id` | Active course number (default 1) | Hub |
-| `fp_hub_cache` | Cached hub progress + settings | Hub |
-| `fp_achievements` | Earned achievement IDs | Hub |
-| `fp_ckpt_test` | Placement test checkpoint | checkpoint.js |
-| `fp_ckpt_lesson` | Course lesson checkpoint | checkpoint.js |
-| `fluentpath_teacher` | Full teacher dashboard state | examiner-panel.js |
-
----
-
-## Google Sheets Schema
-
-The full database schema covers 10 tabs:
+Tabs are created on first use; headers are defined in `HEADERS` in `apps-script.js`.
 
 | Tab | Purpose |
-|-----|---------|
-| **Initial Test Results** | Raw student test submissions |
-| **Examiner Results** | Graded test results with CEFR levels, individual question scores (`score_q11`--`score_q24`), and per-question notes |
-| **Course Progress** | Completed daily lesson records (with `course_id` for multi-course) |
-| **Settings** | Teacher preferences, difficulty profiles, notification settings, `course_id` |
-| **Lesson Marks** | Graded daily lesson scores (with `course_id`) |
-| **Students** | Registered student names and join dates (auto-populated on first hub visit) |
-| **Lesson Library** | AI-generated lesson cache for recycling |
-| **Attendance** | Per-student attendance JSON and absence notes |
-| **Vocabulary Tracker** | SRS word tracking per student (word, intervals, next review date) |
-| **Error Log** | Server-side error log with timestamp, action, student, message |
+|---|---|
+| **Accounts**, **Sessions** | Logins (email, role, salted hash, `active`) and hashed session tokens |
+| **Students** | Student names and join dates (the teacher's list) |
+| **Settings** | Per student: level, permissions, notes, difficulty, notification flags, `access_granted`, payment fields |
+| **Teacher Settings** | The teacher's name and notification email |
+| **Initial Test Results**, **Examiner Results** | Placement test submissions and graded results |
+| **Course Progress**, **Lesson Marks** | Completed lessons and the teacher's marks |
+| **Attendance**, **Vocabulary Tracker** | Attendance JSON; spaced-repetition words |
+| **Lesson Library** | Reusable generated lessons per level and day |
+| **Video Call Requests** | Requests, links and status |
+| **Focus Requests** | Topic requests and the teacher's decision |
+| **Account Requests** | Brochure requests (new, created, dismissed) |
+| **Feedback** | Bug reports and feature ideas (new, done) |
+| **Error Log** | Server errors |
 
 ---
 
-## Technology Stack
+## Teacher site
 
-- **Frontend:** Pure HTML, CSS, and vanilla JavaScript (no frameworks)
-- **Code Quality:** ESLint 9 + Prettier + vitest (45 tests); CI/CD via GitHub Actions
-- **Backend:** Google Apps Script (web app) with clasp version control (`npm run clasp:deploy`)
-- **Offline:** Service worker with cache-first app shell, stale-while-revalidate API, IndexedDB POST queue
-- **AI:** Pluggable provider (Gemini / Anthropic / OpenAI) via server-side proxy; default `gemini-2.5-flash` for lessons and summaries
-- **Database:** Google Sheets (10 tabs) with CacheService + TextFinder optimisation
-- **Styling:** CSS custom properties (WCAG AA), Flexbox, CSS Grid, media queries, shared `mobile.css`
-- **Fonts:** Google Fonts (Playfair Display, Source Serif 4)
-- **APIs:** AI provider (Gemini / Anthropic / OpenAI), Google Apps Script, Formspree, Web Speech API (TTS + STT)
-- **Storage:** localStorage (checkpoints, preferences, achievements), Google Sheets (shared persistence)
-- **Translation:** Level-aware Spanish with 4 modes (spanish-primary, tap-to-translate, teacher-gated, english-only)
-- **Email:** Formspree (test results) + MailApp (teacher/student notifications)
-- **Hosting:** GitHub Pages at [sgalindo88.github.io/fluentpath](https://sgalindo88.github.io/fluentpath/)
-- **Local Dev:** DDEV + `npm run dev` with auto-detected staging environment
+The teacher dashboard lives in the `fluentpath-teacher` repo (`teacher.fluentpath.ca`): the portal (login, student list, account requests, student feedback, archived students, create account) and the dashboard (class overview, attendance, grade placement test, grade lessons, weekly summaries, adjust difficulty and topic requests, progress tracker, lesson library, student profile with archive and delete, teacher settings). The teacher UI is English only. See that repo's README.
 
 ---
 
-## CEFR Level Reference
+## Offline and the service worker
+
+`sw.js` is network-first for HTML, CSS and JS (a page never mixes two deploys), keeps a shell for offline use, and queues writes in IndexedDB for replay (never auth requests or anything with a password). Bump `CACHE_VERSION` in `sw.js` on every frontend change that must reach returning visitors; the teacher service worker is **generated** and its version is `TEACHER_CACHE_VERSION` in `scripts/sync-shared.mjs`.
+
+---
+
+## Tests, tooling and CI
+
+| Command | What it does |
+|---|---|
+| `npm test` | Unit tests (vitest): backend logic against an in-memory spreadsheet, auth, Stripe, security, submissions, service worker, icons, CSS guards, PWA |
+| `npm run test:ui` | Browser tests (Playwright with Chromium) against a stubbed backend: hub, placement test, lesson, brochure, and the teacher site when it sits next to this repo |
+| `npm run lint` | ESLint 9 over `src/scripts/` |
+| `npm run format:check` | Prettier over scripts, styles and root pages (not `tests/` and not the teacher repo) |
+| `npm run sync` / `sync:check` | Copy shared files to the teacher repo / fail on drift |
+| `npm run icons` / `icons:check` | Regenerate / verify `icons.js` |
+| `npm run dev` | Static server for local work (`config.local.js` can point at a dev backend) |
+
+CI (`.github/workflows/ci.yml`) runs lint, format check, unit tests and the browser tests.
+
+---
+
+## Working and deploying
+
+1. Work on a short-lived branch in each repo; keep tests green (`npm test`, `npm run test:ui`, lint, `format:check`, `sync:check`, `icons:check`).
+2. **Backend changed?** Bump `BACKEND_VERSION`, then `npx clasp push -f`, `npx clasp create-version "<description>"`, `npx clasp deploy -V <n> -i <deployment id> -d "<version>"`, and check `?action=health` shows the new version. Always deploy to the existing deployment id so the `/exec` URL stays the same; do not use `npm run clasp:deploy`.
+3. Merge fast-forward only and push **student `master`** and **teacher `main`** (GitHub Pages; allow about 10 minutes for caches, then hard refresh).
+4. Add a CHANGELOG entry for the release.
+
+The project's review, plan and history live in a tracker kept outside the repos (`src-files/docs/review-2026-10.md`).
+
+---
+
+## CEFR level reference
 
 | Level | Name | Theme | Description |
-|-------|------|-------|-------------|
+|---|---|---|---|
 | **A1** | Beginner | Everyday Survival | Basic greetings, numbers, daily routines |
 | **A2** | Elementary | Community & Life | Shopping, directions, social interactions |
 | **B1** | Intermediate | The Workplace | Job interviews, emails, workplace communication |

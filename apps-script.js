@@ -1,22 +1,29 @@
 /* ═══════════════════════════════════════════════════════════════
    FluentPath — Google Apps Script (Web App)
    ─────────────────────────────────────────────────────────────
-   Deployment:
-     1. Open script.google.com → create or edit project
-     2. Paste this entire file into Code.gs
-     3. Set Script Properties (Project Settings → gear icon → Script Properties):
-          AI_API_KEY:      (API key for your chosen AI provider)
-          APP_SECRET:      (random 32-char string — shared with frontend config.local.js)
-          TEACHER_SECRET:  (separate random string — only given to teachers)
+   Deployment (the owner deploys; see the README, "Working and deploying"):
+     1. Backend changes: bump BACKEND_VERSION below, then
+          npx clasp push -f
+          npx clasp create-version "<description>"
+          npx clasp deploy -V <n> -i <existing deployment id> -d "<version>"
+        (always the existing deployment id, so the /exec URL never changes; never
+        `npm run clasp:deploy`). Check ?action=health reports the new version.
+     2. Script Properties (Project Settings → gear icon → Script Properties):
+          APP_SECRET:      random string, same value as FP.APP_TOKEN in config.js
+                           (public by design: a speed bump, not authorization)
+          PW_PEPPER:       random string; hashes passwords and signs reset/welcome links
+          AUTH_ENFORCED:   true
+          AI_API_KEY:      API key for your AI provider
         Optional:
           AI_PROVIDER:     gemini (default) | anthropic | openai
           AI_MODEL:        model id (default: gemini-2.5-flash)
-     4. Deploy → New deployment → Web app
-        - Execute as: Me
-        - Who has access: Anyone
-     5. Copy the deployment URL and use it in the platform
-     6. In the frontend, create src/scripts/config.local.js (gitignored) and set
-        FP.APP_TOKEN and FP.TEACHER_TOKEN to match the Script Properties
+          STUDENT_URL, TEACHER_URL: base URLs used in emailed links
+          STRIPE_SECRET, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET: payments
+          TEACHER_SECRET:  legacy, only used while AUTH_ENFORCED is off
+     3. Web app settings: Execute as Me; Who has access: Anyone (anonymous), which
+        appsscript.json already declares.
+     4. Local dev: create src/scripts/config.local.js (gitignored) to point
+        FP.WEBHOOK_URL / FP.APP_TOKEN at a separate dev deployment.
 
    Handles all GET (reads + AI lesson generation) and POST (writes) for FluentPath.
    ═══════════════════════════════════════════════════════════════ */

@@ -4,6 +4,92 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.57.0] - 2026-10-13
+
+### Added — Archive and permanently delete a student (backend 0.57.0 = Apps Script v65)
+- **`archive_student` / `restore_student` / `get_archived_students`** (teacher only). Archive switches the student's login off (`Accounts.active = false`), revokes their sessions and hides them from the student list, the class overview and the pending call and topic notices. Nothing is erased; restore undoes it. `get_student_profile` returns `archived`.
+- **`delete_student`** (teacher only, needs the student's name typed as `confirm_name`). Erases the student's rows in Initial Test Results, Examiner Results, Course Progress, Settings, Focus Requests, Feedback, Lesson Marks, Students, Attendance, Vocabulary Tracker, Video Call Requests, Accounts and Sessions, plus any brochure request they made; blanks `source_student` in the Lesson Library (the lessons stay); moves the Drive folder `FluentPath Audios/<student>` to the Drive trash. Refuses teacher accounts. The daily spreadsheet backups and the Drive trash keep the data until they rotate out.
+- **Teacher UI:** Student Profile gets an "Archive or delete this student" card (in-page confirmation, typed name for delete, progress and result messages); the portal gets an "Archived students" list with Restore and Open.
+
+## [0.56.0] - 2026-10-13
+
+### Added — Welcome email for new students (backend 0.56.0 = v65)
+- Creating a student emails them (English, then Spanish) a "Set my password" link that works for 7 days (the signed single-use reset token with a longer life, `WELCOME_TTL_MS`). The password field is now optional for students (a random one is set); teacher accounts still need one and get no email.
+- `sendNotificationEmail` returns true or false; `create_account` returns `emailed`, so the portal says whether the email went and what to do if not. The video-call-link "emailed" flag now reports the real outcome.
+
+## [0.55.0] - 2026-10-13
+
+### Added — Brochure account requests, student feedback, topic decision table (backend 0.55.0 = v64)
+- **Brochure:** the main button is now "Request a free account" (it used to promise the test but led to a login). A short form (name, email, optional message, EN/ES) calls the public **`request_account`** action: validated, throttled (3 per email per day, 40 per day overall), honeypot field, quiet success for existing accounts and waiting requests, saved to the new **Account Requests** sheet and emailed to the teacher. "Already have an account? Log in" stays as a text link.
+- **Teacher portal:** an "Account requests" card (Create account prefills the form, Dismiss) and a "Student feedback" card (Mark done / Reopen). New teacher-only actions `get_account_requests`, `update_account_request`, `get_feedback`, `update_feedback`; `create_account` closes the matching request.
+- **Student Settings:** "Report a problem" and "Suggest a feature" cards, sent with `submit_feedback` (student session, throttled, device string stored, teacher emailed) to the new **Feedback** sheet.
+- **Fixed:** a declined topic request offered Approve again. Adjust Difficulty now shows a table (Asked, Topics, Decision) and only a waiting request has buttons.
+
+## [0.54.0] - 2026-10-13
+
+### Added — Student Settings and topic requests (backend 0.54.0 = v63)
+- Settings screen on the student hub (gear button): choose up to 5 topics and a short note, sent as a **Focus Request** (`request_focus`, student session). The teacher approves or declines (`review_focus`) on the dashboard and in Adjust Difficulty and gets an email. An approved request becomes `difficulty.studentFocus` for lesson generation only (suggestions; the note is treated as a topic preference, never as an instruction) and such lessons skip the shared library. New sheet **Focus Requests**.
+- Password change moved into Settings.
+- **Placement test:** it no longer reveals whether an answer was right (the chosen option shows "Saved"; scoring and the teacher's view are unchanged). Task instructions, the two writing options and the four speaking prompts now have Spanish under the English (frontend only).
+
+## [0.53.0] - 2026-10-13
+
+### Added — Teacher Settings; sheet-backed student profile (backend 0.53.0 = v62)
+- **Teacher Settings** page: name (shown to every student), the one notification email used for ALL notifications, password. New sheet **Teacher Settings**; `teacherContact()` supplies name and email (most recent row, else the first teacher account).
+- The teacher's Student Profile now loads from the sheet (`get_student_profile`) instead of local storage, so course permissions persist across devices; the Teacher card and email field are gone from it.
+- "Mark as Done" on a call shows its progress and result; "open dashboard" on a pending call opens the Video Call card; the email label shows `*` for required.
+
+## [0.52.0] - 2026-10-13
+
+### Added — Students change their own password (backend 0.52.0 = v61)
+- **`change_password`** (any session, needs the current password; wrong guesses count as login failures; all sessions are revoked and a fresh one returned) and **`request_my_reset`** (emails a reset link to the signed-in account). The shared `password-reset.js` gained a "change" view used by students and teachers.
+
+## [0.51.0] - 2026-10-13
+
+### Fixed — Problems from the iPad and iPhone dress rehearsal (backend 0.51.0 = v60)
+- Sheet scores are plain numbers (Sheets parsed "10 / 20" as a date); listening is out of 10; writing and speaking are "Pending" until graded.
+- The video call link is also emailed to the student (`studentEmailFor`; GET `get_student_contact`); the student's email is prefilled and required in the profile.
+- The call button shows "Sending request" once and ignores repeat taps.
+- Recordings stop when the page is hidden (iPad Home or lock) with a clear message; the lesson pauses safely.
+- The "How did it go?" face rating is required to finish a lesson; "Hear the model" shows a playing state; the hub has a Log out button; the Grade Lessons "Ungraded" badge updates after saving; the attendance "today" marker is more visible.
+
+## [0.50.0] - 2026-10-13
+
+### Changed — New accounts appear in the teacher's list; the reskin goes live (backend 0.50.0 = v59)
+- **Backend:** `create_account` also adds the student to the Students tab (idempotent, teachers excluded), so a new student shows in the teacher list at once.
+- **Frontend (deployed the same day, no backend change):** Phases B and C, the full visual rebuild on a design system: tokens and Montserrat (self-hosted, no Google Fonts), `fp-` components, a generated Material Symbols icon set instead of emoji, bilingual copy under the English for A1 to B1 and unplaced students (B2 and above English only), answer verdicts as word plus icon, a resume dialog on the shared modal, the brochure, the teacher portal and dashboard (navy rail, off-canvas menu under 768px, in-page confirmations), and a component sheet (`src/design-system.html`).
+- **Fixed:** `app.html` could reload in a loop when a device had a name but no valid session (login pages now show the login screen instead of redirecting to themselves); the student and teacher log in pages link back to the brochure.
+- **Tooling:** Playwright browser tests (`npm run test:ui`, stubbed backend), prettier with a CI `format:check`, an icon generator (`npm run icons`).
+
+## [0.49.0] - 2026-10-12
+
+### Added — Placement-test speaking is recorded (backend 0.49.0 = v58)
+- Q21 to Q24 of the placement test are recorded and uploaded to Drive, with the transcript in the row and playback in the teacher panel (previously only typed notes were stored).
+- The placement test and the lessons use the same voice (`speakEnglish`); the test's `submitted_at` is stamped on the server (`yyyy-MM-dd HH:mm:ss`).
+
+## [0.48.0] - 2026-10-12
+
+### Fixed — Server authority, security batch (backend 0.48.0 = v57)
+- The server decides level, course, day and topic (FLOW-1, N-7, N-9, DATA-3, FLOW-2b, N-15, N-11), so stale local storage can no longer skip or repeat a lesson.
+- Session tokens are stored hashed (N-6); recordings are filed under the session identity (N-10) and `speaking_audio_json` is validated (N-2); login throttling no longer counts successes (N-16); SEC-6 and SEC-7 (no catch-all POST, explicit `submit_test`); recording no longer depends on speech recognition (IOS-1b/c). All sessions were invalidated once.
+
+## [0.47.0] - 2026-10-12
+
+### Fixed — Student path (backend 0.47.0 = v56)
+- Verify saves by an opaque `submission_id` for the placement test (DATA-2) and each lesson (N-12, DATA-6) with a Retry button; `answers_json` is always valid JSON (DATA-5); local dates instead of UTC (N-14); the offline POST queue drains safely and never queues auth (N-3, SW-2, SW-3); the student reset link goes to `app.html?reset=` (N-4); the session is sent with `save_audio` (N-1).
+
+## [0.46.0] - 2026-09-11
+
+### Added — Accounts, payments, public site and Sprint 0 (June to September 2026; first version with `BACKEND_VERSION`)
+- **Accounts and sessions** (June): Accounts and Sessions sheets, salted and peppered hashed passwords, `login` / `logout` / `create_account`, server-derived identity (no `?student=` impersonation), teacher actions authorised by a teacher session (the public teacher token is gone), `FP.api.postRead` for readable cross-origin POSTs. Invite-only: the teacher creates accounts.
+- **Course gating and Stripe** (June): `paid`, `access_granted`, `stripe_customer_id`, `paid_at`; `enforceCourseAccess`; `create_checkout` and a signature-checked, idempotent webhook with a server-to-Stripe re-fetch; payments are not switched on yet.
+- **Password reset** (June): `request_reset` / `reset_password` with signed, single-use, 24-hour tokens and a shared dialog for student and teacher.
+- **Public site and repo split** (June): the brochure at `fluentpath.ca` with an English/Spanish toggle; the student app at `app.html`; the teacher dashboard moved to its own repo at `teacher.fluentpath.ca`; `npm run sync` copies shared files; a Stripe test-to-live runbook.
+- **Sprint 0 launch blockers** (September): secrets fail closed (SEC-1), a shared `rateLimited` helper (SEC-2), recordings readable only by the teacher and only under `FluentPath Audios` (SEC-3), Stripe signature and replay rules (SEC-4), an authorisation table for every mutating action (SEC-5), the payment return goes to `app.html` (PAY-1), a re-entrant script lock around writes (BE-1), full progress-cache invalidation (BE-2); the standalone marking page was removed (LEGACY-1a).
+- **Fixed:** Gemini "thinking" tokens were truncating every lesson, so students saw the hand-written fallback (AI-1): the token limit is 8192, thinking is pinned, JSON mode is used where the result is parsed, and a truncated response is reported. `?action=health` now reports the deployed backend version.
+
+---
+
 ## [0.45.0] - 2026-06-02
 
 ### Changed — Pluggable AI provider (Gemini / Anthropic / OpenAI)
