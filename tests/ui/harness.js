@@ -75,7 +75,7 @@ export async function newPage(browser, { handlers = {}, session = true, viewport
     try { Object.assign(params, Object.fromEntries(new URLSearchParams(body))); } catch (e) { /* json body */ }
     calls.push({ action: params.action, params, body });
     const h = handlers[params.action];
-    const out = h ? h(params, body) : { found: false };
+    const out = h ? await h(params, body) : { found: false }; // handlers may be async (to hold a request open)
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(out) });
   });
   await ctx.route(/formspree\.io/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));

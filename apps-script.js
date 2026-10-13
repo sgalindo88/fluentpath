@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.56.0';
+var BACKEND_VERSION = '0.57.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -304,6 +304,9 @@ function validateTeacherToken(params) {
  *   submit_feedback        student session — a bug report or feature idea (throttled; teacher is emailed)
  *   update_account_request TEACHER session — dismiss an account request
  *   update_feedback        TEACHER session — mark feedback done or open
+ *   archive_student        TEACHER session — blocks login, hides the student from every list (reversible)
+ *   restore_student        TEACHER session — undoes archive_student
+ *   delete_student         TEACHER session — erases the student's rows in every tab and trashes their Drive recordings (needs the typed name)
  *   create_checkout        student session
  *   save_progress          student session + enforceCourseAccess
  *   save_audio             student session
@@ -338,6 +341,9 @@ var TEACHER_ACTIONS = {
   'update_teacher_settings': true,
   'update_account_request': true,
   'update_feedback': true,
+  'archive_student': true,
+  'restore_student': true,
+  'delete_student': true,
   'review_focus': true,
   'save_attendance': true,
   'delete_library_entry': true,
@@ -1055,7 +1061,7 @@ var UNLOCKED_POST = { 'ai_summary': true };
 var TEACHER_GET_ACTIONS = {
   'get_students': true, 'get_library': true, 'get_call_requests': true, 'get_student_contact': true,
   'get_student_profile': true, 'get_teacher_settings': true, 'get_focus_requests': true,
-  'get_account_requests': true, 'get_feedback': true,
+  'get_account_requests': true, 'get_feedback': true, 'get_archived_students': true,
   'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
   // SEC-3: only the examiner panel reads recordings; no student page calls this.
   // Teacher-only means a student session cannot read another student's audio.
@@ -1650,6 +1656,7 @@ var GET_HANDLERS = {
   get_focus_requests:    function(p) { return handleGetFocusRequests(p.student); },
   get_account_requests:  function(_) { return handleGetAccountRequests(); },
   get_feedback:          function(_) { return handleGetFeedback(); },
+  get_archived_students: function(_) { return handleGetArchivedStudents(); },
 };
 
 function doGet(e) {
@@ -1857,9 +1864,11 @@ function handleGetStudents() {
   var sheet = getOrCreateSheet('Students', HEADERS['Students']);
   var rows = sheetToObjects(sheet);
   var students = [];
+  var archived = archivedNameSet();
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var name = row['student_name'] || row['Student Name'] || '';
+    if (archived[String(name).toLowerCase().trim()]) continue;
     var joined = row['date_joined'] || row['Date joined'] || '';
     // Format Date objects to YYYY-MM-DD string
     if (joined instanceof Date) {
@@ -1908,11 +1917,13 @@ function handleGetClassOverview() {
   var marksByStudent   = indexByStudent(marksRows, ['student_name', 'Student Name']);
   var attendByStudent  = indexByStudent(attendanceRows, ['student_name', 'Student Name']);
 
+  var archived = archivedNameSet();
   var result = [];
   for (var i = 0; i < studentRows.length; i++) {
     var name = String(studentRows[i]['student_name'] || studentRows[i]['Student Name'] || '').trim();
     if (!name) continue;
     var key = name.toLowerCase().trim();
+    if (archived[key]) continue;
 
     // Level
     var exams = examByStudent[key] || [];
@@ -2197,9 +2208,10 @@ function handleGetMyFocus(studentName) {
 function handleGetFocusRequests(studentName) {
   var rows = focusRows().rows;
   var target = String(studentName || '').toLowerCase().trim();
+  var archived = target ? {} : archivedNameSet();
   var out = rows.filter(function(r) {
     if (target) return String(r.student_name).toLowerCase().trim() === target;
-    return r.status === 'pending';
+    return r.status === 'pending' && !archived[String(r.student_name).toLowerCase().trim()];
   }).map(focusView).reverse();
   return { requests: out.slice(0, 20) };
 }
@@ -2346,6 +2358,169 @@ function handleUpdateFeedback(id, status) {
   return { result: 'success' };
 }
 
+// ══════════════════════════════════════════════════════
+// ARCHIVE AND DELETE STUDENTS (teacher)
+// Archive = the login is switched off and the student leaves every list; nothing is erased and
+// restore_student undoes it. Delete = every row about the student is erased and their Drive
+// recordings are moved to the Drive trash. Neither works on a teacher account.
+// ══════════════════════════════════════════════════════
+
+/** [sheet, column] pairs that hold one row per student event. Matching is case-insensitive. */
+var STUDENT_DATA_SHEETS = [
+  ['Initial Test Results', 'candidate_name'], ['Examiner Results', 'candidate_name'],
+  ['Course Progress', 'student_name'], ['Settings', 'student_name'], ['Focus Requests', 'student_name'],
+  ['Feedback', 'student_name'], ['Lesson Marks', 'student_name'], ['Students', 'student_name'],
+  ['Attendance', 'student_name'], ['Vocabulary Tracker', 'student_name'], ['Video Call Requests', 'student_name']
+];
+
+function sameName(a, b) {
+  return String(a == null ? '' : a).toLowerCase().trim() === String(b == null ? '' : b).toLowerCase().trim();
+}
+
+/** Account rows (with _row) whose student_name matches. */
+function accountsForStudent(name) {
+  return sheetRows('Accounts').rows.filter(function(r) { return sameName(r.student_name, name); });
+}
+
+function assertStudentOnly(name) {
+  if (!String(name || '').trim()) throw new Error('Missing student name');
+  var accounts = accountsForStudent(name);
+  if (accounts.some(function(a) { return String(a.role).toLowerCase() === 'teacher'; })) {
+    throw new Error('That is a teacher account');
+  }
+  return accounts;
+}
+
+/** Lower-cased names of students whose every login is switched off. */
+function archivedNameSet() {
+  var byName = {};
+  sheetRows('Accounts').rows.forEach(function(a) {
+    if (String(a.role).toLowerCase() !== 'student') return;
+    var k = String(a.student_name).toLowerCase().trim();
+    if (!k) return;
+    byName[k] = byName[k] === undefined ? !truthy(a.active) : (byName[k] && !truthy(a.active));
+  });
+  var out = {};
+  Object.keys(byName).forEach(function(k) { if (byName[k]) out[k] = true; });
+  return out;
+}
+
+function handleSetStudentArchived(name, archived) {
+  var accounts = assertStudentOnly(name);
+  if (!accounts.length) throw new Error('This student has no login to switch off. Use Delete instead.');
+  var sheet = getOrCreateSheet('Accounts', HEADERS['Accounts']);
+  var col = HEADERS['Accounts'].indexOf('active') + 1;
+  accounts.forEach(function(a) {
+    sheet.getRange(a._row, col).setValue(archived ? 'false' : 'true');
+    if (archived) revokeSessionsForEmail(a.email);
+  });
+  cacheInvalidateStudent(name);
+  return { result: 'success', archived: !!archived };
+}
+
+function handleGetArchivedStudents() {
+  var set = archivedNameSet();
+  var seen = {}, out = [];
+  sheetRows('Accounts').rows.forEach(function(a) {
+    var k = String(a.student_name).toLowerCase().trim();
+    if (set[k] && !seen[k] && String(a.role).toLowerCase() === 'student') {
+      seen[k] = true;
+      out.push({ name: String(a.student_name), email: String(a.email) });
+    }
+  });
+  return { students: out };
+}
+
+/** Remove the rows of a tab whose `colName` cell passes `test`. Returns how many went. */
+function deleteRowsMatching(sheetName, colName, test) {
+  var sheet = getOrCreateSheet(sheetName, HEADERS[sheetName]);
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var width = sheet.getLastColumn();
+  var header = sheet.getRange(1, 1, 1, width).getValues()[0].map(function(h) {
+    return String(h).toLowerCase().trim().replace(/\s+/g, '_');
+  });
+  var c = header.indexOf(colName);
+  if (c < 0) return 0;
+  var values = sheet.getRange(2, c + 1, last - 1, 1).getValues();
+  var hit = [];
+  for (var i = 0; i < values.length; i++) if (test(values[i][0])) hit.push(i + 2);
+  if (!hit.length) return 0;
+  if (hit.length === last - 1) { // everything below the header: clear instead (a sheet cannot lose all its unfrozen rows)
+    sheet.getRange(2, 1, last - 1, width).clearContent();
+    return hit.length;
+  }
+  // bottom-up in contiguous runs, so row numbers stay valid
+  var end = hit.length - 1;
+  while (end >= 0) {
+    var start = end;
+    while (start > 0 && hit[start - 1] === hit[start] - 1) start--;
+    sheet.deleteRows(hit[start], end - start + 1);
+    end = start - 1;
+  }
+  return hit.length;
+}
+
+function deleteStudentRows(sheetName, colName, name) {
+  return deleteRowsMatching(sheetName, colName, function(v) { return sameName(v, name); });
+}
+
+function deleteRowsByEmail(sheetName, emailSet) {
+  return deleteRowsMatching(sheetName, 'email', function(v) { return !!emailSet[String(v).toLowerCase().trim()]; });
+}
+
+/** Move the student's folder under FluentPath Audios to the Drive trash. Returns the folders trashed. */
+function trashStudentRecordings(name) {
+  var n = 0;
+  var roots = DriveApp.getRootFolder().getFoldersByName('FluentPath Audios');
+  while (roots.hasNext()) {
+    var kids = roots.next().getFolders();
+    while (kids.hasNext()) {
+      var f = kids.next();
+      if (sameName(f.getName(), name)) { f.setTrashed(true); n++; }
+    }
+  }
+  return n;
+}
+
+function handleDeleteStudent(name, confirmName) {
+  var accounts = assertStudentOnly(name);
+  if (!sameName(confirmName, name)) throw new Error('The typed name does not match');
+  var deleted = {};
+  accounts.forEach(function(a) { revokeSessionsForEmail(a.email); });
+  // Sessions rows and the login(s) themselves, plus the account request this person once made
+  var emails = {};
+  accounts.forEach(function(a) { emails[String(a.email).toLowerCase().trim()] = true; });
+  deleted['Sessions'] = deleteRowsByEmail('Sessions', emails);
+  deleted['Account Requests'] = deleteRowsByEmail('Account Requests', emails);
+  deleted['Accounts'] = deleteRowsByEmail('Accounts', emails);
+  STUDENT_DATA_SHEETS.forEach(function(pair) {
+    var n = deleteStudentRows(pair[0], pair[1], name);
+    if (n) deleted[pair[0]] = n;
+  });
+  // The shared lesson library keeps the lessons (they are reusable), but forgets who they came from.
+  deleted['Lesson Library'] = clearLibrarySource(name);
+  var recordings = 0;
+  try { recordings = trashStudentRecordings(name); }
+  catch (err) { logError('delete_student', name, 'Recordings not trashed: ' + err.message, {}); throw new Error('Data erased, but the recordings could not be moved to the Drive trash: ' + err.message); }
+  cacheInvalidateStudent(name);
+  Object.keys(deleted).forEach(function(k) { if (!deleted[k]) delete deleted[k]; });
+  return { result: 'success', deleted: deleted, recordings_trashed: recordings };
+}
+
+function clearLibrarySource(name) {
+  var sheet = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  var last = sheet.getLastRow();
+  if (last < 2) return 0;
+  var c = HEADERS['Lesson Library'].indexOf('source_student') + 1;
+  var values = sheet.getRange(2, c, last - 1, 1).getValues();
+  var n = 0;
+  for (var i = 0; i < values.length; i++) {
+    if (sameName(values[i][0], name)) { sheet.getRange(i + 2, c).setValue(''); n++; }
+  }
+  return n;
+}
+
 /** The approved request that should steer this student's next lessons: { topics: [english phrases], note } or null. */
 function approvedFocusFor(studentName) {
   var my = handleGetMyFocus(studentName);
@@ -2357,7 +2532,7 @@ function approvedFocusFor(studentName) {
 function handleGetStudentProfile(studentName) {
   if (!studentName) return { found: false };
   var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
-  if (!row) return { found: false, student_email: studentEmailFor(studentName) };
+  if (!row) return { found: false, student_email: studentEmailFor(studentName), archived: !!archivedNameSet()[String(studentName).toLowerCase().trim()] };
   var yes = function(k) { return String(row[k]).toLowerCase() === 'true'; };
   return {
     found: true,
@@ -2372,7 +2547,8 @@ function handleGetStudentProfile(studentName) {
     notify_on_submission: yes('notify_on_submission'),
     notify_on_call_request: String(row['notify_on_call_request']).toLowerCase() !== 'false',
     difficulty_json: String(row['difficulty_json'] || ''),
-    student_email: studentEmailFor(studentName)
+    student_email: studentEmailFor(studentName),
+    archived: !!archivedNameSet()[String(studentName).toLowerCase().trim()]
   };
 }
 
@@ -3399,9 +3575,10 @@ function handleGetCallRequests() {
   if (sheet.getLastRow() < 2) return { found: true, requests: [] };
   var rows = sheetToObjects(sheet);
   // Only return non-done/dismissed, most recent first
+  var archived = archivedNameSet();
   var active = rows.filter(function(r) {
     var s = String(r['status'] || '').trim();
-    return s === 'pending' || s === 'sent';
+    return (s === 'pending' || s === 'sent') && !archived[String(r['student_name'] || '').toLowerCase().trim()];
   });
   active.reverse();
   return { found: true, requests: active };
@@ -4042,6 +4219,18 @@ var POST_HANDLERS = {
 
   update_account_request: function(params) {
     return { _json: handleUpdateAccountRequest(requireParam(params, 'id'), requireParam(params, 'status')) };
+  },
+
+  archive_student: function(params) {
+    return { _json: handleSetStudentArchived(requireParam(params, 'student_name'), true) };
+  },
+
+  restore_student: function(params) {
+    return { _json: handleSetStudentArchived(requireParam(params, 'student_name'), false) };
+  },
+
+  delete_student: function(params) {
+    return { _json: handleDeleteStudent(requireParam(params, 'student_name'), params['confirm_name']) };
   },
 
   update_feedback: function(params) {

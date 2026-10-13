@@ -443,6 +443,100 @@ describe('create_account + login handlers', () => {
     });
   });
 
+  describe('archive and delete a student', () => {
+    const setup = () => {
+      const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+      fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Sebastian Galindo', password: 'pw1234', role: 'teacher' }, {});
+      fp.handleRequestAccount({ name: 'Maria Lopez', email: 'maria@x.com' });
+      fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria Lopez', password: 'pw1234', role: 'student' }, {});
+      fp.POST_HANDLERS.create_account({ email: 'carlos@x.com', student_name: 'Carlos Ruiz', password: 'pw1234', role: 'student' }, {});
+      const rowFor = (sheet, headers, over) => {
+        let sh = fp._ss.getSheetByName(sheet);
+        if (!sh) { sh = fp._ss.insertSheet(sheet); sh.appendRow(headers); }
+        sh.appendRow(headers.map((h) => over[h] ?? ''));
+      };
+      for (const n of ['Maria Lopez', 'Carlos Ruiz', 'Maria Lopez', 'Carlos Ruiz', 'Maria Lopez']) {
+        rowFor('Course Progress', fp.HEADERS['Course Progress'], { student_name: n, day_number: '1' });
+      }
+      rowFor('Examiner Results', fp.HEADERS['Examiner Results'], { candidate_name: 'maria lopez ', total_score: '40' });
+      rowFor('Attendance', fp.HEADERS['Attendance'], { student_name: 'Maria Lopez', attendance_json: '{}' });
+      rowFor('Lesson Library', fp.HEADERS['Lesson Library'], { id: 'L1', source_student: 'Maria Lopez', lesson_json: '{}' });
+      rowFor('Lesson Library', fp.HEADERS['Lesson Library'], { id: 'L2', source_student: 'Carlos Ruiz', lesson_json: '{}' });
+      fp.handleRequestVideoCall('Maria Lopez', 'hub', '');
+      fp.handleRequestFocus('Maria Lopez', '["work"]', '');
+      fp._drive.folders.push('Maria Lopez', 'Carlos Ruiz');
+      return fp;
+    };
+    const names = (fp) => fp.handleGetStudents().students.map((x) => x.name);
+
+    it('only a teacher can use these actions, and never on a teacher account', () => {
+      const fp = setup();
+      for (const a of ['archive_student', 'restore_student', 'delete_student']) expect(fp.TEACHER_ACTIONS[a]).toBe(true);
+      expect(fp.TEACHER_GET_ACTIONS.get_archived_students).toBe(true);
+      expect(() => fp.handleSetStudentArchived('Sebastian Galindo', true)).toThrow(/teacher account/);
+      expect(() => fp.handleDeleteStudent('Sebastian Galindo', 'Sebastian Galindo')).toThrow(/teacher account/);
+      expect(() => fp.handleSetStudentArchived('', true)).toThrow(/Missing/);
+    });
+
+    it('archiving switches the login off, ends their sessions, hides them everywhere, and loses nothing; restoring undoes it', () => {
+      const fp = setup();
+      const login = fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json;
+      expect(login.ok).toBe(true);
+      expect(fp.handleSetStudentArchived('Maria Lopez', true)).toEqual({ result: 'success', archived: true });
+      expect(fp.validateSession(login.session)).toBeNull();
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(false);
+      expect(names(fp)).toEqual(['Carlos Ruiz']);
+      expect(fp.handleGetClassOverview().students.map((x) => x.name)).toEqual(['Carlos Ruiz']);
+      expect(fp.handleGetCallRequests().requests).toEqual([]);
+      expect(fp.handleGetFocusRequests('').requests).toEqual([]); // the pending notice is gone
+      expect(fp.handleGetFocusRequests('Maria Lopez').requests.length).toBe(1); // but her own page still has it
+      expect(fp.handleGetArchivedStudents().students).toEqual([{ name: 'Maria Lopez', email: 'maria@x.com' }]);
+      expect(fp.handleGetStudentProfile('Maria Lopez').archived).toBe(true);
+      expect(fp.handleGetStudentProfile('Carlos Ruiz').archived).toBe(false);
+      expect(fp._ss.getSheetByName('Course Progress').getLastRow()).toBe(6); // untouched
+      expect(fp.POST_HANDLERS.create_account.bind(null, { email: 'maria@x.com', student_name: 'Other', password: 'pw1234' }, {})).toThrow(/already exists/);
+      fp.handleSetStudentArchived('Maria Lopez', false);
+      expect(names(fp).sort()).toEqual(['Carlos Ruiz', 'Maria Lopez']);
+      expect(fp.handleGetArchivedStudents().students).toEqual([]);
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(true);
+      expect(fp.handleGetCallRequests().requests.length).toBe(1);
+    });
+
+    it('deleting needs the typed name; then every row about the student is erased, the other student is untouched, recordings are trashed', () => {
+      const fp = setup();
+      expect(() => fp.handleDeleteStudent('Maria Lopez', '')).toThrow(/does not match/);
+      expect(() => fp.handleDeleteStudent('Maria Lopez', 'Maria')).toThrow(/does not match/);
+      expect(fp._drive.trashed).toEqual([]);
+      const res = fp.POST_HANDLERS.delete_student({ student_name: 'Maria Lopez', confirm_name: ' maria LOPEZ ' })._json;
+      expect(res.result).toBe('success');
+      expect(res.recordings_trashed).toBe(1);
+      expect(res.deleted).toMatchObject({ 'Course Progress': 3, 'Examiner Results': 1, Attendance: 1, Accounts: 1, 'Account Requests': 1, Settings: 1, Students: 1, 'Focus Requests': 1, 'Video Call Requests': 1, 'Lesson Library': 1 });
+      expect(fp._drive.trashed).toEqual(['Maria Lopez']);
+      const col = (sheet, key) => { const sh = fp._ss.getSheetByName(sheet); const c = fp.HEADERS[sheet].indexOf(key) + 1; return sh.getLastRow() < 2 ? [] : sh.getRange(2, c, sh.getLastRow() - 1, 1).getValues().map((r) => r[0]); };
+      expect(col('Course Progress', 'student_name')).toEqual(['Carlos Ruiz', 'Carlos Ruiz']);
+      expect(col('Accounts', 'email').sort()).toEqual(['carlos@x.com', 't@x.com']);
+      expect(col('Examiner Results', 'candidate_name')).toEqual([]); // emptied completely
+      expect(col('Account Requests', 'email')).toEqual([]);
+      expect(col('Lesson Library', 'source_student')).toEqual(['', 'Carlos Ruiz']); // the lesson stays, the name goes
+      expect(col('Lesson Library', 'id')).toEqual(['L1', 'L2']);
+      expect(names(fp)).toEqual(['Carlos Ruiz']);
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(false);
+      // the email can now be used again
+      expect(fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria Lopez', password: 'pw1234', role: 'student' }, {})._json.ok).toBe(true);
+    });
+
+    it('an archived student can be deleted, and deleting someone with no recordings or data is harmless', () => {
+      const fp = setup();
+      fp.handleSetStudentArchived('Carlos Ruiz', true);
+      const r = fp.handleDeleteStudent('Carlos Ruiz', 'Carlos Ruiz');
+      expect(r.deleted.Accounts).toBe(1);
+      expect(fp.handleGetArchivedStudents().students).toEqual([]);
+      fp.POST_HANDLERS.create_account({ email: 'ana@x.com', student_name: 'Ana', password: 'pw1234', role: 'student' }, {});
+      fp._drive.folders.length = 0;
+      expect(fp.handleDeleteStudent('Ana', 'Ana').recordings_trashed).toBe(0);
+    });
+  });
+
   it('a teacher account does not appear in the student list', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});

@@ -150,6 +150,94 @@ d('teacher portal: loop and way back', () => {
   });
 });
 
+d('teacher dashboard: archive and delete a student', () => {
+  const open = async (extra, viewport = { width: 1280, height: 900 }) => {
+    const t = await newPage(browser, { handlers: { ...handlers, get_student_profile: () => ({ found: true, cefr_level: 'A2', archived: false }), ...extra }, viewport });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#app', { state: 'visible' });
+    await t.page.evaluate(() => showPanel('profile'));
+    await t.page.waitForSelector('#danger-zone', { state: 'visible' });
+    return t;
+  };
+
+  it('Archive asks first, posts archive_student and returns to the student list', async () => {
+    const posts = [];
+    const t = await open({ archive_student: (p) => { posts.push(p); return { result: 'success', archived: true }; } });
+    expect(await t.page.isVisible('#archive-btn')).toBe(true);
+    expect(await t.page.isVisible('#restore-btn')).toBe(false);
+    await t.page.click('#archive-btn');
+    expect(await t.page.textContent('.fp-modal__title')).toBe('Archive Maria Lopez?');
+    await t.page.click('#cdCancel');
+    expect(posts.length).toBe(0);
+    await t.page.click('#archive-btn');
+    await t.page.click('#cdOk');
+    await t.page.waitForURL(/\/$/);
+    expect(posts).toEqual([expect.objectContaining({ action: 'archive_student', student_name: 'Maria Lopez' })]);
+    await t.ctx.close();
+  });
+
+  it('Delete is disabled until the student\'s name is typed, then posts delete_student with that name', async () => {
+    const posts = [];
+    const t = await open({ delete_student: (p) => { posts.push(p); return { result: 'success', recordings_trashed: 1, deleted: {} }; } });
+    await t.page.click('#delete-btn');
+    expect(await t.page.isDisabled('#cdOk')).toBe(true);
+    await t.page.fill('#cdType', 'Maria');
+    expect(await t.page.isDisabled('#cdOk')).toBe(true);
+    await t.page.fill('#cdType', 'maria lopez');
+    expect(await t.page.isDisabled('#cdOk')).toBe(false);
+    await t.page.click('#cdOk');
+    await t.page.waitForURL(/\/$/);
+    expect(posts).toEqual([expect.objectContaining({ action: 'delete_student', student_name: 'Maria Lopez', confirm_name: 'Maria Lopez' })]);
+    await t.ctx.close();
+  });
+
+  it('a refusal stays on the page and says why', async () => {
+    const t = await open({ delete_student: () => ({ result: 'error', message: 'That is a teacher account' }) });
+    await t.page.click('#delete-btn');
+    await t.page.fill('#cdType', 'Maria Lopez');
+    await t.page.click('#cdOk');
+    await t.page.waitForFunction(() => document.getElementById('danger-status').textContent.includes('teacher account'));
+    expect(await t.page.isDisabled('#delete-btn')).toBe(false);
+    expect(t.page.url()).toContain('examiner-panel.html');
+    await t.ctx.close();
+  });
+
+  it('an archived student shows the note and Restore instead of Archive', async () => {
+    const posts = [];
+    const t = await open({ get_student_profile: () => ({ found: true, cefr_level: 'A2', archived: true }), restore_student: (p) => { posts.push(p); return { result: 'success', archived: false }; } });
+    await t.page.waitForFunction(() => document.getElementById('restore-btn').style.display !== 'none');
+    expect(await t.page.isVisible('#archive-btn')).toBe(false);
+    expect(await t.page.isVisible('#danger-archived-note')).toBe(true);
+    await t.page.click('#restore-btn');
+    await t.page.waitForFunction(() => document.getElementById('archive-btn').style.display !== 'none');
+    expect(posts.length).toBe(1);
+    await t.ctx.close();
+  });
+});
+
+d('teacher portal: archived students', () => {
+  it('lists archived students with Restore and Open; restoring refreshes both lists', async () => {
+    let archived = [{ name: 'Carlos Ruiz', email: 'carlos@example.com' }];
+    const restores = [];
+    const t = await newPage(browser, { handlers: { ...handlers,
+      get_archived_students: () => ({ students: archived }),
+      restore_student: (p) => { restores.push(p); archived = []; return { result: 'success' }; } }, viewport: { width: 390, height: 844 } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    await t.page.waitForSelector('#archivedBox:not(.fp-hidden)');
+    expect(await t.page.textContent('#archivedSummary')).toBe('Archived students (1)');
+    await t.page.click('#archivedSummary');
+    expect(await t.page.getAttribute('#archivedList a', 'href')).toContain('student=Carlos%20Ruiz');
+    await t.page.click('#archivedList [data-act="restore"]');
+    await t.page.waitForSelector('#archivedBox', { state: 'hidden' });
+    expect(restores).toEqual([expect.objectContaining({ student_name: 'Carlos Ruiz' })]);
+    expect(await t.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+});
+
 d('teacher portal: create account', () => {
   it('the password is optional: with none typed it posts none, and the message says the student was emailed', async () => {
     const posted = [];

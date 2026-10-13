@@ -308,7 +308,7 @@ describe('call request feedback', () => {
   it('shows "Sending request" at once and three quick taps send one request and show one message', async () => {
     let calls = 0;
     const { page, ctx } = await open({
-      handlers: { request_video_call: () => { calls++; return { result: 'success' }; } },
+      handlers: { request_video_call: async () => { calls++; await new Promise((r) => setTimeout(r, 400)); return { result: 'success' }; } }, // held open so the busy label is observable
     });
     await start(page);
     await page.waitForSelector('#testHelp #fp-call-btn');

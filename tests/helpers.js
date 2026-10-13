@@ -96,6 +96,7 @@ function makeFakeSheet(name, headers) {
     getLastRow: () => rows.length,
     getLastColumn: () => rows.reduce((m, r) => Math.max(m, r.length), 0),
     appendRow: (r) => { rows.push(r.slice()); },
+    deleteRows: (start, count) => { rows.splice(start - 1, count); },
     getDataRange: () => api.getRange(1, 1, rows.length, api.getLastColumn()),
     getRange: (row, col, numRows = 1, numCols = 1) => ({
       getValues: () => {
@@ -122,6 +123,13 @@ function makeFakeSheet(name, headers) {
         rows[row - 1][col - 1] = v;
       },
       getValue: () => ((rows[row - 1] || [])[col - 1]) ?? '',
+      clearContent: () => {
+        for (let i = 0; i < numRows; i++) {
+          const r = rows[row - 1 + i];
+          if (r) for (let j = 0; j < numCols; j++) r[col - 1 + j] = '';
+        }
+        while (rows.length > 1 && rows[rows.length - 1].every((c) => c === '')) rows.pop(); // like Sheets: trailing blank rows are not "last row"
+      },
       setFontWeight: () => api.getRange(row, col, numRows, numCols),
       createTextFinder: (text) => {
         let matchCaseFlag = true;
@@ -217,7 +225,16 @@ export function loadAppsScriptAuth(props = {}) {
   // Injectable HTTP: tests set `fetchHandler` to fake Stripe responses.
   let fetchHandler = () => ({ getResponseCode: () => 200, getContentText: () => '{}' });
   globalThis.UrlFetchApp = { fetch: (url, opts) => fetchHandler(url, opts) };
-  globalThis.DriveApp = { getRootFolder: () => ({}) };
+  // A fake Drive: FluentPath Audios / one folder per student. `drive.trashed` lists the names moved to the trash.
+  const drive = { folders: [], trashed: [] };
+  const iter = (arr) => { let i = 0; return { hasNext: () => i < arr.length, next: () => arr[i++] }; };
+  globalThis.DriveApp = {
+    getRootFolder: () => ({
+      getFoldersByName: (n) => iter(n === 'FluentPath Audios' ? [{
+        getFolders: () => iter(drive.folders.filter((f) => !drive.trashed.includes(f)).map((name) => ({ getName: () => name, setTrashed: () => { drive.trashed.push(name); } }))),
+      }] : []),
+    }),
+  };
   const mail = [];
   globalThis.MailApp = { sendEmail: (opts) => { mail.push(opts); } };
   globalThis.Utilities = {
@@ -292,6 +309,12 @@ export function loadAppsScriptAuth(props = {}) {
     handleGetFocusRequests: globalThis.handleGetFocusRequests,
     handleReviewFocus: globalThis.handleReviewFocus,
     approvedFocusFor: globalThis.approvedFocusFor,
+    handleSetStudentArchived: globalThis.handleSetStudentArchived,
+    handleGetArchivedStudents: globalThis.handleGetArchivedStudents,
+    handleDeleteStudent: globalThis.handleDeleteStudent,
+    handleGetClassOverview: globalThis.handleGetClassOverview,
+    handleGetCallRequests: globalThis.handleGetCallRequests,
+    _drive: drive,
     handleRequestAccount: globalThis.handleRequestAccount,
     handleGetAccountRequests: globalThis.handleGetAccountRequests,
     handleUpdateAccountRequest: globalThis.handleUpdateAccountRequest,
