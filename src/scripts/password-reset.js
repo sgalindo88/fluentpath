@@ -34,6 +34,18 @@
     'This reset link has already been used.': ['This reset link has already been used.', 'Este enlace ya se usó.'],
     'Invalid reset link.': ['Invalid reset link.', 'Enlace no válido.'],
     'Account not found.': ['Account not found.', 'No encontramos la cuenta.'],
+    'Your current password is not correct.': [
+      'Your current password is not correct.',
+      'Tu contraseña actual no es correcta.',
+    ],
+    'Choose a password that is different from the current one.': [
+      'Choose a password that is different from the current one.',
+      'Elige una contraseña distinta a la actual.',
+    ],
+    'Too many attempts. Please try again later.': [
+      'Too many attempts. Please try again later.',
+      'Demasiados intentos. Inténtalo más tarde.',
+    ],
   };
 
   /** Show a message under the form. kind: 'error' | 'success'. `html` is already escaped. */
@@ -113,6 +125,33 @@
       bi('Cancel', 'Cancelar') +
       '</button>' +
       '</div>' +
+      '<div id="fp-view-change" class="fp-reset__view" style="display:none;">' +
+      '<h2 class="fp-modal__title" id="fp-change-title">' +
+      bi('Change your password', 'Cambia tu contraseña') +
+      '</h2>' +
+      '<div class="fp-field"><label class="fp-label" for="fp-change-cur">' +
+      bi('Current password', 'Contraseña actual') +
+      '</label>' +
+      '<input class="fp-input" type="password" id="fp-change-cur" autocomplete="current-password"></div>' +
+      '<div class="fp-field"><label class="fp-label" for="fp-change-pw">' +
+      bi('New password (at least 6 characters)', 'Contraseña nueva (mínimo 6 caracteres)') +
+      '</label>' +
+      '<input class="fp-input" type="password" id="fp-change-pw" autocomplete="new-password"></div>' +
+      '<div class="fp-field"><label class="fp-label" for="fp-change-pw2">' +
+      bi('Confirm new password', 'Confirma la contraseña nueva') +
+      '</label>' +
+      '<input class="fp-input" type="password" id="fp-change-pw2" autocomplete="new-password"></div>' +
+      '<div id="fp-change-msg" class="fp-hidden" role="alert"></div>' +
+      '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="fp-change-save">' +
+      bi('Save new password', 'Guardar contraseña nueva') +
+      '</button>' +
+      '<button type="button" class="fp-btn fp-btn--secondary fp-btn--block" id="fp-change-mail">' +
+      bi('I forgot it: email me a reset link', 'La olvidé: envíame un enlace por correo') +
+      '</button>' +
+      '<button type="button" class="fp-btn fp-btn--text" id="fp-change-cancel">' +
+      bi('Cancel', 'Cancelar') +
+      '</button>' +
+      '</div>' +
       '</div>';
     document.body.appendChild(modal);
 
@@ -121,6 +160,9 @@
     el('fp-reset-cancel').addEventListener('click', hide);
     el('fp-reset-cancel2').addEventListener('click', hide);
     el('fp-reset-x').addEventListener('click', hide);
+    el('fp-change-save').addEventListener('click', submitChange);
+    el('fp-change-mail').addEventListener('click', submitMyReset);
+    el('fp-change-cancel').addEventListener('click', hide);
     modal.addEventListener('keydown', onKeydown);
   }
 
@@ -152,8 +194,9 @@
     opener = document.activeElement;
     el('fp-view-forgot').style.display = view === 'forgot' ? 'block' : 'none';
     el('fp-view-set').style.display = view === 'set' ? 'block' : 'none';
+    el('fp-view-change').style.display = view === 'change' ? 'block' : 'none';
     el('fp-reset-modal').classList.add('is-open');
-    var focusTarget = el(view === 'forgot' ? 'fp-reset-email' : 'fp-reset-pw');
+    var focusTarget = el(view === 'forgot' ? 'fp-reset-email' : view === 'change' ? 'fp-change-cur' : 'fp-reset-pw');
     if (focusTarget) focusTarget.focus();
   }
   function hide() {
@@ -279,7 +322,133 @@
     }
   }
 
+  /** Run an async action on a button: busy look while it runs, restored after. */
+  async function withBusy(btn, busyHtml, fn) {
+    var label = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.innerHTML = busyHtml;
+    try {
+      return await fn();
+    } finally {
+      if (btn.isConnected) {
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+        btn.innerHTML = label;
+      }
+    }
+  }
+
+  function serverMsg(res, fallbackEn, fallbackEs) {
+    var known = res && SERVER[res.error];
+    return known ? bi(known[0], known[1]) : bi(fallbackEn, fallbackEs);
+  }
+
+  var NO_SERVER = function () {
+    return bi(
+      'Could not reach the server. Please try again.',
+      'No pudimos conectarnos con el servidor. Inténtalo de nuevo.'
+    );
+  };
+
+  /** Logged in: current password + new one. The server returns a fresh session so this device stays logged in. */
+  async function submitChange() {
+    var cur = el('fp-change-cur').value || '';
+    var pw = el('fp-change-pw').value || '';
+    var pw2 = el('fp-change-pw2').value || '';
+    setMsg('fp-change-msg', '');
+    if (!cur) {
+      setMsg('fp-change-msg', bi('Enter your current password.', 'Escribe tu contraseña actual.'), 'error');
+      return;
+    }
+    if (pw.length < 6) {
+      setMsg(
+        'fp-change-msg',
+        bi('Password must be at least 6 characters.', 'La contraseña debe tener al menos 6 caracteres.'),
+        'error'
+      );
+      return;
+    }
+    if (pw !== pw2) {
+      setMsg('fp-change-msg', bi('Passwords do not match.', 'Las contraseñas no coinciden.'), 'error');
+      return;
+    }
+    await withBusy(el('fp-change-save'), bi('Saving…', 'Guardando…'), async function () {
+      try {
+        var res = await FP.api.postRead(FP.WEBHOOK_URL + '?action=change_password', {
+          current_password: cur,
+          new_password: pw,
+        });
+        if (res && res.ok && res.session) {
+          try {
+            localStorage.setItem(FP.KEYS.SESSION, res.session);
+            if (res.expires_at) localStorage.setItem(FP.KEYS.SESSION_EXP, res.expires_at);
+          } catch (e) {
+            /* storage unavailable: the next page load will ask them to log in */
+          }
+          el('fp-view-change').innerHTML =
+            '<h2 class="fp-modal__title">' +
+            bi('Password updated', 'Contraseña actualizada') +
+            '</h2>' +
+            '<p class="fp-reset__sub">' +
+            bi(
+              'Your password has been changed. Use the new one next time you log in.',
+              'Cambiamos tu contraseña. Usa la nueva la próxima vez que inicies sesión.'
+            ) +
+            '</p>' +
+            '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="fp-change-done">' +
+            bi('Done', 'Listo') +
+            '</button>';
+          el('fp-change-done').addEventListener('click', hide);
+          el('fp-change-done').focus();
+        } else {
+          setMsg(
+            'fp-change-msg',
+            serverMsg(
+              res,
+              'Could not change your password. Please try again.',
+              'No pudimos cambiar tu contraseña. Inténtalo de nuevo.'
+            ),
+            'error'
+          );
+        }
+      } catch (e) {
+        setMsg('fp-change-msg', NO_SERVER(), 'error');
+      }
+    });
+  }
+
+  /** Logged in but forgot the current password: the link goes to the account's own email. */
+  async function submitMyReset() {
+    setMsg('fp-change-msg', '');
+    await withBusy(el('fp-change-mail'), bi('Sending…', 'Enviando…'), async function () {
+      try {
+        await FP.api.postRead(FP.WEBHOOK_URL + '?action=request_my_reset', {});
+        setMsg(
+          'fp-change-msg',
+          bi(
+            'A reset link is on its way to your email. Check your inbox (and spam).',
+            'Te enviamos un enlace a tu correo. Revisa tu bandeja de entrada (y el spam).'
+          ),
+          'success'
+        );
+      } catch (e) {
+        setMsg('fp-change-msg', NO_SERVER(), 'error');
+      }
+    });
+  }
+
   FP.passwordReset = {
+    openChange: function () {
+      var old = el('fp-reset-modal');
+      if (old && !el('fp-change-cur')) old.remove(); // the success view replaced the form last time
+      injectModal();
+      ['fp-change-cur', 'fp-change-pw', 'fp-change-pw2'].forEach(function (id) {
+        el(id).value = '';
+      });
+      setMsg('fp-change-msg', '');
+      show('change');
+    },
     openForgot: function () {
       setMsg('fp-reset-msg', '');
       show('forgot');

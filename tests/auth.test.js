@@ -156,6 +156,44 @@ describe('create_account + login handlers', () => {
     expect(fp._mail[0].htmlBody).toContain('x=1&amp;y=&quot;2&quot;');
   });
 
+  it('change_password needs the current password, then swaps it and returns a fresh session', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+    const login = fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json;
+    const session = fp.validateSession(login.session);
+    const change = (cur, next) => fp.POST_HANDLERS.change_password({ current_password: cur, new_password: next }, {}, session)._json;
+    expect(change('WRONG', 'newpw1').ok).toBe(false);
+    expect(change('pw1234', 'abc').error).toMatch(/at least 6/);
+    expect(change('pw1234', 'pw1234').error).toMatch(/different/);
+    const done = change('pw1234', 'newpw1');
+    expect(done.ok).toBe(true);
+    expect(fp.validateSession(login.session)).toBeNull(); // old session revoked
+    expect(fp.validateSession(done.session).email).toBe('maria@x.com'); // the new one works
+    expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(false);
+    expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'newpw1' }, {})._json.ok).toBe(true);
+  });
+
+  it('change_password and request_my_reset refuse a call with no session; wrong guesses are throttled', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    expect(() => fp.POST_HANDLERS.change_password({ current_password: 'a', new_password: 'bbbbbb' }, {}, null)).toThrow(/Login required/);
+    expect(() => fp.POST_HANDLERS.request_my_reset({}, {}, null)).toThrow(/Login required/);
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw123', role: 'student' }, {});
+    const session = fp.validateSession(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw123' }, {})._json.session);
+    for (let i = 0; i < 10; i++) fp.POST_HANDLERS.change_password({ current_password: 'bad', new_password: 'newpw1' }, {}, session);
+    const blocked = fp.POST_HANDLERS.change_password({ current_password: 'pw123', new_password: 'newpw1' }, {}, session)._json;
+    expect(blocked.ok).toBe(false);
+    expect(blocked.error).toMatch(/Too many/);
+  });
+
+  it('request_my_reset emails a reset link to the session\'s own address', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw123', role: 'student' }, {});
+    const session = fp.validateSession(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw123' }, {})._json.session);
+    expect(fp.POST_HANDLERS.request_my_reset({}, {}, session)._json.ok).toBe(true);
+    expect(fp._mail.length).toBe(1);
+    expect(fp._mail[0].to).toBe('maria@x.com');
+  });
+
   it('a teacher account does not appear in the student list', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});

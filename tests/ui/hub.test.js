@@ -280,6 +280,58 @@ describe('talking to the teacher is an in-page card, not a floating button', () 
   });
 });
 
+describe('changing your own password from the hub', () => {
+  const handlers = (calls) => ({
+    get_progress: () => states.mid,
+    get_settings: () => ({ found: true }),
+    change_password: (p) => {
+      calls.push(p);
+      return p.current_password === 'oldpass1' ? { ok: true, session: 'NEW-SESSION', expires_at: '2099-01-01T00:00:00Z' } : { ok: false, error: 'Your current password is not correct.' };
+    },
+    request_my_reset: () => { calls.push({ reset: true }); return { ok: true }; },
+  });
+
+  it('opens a bilingual form, checks it in the page, shows the server error in both languages, then saves and keeps the new session', async () => {
+    const calls = [];
+    const { page, ctx, errors } = await open(states.mid, { handlers: handlers(calls) });
+    await page.waitForSelector('#screen-dashboard.active');
+    await page.click('#changePasswordBtn');
+    await page.waitForSelector('#fp-change-cur');
+    expect(await page.textContent('#fp-view-change')).toContain('Contraseña actual');
+    await page.click('#fp-change-save');
+    expect(await page.textContent('#fp-change-msg')).toContain('Enter your current password');
+    await page.fill('#fp-change-cur', 'wrongpass');
+    await page.fill('#fp-change-pw', 'newpass1');
+    await page.fill('#fp-change-pw2', 'different');
+    await page.click('#fp-change-save');
+    expect(await page.textContent('#fp-change-msg')).toContain('do not match');
+    await page.fill('#fp-change-pw2', 'newpass1');
+    await page.click('#fp-change-save');
+    await page.waitForFunction(() => document.getElementById('fp-change-msg')?.textContent.includes('not correct'));
+    expect(await page.textContent('#fp-change-msg')).toContain('no es correcta');
+    await page.fill('#fp-change-cur', 'oldpass1');
+    await page.click('#fp-change-save');
+    await page.waitForSelector('#fp-change-done');
+    expect(await page.evaluate(() => localStorage.getItem('fp_session'))).toBe('NEW-SESSION');
+    await page.click('#fp-change-done');
+    await page.click('#changePasswordBtn'); // can be opened again
+    await page.waitForSelector('#fp-change-cur');
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('"I forgot it" sends the reset link without asking for an email', async () => {
+    const calls = [];
+    const { page, ctx } = await open(states.mid, { handlers: handlers(calls) });
+    await page.waitForSelector('#screen-dashboard.active');
+    await page.click('#changePasswordBtn');
+    await page.click('#fp-change-mail');
+    await page.waitForFunction(() => document.getElementById('fp-change-msg')?.textContent.includes('on its way'));
+    expect(calls).toEqual([{ reset: true }]);
+    await ctx.close();
+  });
+});
+
 describe('log in page: no reload loop, and a way back to the brochure', () => {
   const unauthorized = () => ({ error: 'Unauthorized' });
   const countNavs = (page) => { const urls = []; page.on('framenavigated', (f) => { if (f === page.mainFrame()) urls.push(f.url()); }); return urls; };

@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.51.0';
+var BACKEND_VERSION = '0.52.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -298,6 +298,8 @@ function validateTeacherToken(params) {
  *   logout                 app token only — revokes a token the caller already holds
  *   request_reset          app token only — throttled 3/hr, emails the account owner
  *   reset_password         app token + a valid signed, single-use reset token
+ *   change_password        any session — needs the current password; throttled with login failures
+ *   request_my_reset       any session — emails a reset link to the session's own account
  *   create_checkout        student session
  *   save_progress          student session + enforceCourseAccess
  *   save_audio             student session
@@ -1235,7 +1237,7 @@ function sheetSafe(value) {
 // ══════════════════════════════════════════════════════
 
 /** Param names that must never reach the Error Log (SEC-6). */
-var SENSITIVE_PARAM = /^(session|token|password|new_password|reset_token|pw_hash|pw_salt|secret|api_key)$/i;
+var SENSITIVE_PARAM = /^(session|token|password|current_password|new_password|reset_token|pw_hash|pw_salt|secret|api_key)$/i;
 
 /** Copy of params with credentials blanked, so logging cannot leak a login. */
 function redactParams(params) {
@@ -3319,6 +3321,42 @@ var POST_HANDLERS = {
     }
     setAccountPassword(account, newPassword); // changes pw_hash → invalidates this token
     revokeSessionsForEmail(reset.email);      // force re-login everywhere with the new password
+    return { _json: { ok: true } };
+  },
+
+  // ── Auth: a logged-in user changes their own password ──
+  // Identity is the session, never the body. The current password is required (a borrowed
+  // or left-open device cannot lock the owner out) and wrong guesses count like login failures.
+  // Every session is revoked, then a fresh one is returned so this device stays logged in.
+  change_password: function(params, e, session) {
+    if (!session) throw new Error('Login required');
+    var email = String(session.email || '').toLowerCase().trim();
+    var current = String(params['current_password'] || '');
+    var next = String(params['new_password'] || '');
+    if (loginBlocked(email)) return { _json: { ok: false, error: 'Too many attempts. Please try again later.' } };
+    var account = findAccountByEmail(email);
+    if (!account || !truthy(account.active)) return { _json: { ok: false, error: 'Account not found.' } };
+    if (!current || !verifyPassword(current, account.pw_salt, account.pw_hash)) {
+      recordLoginFailure(email);
+      return { _json: { ok: false, error: 'Your current password is not correct.' } };
+    }
+    if (next.length < 6) return { _json: { ok: false, error: 'Password must be at least 6 characters.' } };
+    if (next === current) return { _json: { ok: false, error: 'Choose a password that is different from the current one.' } };
+    setAccountPassword(account, next);
+    revokeSessionsForEmail(email);
+    var fresh = createSession(findAccountByEmail(email));
+    return { _json: { ok: true, session: fresh.token, expires_at: fresh.expires_at } };
+  },
+
+  // For someone who forgot the current password but is still logged in: email the
+  // reset link to the account's own address (no need to type it).
+  request_my_reset: function(params, e, session) {
+    if (!session) throw new Error('Login required');
+    var email = String(session.email || '').toLowerCase().trim();
+    if (email && !resetRateLimited(email)) {
+      var account = findAccountByEmail(email);
+      if (account && truthy(account.active)) sendPasswordResetEmail(email, account.role, createResetToken(account));
+    }
     return { _json: { ok: true } };
   },
 

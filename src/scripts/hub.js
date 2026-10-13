@@ -851,6 +851,12 @@ FP.onLoginRequired = function () {
   var teacherLink = document.getElementById('teacherLink');
   if (teacherLink) teacherLink.href = FP.TEACHER_URL;
 
+  var changePw = document.getElementById('changePasswordBtn');
+  if (changePw)
+    changePw.addEventListener('click', function () {
+      FP.passwordReset.openChange();
+    });
+
   var session = FP.getSession && FP.getSession();
   var saved = localStorage.getItem('fp_student_name');
   if (session && saved) {
