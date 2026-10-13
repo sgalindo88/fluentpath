@@ -49,10 +49,52 @@
           One-on-one English tutoring built for working adults. Learn with a real teacher, at your own pace, around your
           own schedule — no classrooms, no rigid timetables.
         </p>
-        <a class="fp-btn fp-btn--primary hero-cta" href="app.html"
-          ><span data-i18n="ctaStart">Take the free placement test</span><i data-icon="arrow_right_alt"></i
-        ></a>
-        <p class="cta-note" data-i18n="ctaNote">No payment, no account fees. It takes about 40 minutes.</p>
+        <button
+          type="button"
+          class="fp-btn fp-btn--primary hero-cta"
+          id="requestBtn"
+          aria-expanded="false"
+          aria-controls="requestCard"
+        >
+          <span data-i18n="ctaStart">Request a free account</span><i data-icon="arrow_right_alt"></i>
+        </button>
+        <p class="cta-note" data-i18n="ctaNote">
+          The placement test is free and takes about 40 minutes. You need an account to take it: ask for one and your
+          teacher will set it up.
+        </p>
+        <a class="fp-btn fp-btn--text hero-login" href="app.html" data-i18n="ctaLogin"
+          >Already have an account? Log in</a
+        >
+
+        <form class="fp-card request-card fp-hidden" id="requestCard" novalidate>
+          <h2 class="request-card__title" id="requestTitle" data-i18n="reqTitle">Request your free account</h2>
+          <div class="fp-field">
+            <label class="fp-label" for="reqName" data-i18n="reqName">Your name</label>
+            <input class="fp-input" id="reqName" type="text" autocomplete="name" maxlength="80" />
+          </div>
+          <div class="fp-field">
+            <label class="fp-label" for="reqEmail" data-i18n="reqEmail">Email</label>
+            <input
+              class="fp-input"
+              id="reqEmail"
+              type="email"
+              autocomplete="email"
+              autocapitalize="none"
+              spellcheck="false"
+              maxlength="120"
+            />
+          </div>
+          <div class="fp-field">
+            <label class="fp-label" for="reqNote" data-i18n="reqNote">Anything we should know? (optional)</label>
+            <textarea class="fp-textarea" id="reqNote" rows="3" maxlength="300"></textarea>
+          </div>
+          <div class="fp-sr-only" aria-hidden="true">
+            <label for="reqWebsite">Website</label>
+            <input id="reqWebsite" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div id="reqMsg" class="fp-hidden" role="alert"></div>
+          <button type="submit" class="fp-btn fp-btn--primary" id="reqSend" data-i18n="reqSend">Send request</button>
+        </form>
       </section>
 
       <!-- ── How it works: a route with three stops ── -->
@@ -103,7 +145,9 @@
       <p>fluentpath.ca</p>
     </footer>
 
+    <script src="src/scripts/config.js"></script>
     <script src="src/scripts/icons.js"></script>
+    <script src="src/scripts/api.js"></script>
     <script>
       (function () {
         // Inline two-language dictionary. Keys map to [data-i18n] / [data-i18n-html]
@@ -133,8 +177,21 @@
             priceBody:
               "The placement test is always free. When you're ready, a single one-time payment unlocks your full course — permanently, with no subscription.",
             priceBadge: 'Payments coming soon',
-            ctaStart: 'Take the free placement test',
-            ctaNote: 'No payment, no account fees. It takes about 40 minutes.',
+            ctaStart: 'Request a free account',
+            ctaNote:
+              'The placement test is free and takes about 40 minutes. You need an account to take it: ask for one and your teacher will set it up.',
+            ctaLogin: 'Already have an account? Log in',
+            reqTitle: 'Request your free account',
+            reqName: 'Your name',
+            reqEmail: 'Email',
+            reqNote: 'Anything we should know? (optional)',
+            reqSend: 'Send request',
+            reqSending: 'Sending…',
+            reqDone: 'Thank you! Your teacher will contact you by email when your account is ready.',
+            reqErrName: 'Please enter your name.',
+            reqErrEmail: 'Please enter a valid email address.',
+            reqErrBusy: 'Too many requests. Please try again later.',
+            reqErrNet: 'Could not send your request. Please check your connection and try again.',
           },
           es: {
             _title: 'FluentPath · Inglés para tu vida en un nuevo país',
@@ -160,8 +217,21 @@
             priceBody:
               'La prueba de nivel siempre es gratis. Cuando estés listo, un único pago desbloquea tu curso completo — para siempre, sin suscripción.',
             priceBadge: 'Pagos próximamente',
-            ctaStart: 'Haz la prueba de nivel gratis',
-            ctaNote: 'Sin pagos ni costos ocultos. Dura unos 40 minutos.',
+            ctaStart: 'Solicita una cuenta gratis',
+            ctaNote:
+              'La prueba de nivel es gratis y dura unos 40 minutos. Necesitas una cuenta para hacerla: solicítala y tu profesor la creará.',
+            ctaLogin: '¿Ya tienes cuenta? Inicia sesión',
+            reqTitle: 'Solicita tu cuenta gratis',
+            reqName: 'Tu nombre',
+            reqEmail: 'Correo electrónico',
+            reqNote: '¿Algo que debamos saber? (opcional)',
+            reqSend: 'Enviar solicitud',
+            reqSending: 'Enviando…',
+            reqDone: '¡Gracias! Tu profesor se pondrá en contacto contigo por correo cuando tu cuenta esté lista.',
+            reqErrName: 'Por favor escribe tu nombre.',
+            reqErrEmail: 'Por favor escribe un correo electrónico válido.',
+            reqErrBusy: 'Demasiadas solicitudes. Inténtalo más tarde.',
+            reqErrNet: 'No pudimos enviar tu solicitud. Revisa tu conexión e inténtalo de nuevo.',
           },
         };
 
@@ -206,6 +276,72 @@
 
         var current = resolveLang();
         apply(current);
+
+        // ── Request an account ──
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var T_ = function (key) {
+          return (I18N[current] || I18N.en)[key];
+        };
+        function reqMsg(text, ok) {
+          var m = $('reqMsg');
+          if (!text) {
+            m.className = 'fp-hidden';
+            m.textContent = '';
+            return;
+          }
+          m.className = ok ? 'fp-banner fp-banner--success' : 'fp-field-error';
+          m.textContent = text;
+        }
+        $('requestBtn').addEventListener('click', function () {
+          var card = $('requestCard');
+          var open = card.classList.contains('fp-hidden');
+          card.classList.toggle('fp-hidden', !open);
+          this.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) {
+            card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            $('reqName').focus({ preventScroll: true });
+          }
+        });
+        $('requestCard').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var name = $('reqName').value.trim();
+          var email = $('reqEmail').value.trim();
+          var btn = $('reqSend');
+          reqMsg('');
+          if (name.length < 2) return reqMsg(T_('reqErrName'));
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return reqMsg(T_('reqErrEmail'));
+          if (btn.disabled) return;
+          btn.disabled = true;
+          btn.textContent = T_('reqSending');
+          FP.api
+            .postRead(FP.WEBHOOK_URL + '?action=request_account', {
+              name: name,
+              email: email,
+              note: $('reqNote').value,
+              language: current,
+              website: $('reqWebsite').value,
+            })
+            .then(function (res) {
+              if (res && res.ok) {
+                reqMsg(T_('reqDone'), true);
+                $('reqName').value = $('reqEmail').value = $('reqNote').value = '';
+                return;
+              }
+              var raw = (res && (res.error || res.message)) || '';
+              reqMsg(
+                /Too many/.test(raw) ? T_('reqErrBusy') : /email/i.test(raw) ? T_('reqErrEmail') : T_('reqErrNet')
+              );
+            })
+            .catch(function () {
+              reqMsg(T_('reqErrNet'));
+            })
+            .then(function () {
+              btn.disabled = false;
+              btn.textContent = T_('reqSend');
+            });
+        });
 
         var toggle = document.getElementById('langToggle');
         if (toggle) {

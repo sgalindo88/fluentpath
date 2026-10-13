@@ -290,6 +290,62 @@
           </button>
         </section>
 
+        <section class="fp-card settings-card" aria-labelledby="fbBugTitle">
+          <h2 class="hub-card-title" id="fbBugTitle">
+            Report a problem <span class="fp-bi__es" lang="es">Informar de un problema</span>
+          </h2>
+          <p class="hub-desc">
+            Something not working? Tell us what you were doing and what happened. Your teacher will read it.
+            <span class="fp-bi__es" lang="es"
+              >¿Algo no funciona? Cuéntanos qué estabas haciendo y qué pasó. Tu profesor lo leerá.</span
+            >
+          </p>
+          <div class="fp-field">
+            <label class="fp-label" for="fbBugText"
+              >Your message<span class="fp-bi__es" lang="es">Tu mensaje</span></label
+            >
+            <textarea
+              class="fp-textarea"
+              id="fbBugText"
+              rows="4"
+              maxlength="1000"
+              placeholder="For example: I pressed record and nothing happened / Por ejemplo: toqué grabar y no pasó nada"
+            ></textarea>
+            <div class="focus-count" id="fbBugCount" aria-hidden="true">0 / 1000</div>
+          </div>
+          <div id="fbBugMsg" class="fp-hidden" role="alert"></div>
+          <button type="button" class="fp-btn fp-btn--primary" id="fbBugSend" data-feedback="bug">
+            <span class="fp-bi">Send report<span class="fp-bi__es" lang="es">Enviar informe</span></span>
+          </button>
+        </section>
+
+        <section class="fp-card settings-card" aria-labelledby="fbFeatTitle">
+          <h2 class="hub-card-title" id="fbFeatTitle">
+            Suggest a feature <span class="fp-bi__es" lang="es">Sugerir una función</span>
+          </h2>
+          <p class="hub-desc">
+            Is there something that would make FluentPath better for you? Tell us your idea.
+            <span class="fp-bi__es" lang="es">¿Hay algo que mejoraría FluentPath para ti? Cuéntanos tu idea.</span>
+          </p>
+          <div class="fp-field">
+            <label class="fp-label" for="fbFeatText"
+              >Your message<span class="fp-bi__es" lang="es">Tu mensaje</span></label
+            >
+            <textarea
+              class="fp-textarea"
+              id="fbFeatText"
+              rows="4"
+              maxlength="1000"
+              placeholder="For example: I would like more listening practice / Por ejemplo: quisiera más práctica de escucha"
+            ></textarea>
+            <div class="focus-count" id="fbFeatCount" aria-hidden="true">0 / 1000</div>
+          </div>
+          <div id="fbFeatMsg" class="fp-hidden" role="alert"></div>
+          <button type="button" class="fp-btn fp-btn--primary" id="fbFeatSend" data-feedback="feature">
+            <span class="fp-bi">Send idea<span class="fp-bi__es" lang="es">Enviar idea</span></span>
+          </button>
+        </section>
+
         <section class="fp-card hub-call settings-card" aria-labelledby="accountTitle">
           <div>
             <h2 class="hub-card-title" id="accountTitle">

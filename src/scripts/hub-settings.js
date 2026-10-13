@@ -200,7 +200,99 @@
       });
   }
 
+  /** Bug reports and feature ideas: one small form each, sent to the teacher. */
+  var FEEDBACK = {
+    bug: { p: 'fbBug', ok: ['Sent. Thank you for telling us!', '¡Enviado! ¡Gracias por avisarnos!'] },
+    feature: { p: 'fbFeat', ok: ['Sent. Thank you for your idea!', '¡Enviado! ¡Gracias por tu idea!'] },
+  };
+
+  function fbMsg(prefix, html, kind) {
+    var m = el(prefix + 'Msg');
+    if (!html) {
+      m.className = 'fp-hidden';
+      m.innerHTML = '';
+      return;
+    }
+    m.className = kind === 'success' ? 'fp-banner fp-banner--success' : 'fp-field-error';
+    m.innerHTML =
+      FP.icon(kind === 'success' ? 'check' : 'warning', {
+        size: 'sm',
+        className: kind === 'success' ? 'fp-banner__icon' : '',
+      }) +
+      '<span>' +
+      html +
+      '</span>';
+  }
+
+  function sendFeedback(kind) {
+    var f = FEEDBACK[kind];
+    var box = el(f.p + 'Text');
+    var btn = el(f.p + 'Send');
+    fbMsg(f.p, '');
+    if (box.value.trim().length < 5) {
+      fbMsg(f.p, bi('Please write a little more.', 'Por favor escribe un poco más.'), 'error');
+      return;
+    }
+    if (btn.disabled) return;
+    var label = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.innerHTML = bi('Sending…', 'Enviando…');
+    FP.api
+      .postRead(FP.WEBHOOK_URL + '?action=submit_feedback', {
+        type: kind,
+        message: box.value,
+        page: 'Settings',
+        device: (navigator.userAgent || '').slice(0, 200),
+        student_name: localStorage.getItem('fp_student_name') || '',
+      })
+      .then(function (res) {
+        if (res && res.result === 'success') {
+          box.value = '';
+          el(f.p + 'Count').textContent = '0 / 1000';
+          fbMsg(f.p, bi(f.ok[0], f.ok[1]), 'success');
+        } else {
+          var raw = (res && (res.message || res.error)) || '';
+          fbMsg(
+            f.p,
+            /Too many/.test(raw)
+              ? bi('Too many messages. Please try again later.', 'Demasiados mensajes. Inténtalo más tarde.')
+              : bi('Could not send. Please try again.', 'No se pudo enviar. Inténtalo de nuevo.'),
+            'error'
+          );
+        }
+      })
+      .catch(function () {
+        fbMsg(
+          f.p,
+          bi(
+            'Could not reach the server. Please try again.',
+            'No pudimos conectarnos con el servidor. Inténtalo de nuevo.'
+          ),
+          'error'
+        );
+      })
+      .then(function () {
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+        btn.innerHTML = label;
+      });
+  }
+
+  function initFeedback() {
+    Object.keys(FEEDBACK).forEach(function (kind) {
+      var f = FEEDBACK[kind];
+      el(f.p + 'Send').addEventListener('click', function () {
+        sendFeedback(kind);
+      });
+      el(f.p + 'Text').addEventListener('input', function () {
+        el(f.p + 'Count').textContent = el(f.p + 'Text').value.length + ' / 1000';
+      });
+    });
+  }
+
   function init() {
+    initFeedback();
     el('settingsBtn').addEventListener('click', open);
     el('settingsBackBtn').addEventListener('click', function () {
       showScreen('screen-dashboard');

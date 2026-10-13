@@ -412,6 +412,60 @@ describe('student settings: what to practise', () => {
   });
 });
 
+describe('student settings: report a problem and suggest a feature', () => {
+  const H = (calls, reply) => ({
+    get_progress: () => states.mid,
+    get_settings: () => ({ found: true }),
+    submit_feedback: (p) => { calls.push(p); return reply || { result: 'success' }; },
+  });
+
+  it('each form needs a few words, posts its own type with the device, clears and says thank you', async () => {
+    const calls = [];
+    const { page, ctx, errors } = await open(states.mid, { handlers: H(calls) });
+    await page.click('#settingsBtn');
+    await page.waitForSelector('#fbBugSend');
+    await page.click('#fbBugSend');
+    expect(await page.textContent('#fbBugMsg')).toContain('write a little more');
+    expect(calls.length).toBe(0);
+    await page.fill('#fbBugText', 'The record button did nothing');
+    expect(await page.textContent('#fbBugCount')).toBe('29 / 1000');
+    await page.click('#fbBugSend');
+    await page.waitForFunction(() => document.getElementById('fbBugMsg').textContent.includes('Thank you'));
+    expect(await page.textContent('#fbBugMsg')).toContain('Gracias');
+    expect(await page.inputValue('#fbBugText')).toBe('');
+    await page.fill('#fbFeatText', 'More listening practice please');
+    await page.click('#fbFeatSend');
+    await page.waitForFunction(() => document.getElementById('fbFeatMsg').textContent.includes('idea'));
+    expect(calls.map((c) => c.type)).toEqual(['bug', 'feature']);
+    expect(calls[0].message).toBe('The record button did nothing');
+    expect(calls[0].device.length).toBeGreaterThan(5);
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('a server refusal shows a friendly error in both languages and keeps the text', async () => {
+    const { page, ctx } = await open(states.mid, { handlers: H([], { result: 'error', message: 'Too many messages. Please try again later.' }) });
+    await page.click('#settingsBtn');
+    await page.fill('#fbFeatText', 'More listening practice please');
+    await page.click('#fbFeatSend');
+    await page.waitForFunction(() => document.getElementById('fbFeatMsg').textContent.includes('Too many'));
+    expect(await page.textContent('#fbFeatMsg')).toContain('Demasiados');
+    expect(await page.inputValue('#fbFeatText')).toBe('More listening practice please');
+    expect(await page.isDisabled('#fbFeatSend')).toBe(false);
+    await ctx.close();
+  });
+
+  it('fits a phone with 44px targets', async () => {
+    const { page, ctx } = await open(states.mid, { handlers: H([]), viewport: { width: 390, height: 844 } });
+    await page.click('#settingsBtn');
+    await page.waitForSelector('#fbBugSend');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    const small = await page.$$eval('#screen-settings button', (bs) => bs.filter((b) => b.offsetParent && b.getBoundingClientRect().height < 44).map((b) => b.id || b.className));
+    expect(small).toEqual([]);
+    await ctx.close();
+  });
+});
+
 describe('log in page: no reload loop, and a way back to the brochure', () => {
   const unauthorized = () => ({ error: 'Unauthorized' });
   const countNavs = (page) => { const urls = []; page.on('framenavigated', (f) => { if (f === page.mainFrame()) urls.push(f.url()); }); return urls; };

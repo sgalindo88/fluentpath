@@ -63,6 +63,71 @@ d('teacher portal', () => {
   });
 });
 
+d('teacher portal: inbox', () => {
+  const portal = async (extra) => {
+    const t = await newPage(browser, { handlers: { ...handlers, ...extra }, viewport: { width: 390, height: 844 } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    return t;
+  };
+
+  it('account requests: listed with the note, Create account prefills the form, Dismiss removes it', async () => {
+    let reqs = [{ id: 'r1', name: 'Ana Ruiz', email: 'ana@example.com', note: 'I cook at night', language: 'es', requested_at: '2026-10-13T10:00:00Z' }];
+    const updates = [];
+    const t = await portal({
+      get_account_requests: () => ({ requests: reqs }),
+      update_account_request: (p) => { updates.push(p); reqs = []; return { result: 'success' }; },
+    });
+    await t.page.waitForSelector('#acctReqList li');
+    const text = await t.page.textContent('#acctRequests');
+    expect(text).toContain('Ana Ruiz');
+    expect(text).toContain('ana@example.com');
+    expect(text).toContain('I cook at night');
+    expect(text).toContain('Spanish');
+    await t.page.click('#acctReqList [data-act="create"]');
+    expect(await t.page.inputValue('#caName')).toBe('Ana Ruiz');
+    expect(await t.page.inputValue('#caEmail')).toBe('ana@example.com');
+    expect(await t.page.evaluate(() => document.activeElement.id)).toBe('caPassword');
+    await t.page.click('#acctReqList [data-act="dismiss"]');
+    await t.page.waitForSelector('#acctRequests', { state: 'hidden' });
+    expect(updates).toEqual([expect.objectContaining({ id: 'r1', status: 'dismissed' })]);
+    expect(await t.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+
+  it('nothing shows when there are no requests or feedback', async () => {
+    const t = await portal({ get_account_requests: () => ({ requests: [] }), get_feedback: () => ({ feedback: [] }) });
+    await t.page.waitForSelector('.student-card');
+    expect(await t.page.isVisible('#acctRequests')).toBe(false);
+    expect(await t.page.isVisible('#feedbackBox')).toBe(false);
+    await t.ctx.close();
+  });
+
+  it('student feedback: open items first with Mark done, finished ones tucked under "Done"', async () => {
+    const fb = [
+      { id: 'f2', submitted_at: '2026-10-13T10:00:00Z', student_name: 'Maria Lopez', type: 'feature', message: 'More listening practice', page: 'Settings', device: 'iPad', status: 'new' },
+      { id: 'f1', submitted_at: '2026-10-12T10:00:00Z', student_name: 'Maria Lopez', type: 'bug', message: 'The mic did nothing <b>x</b>', page: 'Settings', device: 'iPhone', status: 'done' },
+    ];
+    const updates = [];
+    const t = await portal({
+      get_feedback: () => ({ feedback: fb }),
+      update_feedback: (p) => { updates.push(p); fb.find((x) => x.id === p.id).status = p.status; return { result: 'success' }; },
+    });
+    await t.page.waitForSelector('#feedbackList .inbox-item');
+    expect(await t.page.locator('#feedbackList .inbox-item').count()).toBe(1);
+    expect(await t.page.textContent('#feedbackList')).toContain('More listening practice');
+    expect(await t.page.textContent('#feedbackDoneSummary')).toBe('Done (1)');
+    expect(await t.page.locator('#feedbackDoneList b').count()).toBe(0); // message is escaped
+    await t.page.click('#feedbackList [data-act="done"]');
+    await t.page.waitForFunction(() => document.querySelectorAll('#feedbackList .inbox-item').length === 0);
+    expect(updates).toEqual([expect.objectContaining({ id: 'f2', status: 'done' })]);
+    expect(await t.page.textContent('#feedbackDoneSummary')).toBe('Done (2)');
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+});
+
 d('teacher portal: loop and way back', () => {
   it('an Unauthorized reply on the portal shows the login form instead of reloading', async () => {
     const t = await newPage(browser, { handlers: { get_students: () => ({ error: 'Unauthorized' }) } });
@@ -322,10 +387,42 @@ d('teacher dashboard', () => {
     const card = t.page.locator('#focus-request-content');
     expect(await card.textContent()).toContain('kitchen work');
     await card.locator('text=Approve').click();
-    await t.page.waitForFunction(() => document.getElementById('focus-request-content').textContent.includes('Approved.'));
+    await t.page.waitForFunction(() => document.getElementById('focus-request-content').textContent.includes('Approved'));
+    expect(await card.locator('button').count()).toBe(0); // decided: nothing left to click
     expect(reviews.length).toBe(1);
     expect(reviews[0].decision).toBe('approve');
     await t.page.waitForSelector('#dash-focus-requests', { state: 'hidden' });
+    await t.ctx.close();
+  });
+  it('topic requests: decided requests are a simple table with no buttons; only a waiting one can be approved or declined', async () => {
+    const all = [
+      { id: 'f3', student_name: 'Maria Lopez', requested_at: '2026-10-13T10:00:00Z', status: 'pending', topics_en: ['Phone calls'], note: '' },
+      { id: 'f2', student_name: 'Maria Lopez', requested_at: '2026-10-12T10:00:00Z', status: 'declined', topics_en: ['Grammar', 'Housing'], note: 'rent' },
+      { id: 'f1', student_name: 'Maria Lopez', requested_at: '2026-10-10T10:00:00Z', status: 'approved', topics_en: ['Health and doctor visits'], note: '' },
+      { id: 'f0', student_name: 'Maria Lopez', requested_at: '2026-10-01T10:00:00Z', status: 'replaced', topics_en: ['Work and jobs'], note: '' },
+    ];
+    const reviews = [];
+    const h = {
+      ...handlers,
+      get_focus_requests: (p) => ({ requests: p.student ? all : [] }),
+      review_focus: (p) => { reviews.push(p); all.find((r) => r.id === p.id).status = p.decision === 'approve' ? 'approved' : 'declined'; return { result: 'success' }; },
+    };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez&panel=difficulty', { waitUntil: 'load' });
+    await t.page.waitForSelector('#focus-request-content table');
+    const rows = t.page.locator('#focus-request-content tbody tr');
+    expect(await rows.count()).toBe(4);
+    expect(await rows.nth(1).textContent()).toContain('Declined');
+    expect(await rows.nth(1).locator('button').count()).toBe(0); // the bug: a declined request used to offer Approve again
+    expect(await rows.nth(2).textContent()).toContain('Approved');
+    expect(await rows.nth(2).locator('button').count()).toBe(0);
+    expect(await rows.nth(3).textContent()).toContain('Replaced');
+    expect(await t.page.locator('#focus-request-content button').allTextContents()).toEqual(['Approve', 'Decline']); // only the waiting row
+    await rows.nth(0).locator('text=Decline').click();
+    await t.page.waitForFunction(() => document.querySelectorAll('#focus-request-content button').length === 0);
+    expect(await rows.nth(0).textContent()).toContain('Declined');
+    expect(reviews).toEqual([{ action: 'review_focus', id: 'f3', decision: 'decline', ...reviews[0] }]);
     await t.ctx.close();
   });
 });

@@ -276,6 +276,111 @@ describe('create_account + login handlers', () => {
     });
   });
 
+  describe('account requests from the brochure', () => {
+    const setup = () => {
+      const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+      fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teach', password: 'pw1234', role: 'teacher' }, {});
+      return fp;
+    };
+
+    it('is reachable without a session but the teacher actions are teacher-only', () => {
+      const fp = setup();
+      expect(fp.SESSIONLESS_POST.request_account).toBe(true);
+      expect(fp.TEACHER_ACTIONS.update_account_request).toBe(true);
+      expect(fp.TEACHER_ACTIONS.update_feedback).toBe(true);
+      expect(fp.TEACHER_GET_ACTIONS.get_account_requests).toBe(true);
+      expect(fp.TEACHER_GET_ACTIONS.get_feedback).toBe(true);
+    });
+
+    it('validates, stores one request per waiting email, and emails the teacher', () => {
+      const fp = setup();
+      expect(fp.handleRequestAccount({ name: 'A', email: 'a@x.com' }).ok).toBe(false);
+      expect(fp.handleRequestAccount({ name: 'Ana Ruiz', email: 'nope' }).ok).toBe(false);
+      expect(fp.handleRequestAccount({ name: 'Ana <b>Ruiz</b>', email: 'Ana@X.com', note: 'I cook\nat night', language: 'es' })).toEqual({ ok: true });
+      expect(fp.handleRequestAccount({ name: 'Ana Ruiz', email: 'ana@x.com' })).toEqual({ ok: true }); // already waiting: no second row
+      const list = fp.handleGetAccountRequests().requests;
+      expect(list.length).toBe(1);
+      expect(list[0]).toMatchObject({ name: 'Ana bRuiz/b', email: 'ana@x.com', language: 'es' });
+      expect(list[0].note).not.toMatch(/\n/);
+      expect(fp._mail.length).toBe(1);
+      expect(fp._mail[0].to).toBe('t@x.com');
+    });
+
+    it('a bot that fills the hidden field gets a quiet success and nothing is stored', () => {
+      const fp = setup();
+      expect(fp.handleRequestAccount({ name: 'Bot Bot', email: 'bot@x.com', website: 'http://spam' })).toEqual({ ok: true });
+      expect(fp.handleGetAccountRequests().requests).toEqual([]);
+      expect(fp._mail.length).toBe(0);
+    });
+
+    it('someone who already has an account is told nothing and nothing is stored', () => {
+      const fp = setup();
+      fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+      expect(fp.handleRequestAccount({ name: 'Maria L', email: 'maria@x.com' })).toEqual({ ok: true });
+      expect(fp.handleGetAccountRequests().requests).toEqual([]);
+    });
+
+    it('is throttled per email', () => {
+      const fp = setup();
+      for (let i = 0; i < 3; i++) expect(fp.handleRequestAccount({ name: 'Ana Ruiz', email: 'ana@x.com' }).ok).toBe(true);
+      expect(fp.handleRequestAccount({ name: 'Ana Ruiz', email: 'ana@x.com' }).ok).toBe(false);
+    });
+
+    it('dismissing closes it; creating the account closes it too', () => {
+      const fp = setup();
+      fp.handleRequestAccount({ name: 'Ana Ruiz', email: 'ana@x.com' });
+      fp.handleRequestAccount({ name: 'Bea Cruz', email: 'bea@x.com' });
+      const [bea, ana] = fp.handleGetAccountRequests().requests; // newest first
+      fp.handleUpdateAccountRequest(bea.id, 'dismissed');
+      expect(() => fp.handleUpdateAccountRequest(bea.id, 'wat')).toThrow(/Invalid status/);
+      expect(() => fp.handleUpdateAccountRequest('nope', 'dismissed')).toThrow(/not found/);
+      expect(fp.handleGetAccountRequests().requests.map((r) => r.email)).toEqual(['ana@x.com']);
+      fp.POST_HANDLERS.create_account({ email: 'ANA@x.com', student_name: 'Ana Ruiz', password: 'pw1234', role: 'student' }, {});
+      expect(ana.email).toBe('ana@x.com');
+      expect(fp.handleGetAccountRequests().requests).toEqual([]);
+    });
+  });
+
+  describe('student feedback', () => {
+    const setup = () => {
+      const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+      fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teach', password: 'pw1234', role: 'teacher' }, {});
+      fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+      return fp;
+    };
+    const student = { role: 'student', student_name: 'Maria' };
+
+    it('only a student session can send; type and length are checked', () => {
+      const fp = setup();
+      expect(() => fp.POST_HANDLERS.submit_feedback({ type: 'bug', message: 'It froze' }, {}, null)).toThrow(/Login required/);
+      expect(() => fp.POST_HANDLERS.submit_feedback({ type: 'bug', message: 'It froze' }, {}, { role: 'teacher', student_name: 'Teach' })).toThrow(/Login required/);
+      expect(() => fp.handleSubmitFeedback(student, { type: 'complaint', message: 'It froze badly' })).toThrow(/Invalid type/);
+      expect(() => fp.handleSubmitFeedback(student, { type: 'bug', message: 'x' })).toThrow(/a little more/);
+    });
+
+    it('is stored with the session name (not the body), emailed to the teacher, listed newest first and can be marked done', () => {
+      const fp = setup();
+      fp.POST_HANDLERS.submit_feedback({ type: 'bug', message: 'The mic button did nothing', page: 'lesson', device: 'iPad Safari', student_name: 'Someone Else' }, {}, student);
+      fp.POST_HANDLERS.submit_feedback({ type: 'feature', message: 'Please add a dark mode <script>' }, {}, student);
+      expect(fp._mail.length).toBe(2);
+      expect(fp._mail[0].subject).toContain('problem report from Maria');
+      expect(fp._mail[1].subject).toContain('feature idea from Maria');
+      expect(fp._mail[1].htmlBody).not.toContain('<script>');
+      const list = fp.handleGetFeedback().feedback;
+      expect(list.map((x) => x.type)).toEqual(['feature', 'bug']);
+      expect(list[1]).toMatchObject({ student_name: 'Maria', page: 'lesson', device: 'iPad Safari', status: 'new' });
+      fp.handleUpdateFeedback(list[1].id, 'done');
+      expect(fp.handleGetFeedback().feedback[1].status).toBe('done');
+      expect(() => fp.handleUpdateFeedback(list[1].id, 'x')).toThrow(/Invalid status/);
+    });
+
+    it('is throttled per student', () => {
+      const fp = setup();
+      for (let i = 0; i < 8; i++) fp.handleSubmitFeedback(student, { type: 'bug', message: 'Something broke ' + i });
+      expect(() => fp.handleSubmitFeedback(student, { type: 'bug', message: 'Something broke again' })).toThrow(/Too many/);
+    });
+  });
+
   it('a teacher account does not appear in the student list', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});

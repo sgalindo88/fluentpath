@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.54.0';
+var BACKEND_VERSION = '0.55.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -300,6 +300,10 @@ function validateTeacherToken(params) {
  *   reset_password         app token + a valid signed, single-use reset token
  *   change_password        any session — needs the current password; throttled with login failures
  *   request_my_reset       any session — emails a reset link to the session's own account
+ *   request_account        app token only — a visitor asks for an account (throttled per email and per day; teacher is emailed)
+ *   submit_feedback        student session — a bug report or feature idea (throttled; teacher is emailed)
+ *   update_account_request TEACHER session — dismiss an account request
+ *   update_feedback        TEACHER session — mark feedback done or open
  *   create_checkout        student session
  *   save_progress          student session + enforceCourseAccess
  *   save_audio             student session
@@ -332,6 +336,8 @@ var TEACHER_ACTIONS = {
   'save_marks': true,
   'update_settings': true,
   'update_teacher_settings': true,
+  'update_account_request': true,
+  'update_feedback': true,
   'review_focus': true,
   'save_attendance': true,
   'delete_library_entry': true,
@@ -1004,7 +1010,7 @@ function paramOrBody(params, body, key) {
 }
 
 /** POST actions reachable without an existing session (login bootstraps one). */
-var SESSIONLESS_POST = { 'login': true, 'logout': true, 'request_reset': true, 'reset_password': true };
+var SESSIONLESS_POST = { 'login': true, 'logout': true, 'request_reset': true, 'reset_password': true, 'request_account': true };
 
 /**
  * POST actions that must NOT hold the script lock (BE-1).
@@ -1017,6 +1023,7 @@ var UNLOCKED_POST = { 'ai_summary': true };
 var TEACHER_GET_ACTIONS = {
   'get_students': true, 'get_library': true, 'get_call_requests': true, 'get_student_contact': true,
   'get_student_profile': true, 'get_teacher_settings': true, 'get_focus_requests': true,
+  'get_account_requests': true, 'get_feedback': true,
   'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
   // SEC-3: only the examiner panel reads recordings; no student page calls this.
   // Teacher-only means a student session cannot read another student's audio.
@@ -1528,6 +1535,10 @@ var HEADERS = {
   // Topics a student asks to practise. Nothing reaches a lesson until the teacher approves it.
   // status: pending | approved | declined | replaced (the student sent a newer request)
   'Focus Requests': ['id', 'student_name', 'requested_at', 'topics', 'note', 'status', 'reviewed_at'],
+  // A visitor on the brochure asks for an account (accounts are invite-only). status: new | created | dismissed
+  'Account Requests': ['id', 'requested_at', 'name', 'email', 'note', 'language', 'status'],
+  // Bug reports and feature ideas from students. type: bug | feature. status: new | done
+  'Feedback': ['id', 'submitted_at', 'student_name', 'type', 'message', 'page', 'device', 'status', 'resolved_at'],
   'Lesson Marks': [
     'graded_at', 'teacher_name', 'student_name',
     'lesson_date', 'day_number', 'level',
@@ -1603,6 +1614,8 @@ var GET_HANDLERS = {
   get_teacher_settings:  function(p, session) { return handleGetTeacherSettings(session); },
   get_my_focus:          function(p) { return handleGetMyFocus(p.student); },
   get_focus_requests:    function(p) { return handleGetFocusRequests(p.student); },
+  get_account_requests:  function(_) { return handleGetAccountRequests(); },
+  get_feedback:          function(_) { return handleGetFeedback(); },
 };
 
 function doGet(e) {
@@ -2166,6 +2179,136 @@ function handleReviewFocus(id, decision) {
   if (row.status === 'replaced') throw new Error('The student has sent a newer request');
   f.sheet.getRange(row._row, f.headers.indexOf('status') + 1).setValue(decision === 'approve' ? 'approved' : 'declined');
   f.sheet.getRange(row._row, f.headers.indexOf('reviewed_at') + 1).setValue(new Date().toISOString());
+  return { result: 'success' };
+}
+
+// ══════════════════════════════════════════════════════
+// ACCOUNT REQUESTS (brochure) AND STUDENT FEEDBACK
+// ══════════════════════════════════════════════════════
+var ACCOUNT_REQ_PER_EMAIL_DAY = 3;
+var ACCOUNT_REQ_PER_DAY = 40;
+var FEEDBACK_PER_HOUR = 8;
+
+function plainLine(v, max) {
+  return String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').replace(/[<>{}`]/g, '').trim().slice(0, max);
+}
+
+function sheetRows(name) {
+  var h = HEADERS[name];
+  var sheet = getOrCreateSheet(name, h);
+  if (sheet.getLastRow() < 2) return { sheet: sheet, headers: h, rows: [] };
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, h.length).getValues();
+  return { sheet: sheet, headers: h, rows: values.map(function(v, i) {
+    var o = { _row: i + 2 };
+    h.forEach(function(k, j) { o[k] = v[j]; });
+    return o;
+  }) };
+}
+
+/** A visitor asks for an account. Public endpoint: validate hard, throttle, say nothing about existing accounts. */
+function handleRequestAccount(params) {
+  // Honeypot: a real visitor never sees or fills this field.
+  if (String(params['website'] || '').trim()) return { ok: true };
+  var name = plainLine(params['name'], 80);
+  var email = plainLine(params['email'], 120).toLowerCase();
+  var note = plainLine(params['note'], 300);
+  var language = String(params['language'] || '') === 'es' ? 'es' : 'en';
+  if (name.length < 2) return { ok: false, error: 'Please enter your name.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { ok: false, error: 'Please enter a valid email address.' };
+  if (rateLimited('acctreq_email_' + email, ACCOUNT_REQ_PER_EMAIL_DAY, 24 * 60 * 60) ||
+      rateLimited('acctreq_all', ACCOUNT_REQ_PER_DAY, 24 * 60 * 60)) {
+    return { ok: false, error: 'Too many requests. Please try again later.' };
+  }
+  // Already has an account, or already asked and is waiting: succeed quietly (no hint about who has an account).
+  if (findAccountByEmail(email)) return { ok: true };
+  var r = sheetRows('Account Requests');
+  var waiting = r.rows.some(function(x) { return String(x.email).toLowerCase() === email && x.status === 'new'; });
+  if (waiting) return { ok: true };
+  r.sheet.appendRow([Utilities.getUuid(), new Date().toISOString(), sheetSafe(name), sheetSafe(email), sheetSafe(note), language, 'new']);
+  var contact = teacherContact();
+  if (contact.email) {
+    sendNotificationEmail(contact.email, 'FluentPath: ' + name + ' asked for an account',
+      '<p><strong>' + escapeHtmlServer(name) + '</strong> (' + escapeHtmlServer(email) + ') asked for an account to take the placement test.</p>' +
+      (note ? '<p>Message: ' + escapeHtmlServer(note) + '</p>' : '') +
+      '<p>Preferred language: ' + (language === 'es' ? 'Spanish' : 'English') + '</p>' +
+      '<p><a href="' + teacherBaseUrl() + '/">Open the teacher portal</a> to create their account.</p>');
+  }
+  return { ok: true };
+}
+
+function accountRequestView(r) {
+  return { id: r.id, name: r.name, email: r.email, note: String(r.note || ''), language: r.language || 'en', requested_at: r.requested_at };
+}
+
+function handleGetAccountRequests() {
+  var rows = sheetRows('Account Requests').rows.filter(function(r) { return r.status === 'new'; });
+  return { requests: rows.map(accountRequestView).reverse().slice(0, 50) };
+}
+
+function handleUpdateAccountRequest(id, status) {
+  if (status !== 'dismissed' && status !== 'created') throw new Error('Invalid status');
+  var r = sheetRows('Account Requests');
+  var row = null;
+  r.rows.forEach(function(x) { if (String(x.id) === String(id)) row = x; });
+  if (!row) throw new Error('Request not found');
+  r.sheet.getRange(row._row, r.headers.indexOf('status') + 1).setValue(status);
+  return { result: 'success' };
+}
+
+/** When the teacher creates an account for someone who asked, close their request. */
+function closeAccountRequestsFor(email) {
+  var target = String(email || '').toLowerCase().trim();
+  if (!target) return;
+  var r = sheetRows('Account Requests');
+  r.rows.forEach(function(x) {
+    if (x.status === 'new' && String(x.email).toLowerCase().trim() === target) {
+      r.sheet.getRange(x._row, r.headers.indexOf('status') + 1).setValue('created');
+    }
+  });
+}
+
+/** A student reports a problem or suggests a feature. */
+function handleSubmitFeedback(session, params) {
+  var type = String(params['type'] || '');
+  if (type !== 'bug' && type !== 'feature') throw new Error('Invalid type');
+  var message = plainLine(params['message'], 1000);
+  if (message.length < 5) throw new Error('Please write a little more');
+  var student = session.student_name;
+  if (rateLimited('feedback_rl_' + String(student).toLowerCase(), FEEDBACK_PER_HOUR, 60 * 60)) {
+    throw new Error('Too many messages. Please try again later.');
+  }
+  var page = plainLine(params['page'], 60);
+  var device = plainLine(params['device'], 200);
+  var f = sheetRows('Feedback');
+  f.sheet.appendRow([Utilities.getUuid(), new Date().toISOString(), sheetSafe(student), type, sheetSafe(message), sheetSafe(page), sheetSafe(device), 'new', '']);
+  var contact = teacherContact();
+  if (contact.email) {
+    sendNotificationEmail(contact.email, 'FluentPath: ' + (type === 'bug' ? 'problem report' : 'feature idea') + ' from ' + student,
+      '<p><strong>' + escapeHtmlServer(student) + '</strong> sent ' + (type === 'bug' ? 'a problem report' : 'a feature idea') + ':</p>' +
+      '<blockquote>' + escapeHtmlServer(message) + '</blockquote>' +
+      (page ? '<p>Screen: ' + escapeHtmlServer(page) + '</p>' : '') +
+      (device ? '<p>Device: ' + escapeHtmlServer(device) + '</p>' : '') +
+      '<p><a href="' + teacherBaseUrl() + '/">Open the teacher portal</a></p>');
+  }
+  return { result: 'success' };
+}
+
+function handleGetFeedback() {
+  var rows = sheetRows('Feedback').rows.map(function(r) {
+    return { id: r.id, submitted_at: r.submitted_at, student_name: r.student_name, type: r.type,
+             message: String(r.message || ''), page: r.page || '', device: r.device || '', status: r.status || 'new' };
+  }).reverse();
+  return { feedback: rows.slice(0, 100) };
+}
+
+function handleUpdateFeedback(id, status) {
+  if (status !== 'done' && status !== 'new') throw new Error('Invalid status');
+  var f = sheetRows('Feedback');
+  var row = null;
+  f.rows.forEach(function(x) { if (String(x.id) === String(id)) row = x; });
+  if (!row) throw new Error('Feedback not found');
+  f.sheet.getRange(row._row, f.headers.indexOf('status') + 1).setValue(status);
+  f.sheet.getRange(row._row, f.headers.indexOf('resolved_at') + 1).setValue(status === 'done' ? new Date().toISOString() : '');
   return { result: 'success' };
 }
 
@@ -3741,7 +3884,7 @@ var POST_HANDLERS = {
     }
     // The teacher's student list reads the Students tab, which used to fill only when the student
     // first logged in, so a brand-new account looked like it had not been created. Add it now.
-    if (role === 'student') registerStudentRow(studentName);
+    if (role === 'student') { registerStudentRow(studentName); closeAccountRequestsFor(email); }
     return { _json: { ok: true, email: email, student_name: studentName, role: role } };
   },
 
@@ -3844,6 +3987,24 @@ var POST_HANDLERS = {
   request_focus: function(params, e, session) {
     if (!session || session.role !== 'student') throw new Error('Login required');
     return { _json: handleRequestFocus(session.student_name, params['topics'], params['note']) };
+  },
+
+  // Public: a visitor on the brochure asks for an account (app token only, throttled inside).
+  request_account: function(params) {
+    return { _json: handleRequestAccount(params) };
+  },
+
+  submit_feedback: function(params, e, session) {
+    if (!session || session.role !== 'student') throw new Error('Login required');
+    return { _json: handleSubmitFeedback(session, params) };
+  },
+
+  update_account_request: function(params) {
+    return { _json: handleUpdateAccountRequest(requireParam(params, 'id'), requireParam(params, 'status')) };
+  },
+
+  update_feedback: function(params) {
+    return { _json: handleUpdateFeedback(requireParam(params, 'id'), requireParam(params, 'status')) };
   },
 
   review_focus: function(params) {
