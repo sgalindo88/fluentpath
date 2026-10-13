@@ -26,24 +26,45 @@ let state = {
 const LESSON_DURATION = FP.LESSON_DURATION_MIN * 60; // seconds
 
 const LEVEL_THEMES = {
-  A1: { name: 'Beginner', theme: 'Everyday Survival', color: '#2e6e45' },
-  A2: { name: 'Elementary', theme: 'Community & Life', color: '#1e4d8c' },
-  B1: { name: 'Intermediate', theme: 'The Workplace', color: '#7b3fa0' },
-  B2: { name: 'Upper-Intermediate', theme: 'Career & Society', color: '#b8471e' },
-  C1: { name: 'Advanced', theme: 'Professional Mastery', color: '#c9933a' },
-  C2: { name: 'Proficiency', theme: 'Full Fluency', color: '#1a1208' },
+  A1: { name: 'Beginner', name_es: 'Principiante', theme: 'Everyday Survival', theme_es: 'Vida diaria' },
+  A2: { name: 'Elementary', name_es: 'Elemental', theme: 'Community & Life', theme_es: 'Comunidad y vida' },
+  B1: { name: 'Intermediate', name_es: 'Intermedio', theme: 'The Workplace', theme_es: 'El trabajo' },
+  B2: { name: 'Upper-Intermediate', name_es: 'Intermedio alto', theme: 'Career & Society', theme_es: 'Carrera y sociedad' },
+  C1: { name: 'Advanced', name_es: 'Avanzado', theme: 'Professional Mastery', theme_es: 'Dominio profesional' },
+  C2: { name: 'Proficiency', name_es: 'Dominio total', theme: 'Full Fluency', theme_es: 'Fluidez total' },
 };
 
 // Step types for a full 90-min lesson
 const STEP_STRUCTURE = [
-  { type: 'warmup',      label: 'WARM-UP',       title: 'Let\'s Get Started',       duration: 10 },
-  { type: 'vocabulary',  label: 'VOCABULARY',     title: 'New Words Today',          duration: 20 },
-  { type: 'listening',   label: 'LISTENING',      title: 'Listen & Understand',      duration: 15 },
-  { type: 'speaking',    label: 'PRONUNCIATION',  title: 'Speak & Be Understood',    duration: 20 },
-  { type: 'practice',    label: 'PRACTICE',       title: 'Put It All Together',      duration: 15 },
-  { type: 'writing',     label: 'WRITING',        title: 'Write It Down',            duration: 15 },
-  { type: 'review',      label: 'REVIEW',         title: 'What Did You Learn?',      duration: 5  },
+  { type: 'warmup',      label: 'Warm-up',       label_es: 'Calentamiento',       title: 'Let\'s Get Started',    title_es: 'Comencemos',               duration: 10 },
+  { type: 'vocabulary',  label: 'Vocabulary',    label_es: 'Vocabulario',         title: 'New Words Today',       title_es: 'Palabras nuevas de hoy',   duration: 20 },
+  { type: 'listening',   label: 'Listening',     label_es: 'Comprensión auditiva', title: 'Listen & Understand',  title_es: 'Escucha y comprende',      duration: 15 },
+  { type: 'speaking',    label: 'Pronunciation', label_es: 'Pronunciación',       title: 'Speak & Be Understood', title_es: 'Habla y hazte entender',   duration: 20 },
+  { type: 'practice',    label: 'Practice',      label_es: 'Práctica',            title: 'Put It All Together',   title_es: 'Junta todo lo aprendido',  duration: 15 },
+  { type: 'writing',     label: 'Writing',       label_es: 'Escritura',           title: 'Write It Down',         title_es: 'Escríbelo',                duration: 15 },
+  { type: 'review',      label: 'Review',        label_es: 'Repaso',              title: 'What Did You Learn?',   title_es: '¿Qué aprendiste?',         duration: 5  },
 ];
+
+// ══════════════════════════════════════════════════════
+// SMALL HELPERS
+// ══════════════════════════════════════════════════════
+/** Static bilingual text (both arguments are plain text and are escaped). */
+const bi = FP.ui.bi;
+
+/**
+ * AI-supplied text with its optional Spanish line (`*_es` fields). English always shows;
+ * the Spanish line is hidden for B2/C1/C2 by the `fp-no-es` class (see ui.js).
+ */
+function biText(en, es) {
+  if (!es) return escHtml(en);
+  return '<span class="fp-bi">' + escHtml(en) + '<span class="fp-bi__es" lang="es">' + escHtml(es) + '</span></span>';
+}
+
+function $(id) { return document.getElementById(id); }
+function setHidden(el, hidden) { if (el) el.classList.toggle('fp-hidden', !!hidden); }
+
+/** Plural helper for the small counters ("1 word", "3 words"). */
+function plural(n, one, many) { return n === 1 ? one : many; }
 
 // ══════════════════════════════════════════════════════
 // CHECKPOINT (session recovery)
@@ -55,10 +76,10 @@ function saveLessonCheckpoint() {
   if (!state.lessonContent || !state.steps.length) return;
   // Collect current textarea values from the DOM
   const domAnswers = Object.assign({}, state.answers);
-  var wr = document.getElementById('writing-resp');
-  if (wr) domAnswers['writing'] = wr.value;
-  var rn = document.getElementById('review-notes');
-  if (rn) domAnswers['review_notes'] = rn.value;
+  var wr = $('writing-resp');
+  if (wr && !wr.disabled) domAnswers['writing'] = wr.value;
+  var rn = $('review-notes');
+  if (rn && !rn.disabled) domAnswers['review_notes'] = rn.value;
 
   Checkpoint.save(CKPT_KEY, {
     studentName: state.studentName,
@@ -105,32 +126,20 @@ function tryResumeLesson() {
       state.answers = data.answers || {};
       state.timeElapsed = data.timeElapsed || 0;
       state.startTime = new Date(Date.now() - (state.timeElapsed * 1000));
+      FP.ui.setLevel(state.level);
 
       // Rebuild steps and set position
       state.steps = buildSteps(state.lessonContent);
       state.currentStep = Math.min(data.currentStep || 0, state.steps.length - 1);
 
-      // Show lesson screen and start
       showScreen('screen-lesson');
-      var info = LEVEL_THEMES[state.level] || { theme: '' };
-      document.getElementById('navInfo').textContent = state.level + ' · ' + info.theme;
-      document.getElementById('navDay').textContent = 'Day ' + state.dayNumber + ' / ' + FP.COURSE_DAYS;
-      document.getElementById('navDay').style.display = 'block';
-      document.getElementById('navTimer').style.display = 'block';
-      document.getElementById('lessonLabel').textContent = 'Day ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme;
-
-      // Resume timer from saved elapsed time
-      startTimer(data.timeElapsed || 0);
+      showLessonChrome();
+      startTimer(data.timeElapsed || 0); // resume from the saved elapsed time
 
       buildStepDots();
       renderStep();
-      document.getElementById('lessonNav').style.display = '';
+      setHidden($('lessonNav'), false);
       startLessonAutoSave();
-
-      // Update button text
-      if (state.currentStep === state.steps.length - 1) {
-        document.getElementById('btnNext').textContent = tr('Finish Lesson ✓');
-      }
     },
     onStartOver: function() {
       clearLessonCheckpoint();
@@ -143,27 +152,52 @@ function tryResumeLesson() {
 // ══════════════════════════════════════════════════════
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  $(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/** Header details that only make sense once a lesson is running: day badge, timer, pause. */
+function showLessonChrome() {
+  var info = LEVEL_THEMES[state.level] || { theme: '', theme_es: '' };
+  var day = $('navDay');
+  day.innerHTML = escHtml('Day ' + state.dayNumber + ' / ' + FP.COURSE_DAYS) + FP.ui.es('Día ' + state.dayNumber + ' / ' + FP.COURSE_DAYS);
+  setHidden(day, false);
+  setHidden($('navTimer'), false);
+  setHidden($('navPause'), false);
+  $('lessonLabel').innerHTML = bi(
+    'Day ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme,
+    'Día ' + state.dayNumber + ' · ' + state.level + ' · ' + info.theme_es);
 }
 
 // ══════════════════════════════════════════════════════
 // LEVEL DISPLAY (the level itself is assigned by the teacher — see loadCourseState)
 // ══════════════════════════════════════════════════════
+/** Set the message under the form: variant 'info' | 'warning'. `html` is already escaped. */
+function setLevelMessage(html, variant) {
+  var el = $('levelInstruction');
+  el.className = 'fp-banner fp-banner--' + (variant || 'info') + ' level-instruction';
+  el.querySelector('.fp-banner__body').innerHTML = html;
+  var icon = el.querySelector('.fp-banner__icon');
+  if (icon) icon.outerHTML = FP.icon(variant === 'warning' ? 'warning' : 'lightbulb', { className: 'fp-banner__icon' });
+}
+
 function lockLevelGrid(levelCode) {
-  // Disable clicking on all level cards
+  // The tiles are display only: the chosen level is highlighted, the others stay locked.
   document.querySelectorAll('.level-card').forEach(function(c) {
-    c.onclick = null;
-    c.style.cursor = 'default';
-    if (c.dataset.level !== levelCode) {
-      c.style.opacity = '0.3';
-      c.style.pointerEvents = 'none';
-    }
+    var mine = c.dataset.level === levelCode;
+    c.classList.toggle('selected', mine);
+    c.classList.toggle('is-selected', mine);
+    c.classList.toggle('is-locked', !mine);
+    if (mine) { c.removeAttribute('aria-disabled'); c.setAttribute('aria-current', 'true'); }
+    else { c.setAttribute('aria-disabled', 'true'); c.removeAttribute('aria-current'); }
   });
-  // Update instruction text
-  var info = LEVEL_THEMES[levelCode] || {};
-  document.getElementById('levelInstruction').innerHTML =
-    'Your level: <strong>' + levelCode + ' · ' + (info.name || '') + '</strong>' +
-    '<span style="display:block;margin-top:4px;font-size:11px;color:var(--rule);">Assigned by your teacher. Contact them if this needs to change.</span>';
+  var info = LEVEL_THEMES[levelCode] || { name: '', name_es: '' };
+  setLevelMessage(
+    '<span class="fp-bi">Your level: <strong>' + escHtml(levelCode + ' · ' + info.name) + '</strong>' +
+      '<span class="fp-bi__es" lang="es">Tu nivel: <strong>' + escHtml(levelCode + ' · ' + info.name_es) + '</strong></span></span>' +
+    '<span class="fp-bi">Assigned by your teacher. Contact them if this needs to change.' +
+      '<span class="fp-bi__es" lang="es">Lo asigna tu profesor. Habla con tu profesor si debe cambiar.</span></span>',
+    'info');
 }
 
 // ══════════════════════════════════════════════════════
@@ -173,8 +207,15 @@ function startCourse() {
   // FLOW-1: name, level and day all come from the server (loadCourseState);
   // the landing page no longer lets the student type or pick any of them.
   if (!state.studentName || !state.level || !state.dayNumber) return;
-  state.lessonDate = document.getElementById('lessonDate').value || localDateString();
+  state.lessonDate = $('lessonDate').value || localDateString();
   beginLesson();
+}
+
+/** The video-call request lives in the header, like the placement test. */
+function initCallControl() {
+  if (typeof CallRequest !== 'undefined') {
+    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber, mount: '#callSlot', compact: true });
+  }
 }
 
 /**
@@ -191,7 +232,7 @@ function resolveCourseState(progress, cachedLevel, cachedLastDay) {
 }
 
 async function loadCourseState() {
-  var btn = document.getElementById('btnBeginLesson');
+  var btn = $('btnBeginLesson');
   btn.disabled = true;
   var progress = null;
   try {
@@ -210,19 +251,18 @@ async function loadCourseState() {
     } catch (_) {}
   }
   if (!cs.level) {
-    document.querySelectorAll('.level-card').forEach(function(c) { c.style.opacity = '0.3'; c.style.cursor = 'default'; });
-    document.getElementById('levelInstruction').innerHTML =
-      'Your teacher has not set your level yet. Take the placement test from the hub, then come back here.' +
-      '<span style="display:block;margin-top:4px;">Tu profesor aún no ha asignado tu nivel. Haz la prueba de nivel en el inicio y vuelve aquí.</span>';
+    setLevelMessage(
+      '<span class="fp-bi">Your teacher has not set your level yet. Take the placement test from the hub, then come back here.' +
+      '<span class="fp-bi__es" lang="es">Tu profesor aún no ha asignado tu nivel. Haz la prueba de nivel en el inicio y vuelve aquí.</span></span>',
+      'warning');
     return;
   }
   state.level = cs.level;
   state.dayNumber = cs.dayNumber;
-  if (typeof I18n !== 'undefined') I18n.setLevel(state.level);
-  var card = document.querySelector('.level-card[data-level="' + cs.level + '"]');
-  if (card) card.classList.add('selected');
+  FP.ui.setLevel(state.level);
   lockLevelGrid(cs.level);
   btn.disabled = false;
+  initCallControl(); // now that the day is known
 }
 
 // ══════════════════════════════════════════════════════
@@ -233,32 +273,25 @@ var lessonInProgress = false;
 function onBeforeUnload(e) { if (lessonInProgress) { e.preventDefault(); } }
 window.addEventListener('beforeunload', onBeforeUnload);
 
+function waitMessage(en, es) {
+  return '<div class="lesson-wait" role="status"><span class="fp-spinner" aria-hidden="true"></span><p class="fp-wait__msg">' + bi(en, es) + '</p></div>';
+}
+
 async function beginLesson() {
   lessonInProgress = true;
   state.submissionId = newSubmissionId(); // N-12
   showScreen('screen-lesson');
   state.startTime = new Date();
   startTimer();
-
-  // Video call already initialized on the landing screen in required mode
-
-  // Update nav
-  const info = LEVEL_THEMES[state.level];
-  document.getElementById('navInfo').textContent = `${state.level} · ${info.theme}`;
-  document.getElementById('navDay').textContent = `Day ${state.dayNumber} / ${FP.COURSE_DAYS}`;
-  document.getElementById('navDay').style.display = 'block';
-  document.getElementById('navTimer').style.display = 'block';
-  document.getElementById('lessonLabel').textContent = `Day ${state.dayNumber} · ${state.level} · ${info.theme}`;
+  showLessonChrome();
 
   // Fetch AI lesson content with a 45-second safety timeout
-  document.getElementById('activityWrap').innerHTML = '<div class="spinner"></div><p style="text-align:center;color:var(--muted);font-style:italic;margin-top:16px;">Loading your personalised lesson…</p>';
+  $('activityWrap').innerHTML = waitMessage('Loading your personalised lesson…', 'Cargando tu lección personalizada…');
 
   var lessonTimeout = setTimeout(function() {
-    document.getElementById('activityWrap').innerHTML =
-      '<div style="text-align:center;padding:40px;">' +
-      '<p style="color:var(--rust);font-weight:600;margin-bottom:12px;">Lesson is taking longer than expected.</p>' +
-      '<p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Using a built-in lesson instead.</p>' +
-      '</div>';
+    $('activityWrap').innerHTML = waitMessage(
+      'This is taking longer than expected. Please keep this page open.',
+      'Esto está tardando más de lo esperado. Mantén esta página abierta.');
   }, 45000);
 
   const lessonData = await generateLesson();
@@ -269,7 +302,7 @@ async function beginLesson() {
 
   buildStepDots();
   renderStep();
-  document.getElementById('lessonNav').style.display = '';
+  setHidden($('lessonNav'), false);
   startLessonAutoSave();
 }
 
@@ -332,13 +365,14 @@ async function generateLesson() {
   return getFallbackLesson(state.level, state.dayNumber);
 }
 
-/** Show a small banner so the student/teacher knows the AI generator is offline. */
+
+/** Tell the student (and, through them, the teacher) that the lesson generator is offline. In the page flow, under the step bar. */
 function showFallbackBanner() {
-  if (document.getElementById('fp-fallback-banner')) return;
-  FP.ui.banner({
-    id: 'fp-fallback-banner', variant: 'warning', position: 'below-header',
-    html: 'Offline lesson — please tell your teacher the lesson generator is unavailable.',
-  });
+  var box = $('lessonNotice');
+  if (!box || box.firstChild) return;
+  box.innerHTML = bannerHtml('warning',
+    bi('Offline lesson. Please tell your teacher the lesson generator is unavailable.',
+       'Lección sin conexión. Avisa a tu profesor que el generador de lecciones no está disponible.'));
 }
 
 // Five hand-curated fallback lessons that cycle by (day - 1) % 5.
@@ -684,25 +718,35 @@ function buildSteps(lesson) {
 }
 
 // ══════════════════════════════════════════════════════
-// STEP DOTS
+// STEP BAR: eight-pixel segments, "Step 3 of 7" beside them
 // ══════════════════════════════════════════════════════
 function buildStepDots() {
-  const container = document.getElementById('stepDots');
-  container.innerHTML = state.steps.map((s, i) =>
-    `<div class="step-dot ${i === 0 ? 'active' : ''}" id="dot-${i}"></div>`
+  $('stepDots').innerHTML = state.steps.map((s, i) =>
+    `<div class="fp-steps__seg step-dot${i === 0 ? ' is-current' : ''}" id="dot-${i}"></div>`
   ).join('');
+  $('stepDots').setAttribute('aria-valuemax', String(state.steps.length));
 }
 
 function updateStepDots() {
   state.steps.forEach((_, i) => {
-    const dot = document.getElementById(`dot-${i}`);
+    const dot = $(`dot-${i}`);
     if (!dot) return;
-    dot.className = 'step-dot';
-    if (i < state.currentStep) dot.classList.add('done');
-    else if (i === state.currentStep) dot.classList.add('active');
+    dot.className = 'fp-steps__seg step-dot';
+    if (i < state.currentStep) dot.classList.add('is-completed');
+    else if (i === state.currentStep) dot.classList.add('is-current');
   });
-  document.getElementById('stepCountLabel').textContent = `Step ${state.currentStep + 1} of ${state.steps.length}`;
-  document.getElementById('progressBar').style.width = ((state.currentStep + 1) / state.steps.length * 100) + '%';
+  const n = state.currentStep + 1, total = state.steps.length;
+  $('stepCountLabel').innerHTML = bi(`Step ${n} of ${total}`, `Paso ${n} de ${total}`);
+  $('stepDots').setAttribute('aria-valuenow', String(n));
+  $('stepDots').setAttribute('aria-valuetext', FP.ui.label(`Step ${n} of ${total}`, `Paso ${n} de ${total}`));
+}
+
+/** The big button: "Continue", or "Finish lesson" on the last step. */
+function updateNextButton() {
+  const last = state.currentStep === state.steps.length - 1;
+  $('btnNext').innerHTML = last
+    ? '<span class="fp-bi">Finish lesson<span class="fp-bi__es" lang="es">Terminar la lección</span></span>' + FP.icon('check')
+    : '<span class="fp-bi">Continue<span class="fp-bi__es" lang="es">Continuar</span></span>' + FP.icon('arrow_right_alt');
 }
 
 // ══════════════════════════════════════════════════════
@@ -714,14 +758,15 @@ function renderStep() {
   const data = step.data;
 
   // Update header
-  document.getElementById('stepNumBadge').textContent = state.currentStep + 1;
-  document.getElementById('stepTypeLabel').textContent = meta.label;
-  document.getElementById('stepTitleLabel').textContent = data.title || meta.title;
+  $('stepNumBadge').textContent = state.currentStep + 1;
+  $('stepTypeLabel').innerHTML = bi(meta.label, meta.label_es);
+  $('stepTitleLabel').innerHTML = data.title ? biText(data.title, data.title_es) : bi(meta.title, meta.title_es);
 
   updateStepDots();
+  updateNextButton();
 
   // Render activity
-  const wrap = document.getElementById('activityWrap');
+  const wrap = $('activityWrap');
   wrap.innerHTML = '';
 
   switch(step.type) {
@@ -734,52 +779,100 @@ function renderStep() {
     case 'review':     renderReview(wrap, data); break;
   }
 
-  // Focus management: move focus to the first interactive element in the new step
-  setTimeout(function() {
-    var target = wrap.querySelector('textarea, input, button, [tabindex="0"]');
-    if (target) target.focus();
-  }, 100);
+  FP.ui.localizeAttrs(wrap); // placeholders and aria-labels carry their Spanish in data-*-es
+  restoreStepInputs(wrap);
+
+  // Focus management: a screen reader hears the new step's title; the keyboard does not pop up.
+  const title = $('stepTitleLabel');
+  title.tabIndex = -1;
+  title.focus({ preventScroll: true });
 }
 
-// ── BILINGUAL HELPERS ──
-// For A1/A2: show Spanish as primary, English as hint
-// For other levels: show English only
-function biText(en, es) {
-  if (!es) return escHtml(en);
-  var lvl = (state.level || '').toUpperCase();
-  if (lvl === 'A1' || lvl === 'A2') {
-    return escHtml(es) + '<span class="i18n-hint" style="pointer-events:none;">' + escHtml(en) + '</span>';
-  }
-  return escHtml(en);
+// ── Events: one set of delegated listeners for everything the steps render ──
+function initLessonEvents() {
+  const wrap = $('activityWrap');
+  wrap.addEventListener('click', function (e) {
+    const t = e.target.closest('[data-act]');
+    if (!t || !wrap.contains(t)) return;
+    switch (t.dataset.act) {
+      case 'reveal':       revealWord(t.closest('.vocab-item')); break;
+      case 'hear-word':    speakWord(t.dataset.word); break;
+      case 'mcq':          selectMcq(t); break;
+      case 'listen-play':  playListening(); break;
+      case 'listen-stop':  stopListening(); break;
+      case 'hear-model':   speakText(t.dataset.phrase); break;
+      case 'drill':        startDrill(t.dataset.id, t.dataset.phrase); break;
+      case 'conv':         toggleConvRecording(); break;
+      case 'conf':         selectConfidence(t); break;
+    }
+  });
+  wrap.addEventListener('input', function (e) {
+    const key = e.target.dataset && e.target.dataset.answerKey;
+    if (!key) return;
+    if (key === 'writing') updateWritingWC(e.target, parseInt(e.target.dataset.min, 10) || 50);
+    else saveAnswer(key, e.target.value);
+  });
+  wrap.addEventListener('change', function (e) {
+    if (e.target.dataset && e.target.dataset.skipFor) toggleSkip(e.target);
+  });
+  // Radio groups (answer tiles, confidence faces): arrows move between options, one tab stop per group.
+  wrap.addEventListener('keydown', function (e) {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (!step) return;
+    const group = e.target.closest('[role="radiogroup"]');
+    if (!group) return;
+    const radios = Array.from(group.querySelectorAll('[role="radio"]'));
+    const at = radios.indexOf(e.target);
+    if (at < 0) return;
+    e.preventDefault();
+    const next = radios[(at + step + radios.length) % radios.length];
+    radios.forEach(b => { b.tabIndex = b === next ? 0 : -1; });
+    next.focus();
+  });
 }
 
-// Runtime translation lookup for JS-set textContent
-// Uses the i18n dictionary if available, returns original if not
-var _TR = {
-  'Press to start speaking — aim for 30+ seconds': 'Presiona para empezar a hablar — intenta 30+ segundos',
-  'Recording… speak clearly': 'Grabando… habla con claridad',
-  'Recording saved. You can record again if you want.': 'Grabación guardada. Puedes grabar de nuevo si quieres.',
-  '✓ Great job! Your pronunciation was clear.': '✓ ¡Excelente! Tu pronunciación fue clara.',
-  '💡 Keep practicing — try again and speak slowly.': '💡 Sigue practicando — intenta de nuevo y habla despacio.',
-  '🎤 Record again': '🎤 Grabar de nuevo',
-  '🎤 Try again': '🎤 Intentar de nuevo',
-  'Playing…': 'Reproduciendo…',
-  'Click to listen again': 'Haz clic para escuchar de nuevo',
-  'No more plays': 'No más reproducciones',
-  '✓ Correct!': '✓ ¡Correcto!',
-  'Saving your progress…': 'Guardando tu progreso…',
-  'Finish Lesson ✓': 'Terminar Lección ✓',
-  'Continue →': 'Continuar →',
-  'You said:': 'Dijiste:',
-  'Day': 'Día',
-  '⚠ We could not confirm your lesson was saved. Tap "Try saving again". Your answers are still saved on this device — do not close this page.': '⚠ No pudimos confirmar que tu lección se guardó. Toca "Intentar guardar de nuevo". Tus respuestas siguen guardadas en este dispositivo — no cierres esta página.',
-  'Try saving again': 'Intentar guardar de nuevo',
-  '⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.': '⚠ Tus grabaciones no se subieron, así que tu profesor no puede escucharlas. Por favor avísale a tu profesor.',
-};
-function tr(en) {
-  var lvl = (state.level || '').toUpperCase();
-  if (lvl === 'A1' || lvl === 'A2') return _TR[en] || en;
-  return en;
+// ── Building blocks ──
+/** A writing/answer box. `min` makes it a word-counted writing task. */
+function answerBox(id, key, o) {
+  return '<textarea class="fp-textarea writing-area' + (o.short ? ' writing-area--short' : '') + '" id="' + id + '" data-answer-key="' + key + '"' +
+    (o.min ? ' data-min="' + o.min + '"' : '') +
+    ' placeholder="' + FP.ui.esc(o.ph[0]) + '" data-ph-es="' + FP.ui.esc(o.ph[1]) + '"' +
+    ' aria-label="' + FP.ui.esc(o.label[0]) + '" data-label-es="' + FP.ui.esc(o.label[1]) + '"></textarea>';
+}
+function skipLabel(inputId, key, en, es, checkboxId) {
+  return '<label class="skip-label"><input type="checkbox"' + (checkboxId ? ' id="' + checkboxId + '"' : '') +
+    ' data-skip-for="' + inputId + '" data-skip-key="' + key + '">' + bi(en, es) + '</label>';
+}
+function promptBox(labelEn, labelEs, innerHtml) {
+  return '<div class="prompt-box"><span class="prompt-box__label">' + bi(labelEn, labelEs) + '</span>' + innerHtml + '</div>';
+}
+/** A banner with an icon (info | warning | success | error); `html` is already escaped. */
+function bannerHtml(variant, html, extraClass) {
+  const icon = { info: 'lightbulb', warning: 'warning', success: 'check', error: 'warning' }[variant] || 'lightbulb';
+  return '<div class="fp-banner fp-banner--' + variant + (extraClass ? ' ' + extraClass : '') + '" role="note">' +
+    FP.icon(icon, { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + html + '</div></div>';
+}
+
+/** After a resume the typed answers are put back (and a skipped box stays skipped). */
+function restoreStepInputs(wrap) {
+  wrap.querySelectorAll('textarea[data-answer-key]').forEach(function (ta) {
+    const v = state.answers[ta.dataset.answerKey];
+    if (v === '[SKIPPED]') {
+      const cb = wrap.querySelector('input[data-skip-for="' + ta.id + '"]');
+      if (cb) { cb.checked = true; ta.disabled = true; }
+    } else if (typeof v === 'string' && v) {
+      ta.value = v;
+      if (ta.dataset.answerKey === 'writing') updateWritingWC(ta, parseInt(ta.dataset.min, 10) || 50, true);
+    }
+  });
+  wrap.querySelectorAll('.mcq-options').forEach(function (group) {
+    const key = group.dataset.prefix === 'l' ? 'listening' : 'practice';
+    const saved = state.answers[key + '_' + group.dataset.qid];
+    if (saved !== undefined) applyMcqResult(group, parseInt(saved, 10), parseInt(group.dataset.correct, 10));
+  });
+  const conf = state.answers['confidence'];
+  const confBtn = conf != null && wrap.querySelector('.conf-btn[data-val="' + conf + '"]');
+  if (confBtn) selectConfidence(confBtn, true);
 }
 
 // ── WARMUP ──
@@ -787,103 +880,168 @@ function renderWarmup(wrap, data) {
   var lc = state.lessonContent || {};
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">TODAY'S OBJECTIVE</div>
-      <div class="ac-heading">${biText(lc.topic || 'Today\'s Topic', lc.topic_es)}</div>
+      <div class="ac-label">${bi("Today's objective", 'Objetivo de hoy')}</div>
+      <h3 class="ac-heading">${lc.topic ? biText(lc.topic, lc.topic_es) : bi("Today's topic", 'El tema de hoy')}</h3>
       <div class="ac-body">${biText(lc.objective || '', lc.objective_es)}</div>
     </div>
     <div class="activity-card">
-      <div class="ac-label">WARM-UP</div>
-      <div class="ac-heading">${biText(data.title, data.title_es)}</div>
+      <div class="ac-label">${bi('Warm-up', 'Calentamiento')}</div>
       <div class="ac-body">${biText(data.instruction, data.instruction_es)}</div>
-      <div style="margin-top:20px;background:var(--cream);border-left:4px solid var(--gold);padding:16px 20px;">
-        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">THINK ABOUT THIS</div>
-        <div style="font-size:16px;color:var(--ink);line-height:1.7;font-style:italic;">"${biText(data.prompt, data.prompt_es)}"</div>
-      </div>
-      <textarea class="writing-area" id="warmup-resp" placeholder="Type your answer here…" style="min-height:100px;" oninput="saveAnswer('warmup', this.value)" required></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleCourseSkip(this,'warmup-resp','warmup')"> Skip this question</label>
+      ${promptBox('Think about this', 'Piensa en esto', biText(data.prompt, data.prompt_es))}
+      ${answerBox('warmup-resp', 'warmup', { short: true, ph: ['Type your answer here…', 'Escribe tu respuesta aquí…'], label: ['Your answer', 'Tu respuesta'] })}
+      ${skipLabel('warmup-resp', 'warmup', 'Skip this question', 'Omitir esta pregunta')}
     </div>
   `;
 }
 
 // ── VOCABULARY ──
 function renderVocabulary(wrap, data) {
-  const words = (data.words || []).map((w, i) => `
-    <div class="vocab-item" tabindex="0" role="button" aria-label="Vocabulary: ${escHtml(w.word)} — tap to reveal definition" onclick="revealWord(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();revealWord(this);}">
-      <div class="vi-word">${escHtml(w.word)}</div>
-      <div class="vi-pron">${escHtml(w.pronunciation || '')} · ${escHtml(w.partOfSpeech || '')}</div>
-      <div class="vi-hint">Tap to see meaning</div>
-      <div class="vi-def">
-        <strong>${biText(w.definition, w.definition_es)}</strong><br>
-        <em style="font-size:12px;margin-top:4px;display:block;">"${biText(w.exampleSentence, w.exampleSentence_es)}"</em>
-        <button onclick="event.stopPropagation();speakWord('${escHtml(w.word)}')" style="margin-top:8px;background:var(--ink);color:var(--paper);border:none;padding:4px 10px;font-size:11px;cursor:pointer;">🔊 Hear it</button>
+  const list = data.words || [];
+  const words = list.map((w, i) => `
+    <div class="vocab-item">
+      <div class="vocab-row">
+        <button type="button" class="vocab-toggle" data-act="reveal" aria-expanded="false" aria-controls="vdef-${i}">
+          <span class="vi-word">${escHtml(w.word)}</span>
+          <span class="vi-pron">${escHtml(w.pronunciation || '')}${w.partOfSpeech ? ' · ' + escHtml(w.partOfSpeech) : ''}</span>
+          <span class="vi-hint">${bi('Tap to see meaning', 'Toca para ver el significado')}</span>
+        </button>
+        <button type="button" class="vocab-hear" data-act="hear-word" data-word="${escHtml(w.word)}" aria-label="${escHtml(FP.ui.label('Hear the word', 'Escuchar la palabra') + ': ' + w.word)}">${FP.icon('volume_up')}</button>
+      </div>
+      <div class="vi-def" id="vdef-${i}">
+        <strong>${biText(w.definition, w.definition_es)}</strong>
+        <span class="vi-example">${biText('"' + (w.exampleSentence || '') + '"', w.exampleSentence_es ? '"' + w.exampleSentence_es + '"' : '')}</span>
       </div>
     </div>
   `).join('');
 
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">VOCABULARY · ${(data.words||[]).length} WORDS</div>
-      <div class="ac-heading">${biText(data.title, data.title_es)}</div>
+      <div class="ac-label">${bi('Vocabulary · ' + list.length + ' ' + plural(list.length, 'word', 'words'), 'Vocabulario · ' + list.length + ' ' + plural(list.length, 'palabra', 'palabras'))}</div>
       <div class="ac-body">${biText(data.instruction, data.instruction_es)}</div>
       <div class="vocab-grid">${words}</div>
     </div>
     <div class="activity-card">
-      <div class="ac-label">PRACTICE WITH THESE WORDS</div>
-      <div class="ac-heading">${biText('Use them in sentences', 'Úsalas en oraciones')}</div>
-      <div class="ac-body">${biText("Choose any 2 of today's words and write your own sentence using each one.", 'Elige 2 de las palabras de hoy y escribe una oración con cada una.')}</div>
-      <textarea class="writing-area" id="vocab-practice" placeholder="Write your sentences here…" style="min-height:80px;" oninput="saveAnswer('vocab_practice', this.value)" required></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleCourseSkip(this,'vocab-practice','vocab_practice')"> Skip this question</label>
+      <div class="ac-label">${bi('Practice with these words', 'Practica con estas palabras')}</div>
+      <h3 class="ac-heading">${bi('Use them in sentences', 'Úsalas en oraciones')}</h3>
+      <div class="ac-body">${bi("Choose any 2 of today's words and write your own sentence using each one.", 'Elige 2 de las palabras de hoy y escribe una oración con cada una.')}</div>
+      ${answerBox('vocab-practice', 'vocab_practice', { short: true, ph: ['Write your sentences here…', 'Escribe tus oraciones aquí…'], label: ['Your sentences', 'Tus oraciones'] })}
+      ${skipLabel('vocab-practice', 'vocab_practice', 'Skip this question', 'Omitir esta pregunta')}
     </div>
   `;
 }
 
-function revealWord(el) {
-  el.classList.toggle('revealed');
-  const hint = el.querySelector('.vi-hint');
-  if (hint) hint.style.display = el.classList.contains('revealed') ? 'none' : 'block';
+function revealWord(item) {
+  if (!item) return;
+  const open = item.classList.toggle('revealed');
+  const toggle = item.querySelector('.vocab-toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+/** N-19: the word arrives as data, never pasted into a script, so an apostrophe cannot break it. */
 function speakWord(word) {
   speakEnglish(word);
 }
 
+// ── Multiple choice (listening and practice) ──
+/** One question as a radiogroup of answer tiles. prefix: 'l' (listening) or 'p' (practice). */
+function mcqBlock(prefix, q, qi) {
+  const qt = 'qt-' + prefix + qi;
+  const qid = escHtml(q.id);
+  const opts = (q.options || []).map((o, oi) =>
+    '<button type="button" class="fp-answer mcq-opt" id="' + prefix + 'o-' + qid + '-' + oi + '" role="radio" aria-checked="false" tabindex="' + (oi === 0 ? 0 : -1) + '" data-act="mcq" data-i="' + oi + '">' +
+      '<span class="opt-letter" aria-hidden="true">' + String.fromCharCode(65 + oi) + '</span><span class="opt-text">' + escHtml(o) + '</span></button>'
+  ).join('');
+  return '<div class="q-block"><div class="q-text" id="' + qt + '">' + (qi + 1) + '. ' + biText(q.question, q.question_es) + '</div>' +
+    '<div class="mcq-options" role="radiogroup" aria-labelledby="' + qt + '" data-prefix="' + prefix + '" data-qid="' + qid + '" data-correct="' + String(parseInt(q.correct, 10)) + '">' + opts + '</div>' +
+    '<div class="q-feedback" id="' + prefix + 'f-' + qid + '" aria-live="polite"></div></div>';
+}
+
+function verdictHtml(ok) {
+  return '<span class="fp-answer__verdict">' + FP.icon(ok ? 'check_small' : 'close_small', { size: 'sm' }) +
+    (ok ? bi('Correct', 'Correcto') : bi('Incorrect', 'Incorrecto')) + '</span>';
+}
+
+/** Show the result on a question's tiles and feedback line. Pure display: it records nothing. */
+function applyMcqResult(group, chosen, correct) {
+  group.dataset.answered = '1';
+  const opts = Array.from(group.querySelectorAll('.mcq-opt'));
+  opts.forEach(function (el, i) {
+    el.classList.add('is-answered');
+    el.setAttribute('aria-checked', i === chosen ? 'true' : 'false');
+    el.tabIndex = i === chosen ? 0 : -1;
+  });
+  const chosenEl = opts[chosen], correctEl = opts[correct];
+  const letter = String.fromCharCode(65 + correct);
+  const fb = $(group.dataset.prefix + 'f-' + group.dataset.qid);
+  let fbHtml, fbClass;
+  if (chosen === correct) {
+    if (chosenEl) { chosenEl.classList.add('is-correct'); chosenEl.insertAdjacentHTML('beforeend', verdictHtml(true)); }
+    fbHtml = FP.icon('check') + '<div>' + bi('Correct!', '¡Correcto!') + '</div>';
+    fbClass = 'correct-fb';
+  } else {
+    if (chosenEl) { chosenEl.classList.add('is-wrong'); chosenEl.insertAdjacentHTML('beforeend', verdictHtml(false)); }
+    if (correctEl) { correctEl.classList.add('is-correct'); correctEl.insertAdjacentHTML('beforeend', verdictHtml(true)); }
+    fbHtml = FP.icon('close_small') + '<div>' + (group.dataset.prefix === 'l'
+      ? bi('The correct answer was ' + letter + '.', 'La respuesta correcta era ' + letter + '.')
+      : bi('Not quite. The answer was ' + letter + '.', 'Casi. La respuesta era ' + letter + '.')) + '</div>';
+    fbClass = 'wrong-fb';
+  }
+  if (fb) { fb.className = 'q-feedback show ' + fbClass; fb.innerHTML = fbHtml; }
+}
+
+function selectMcq(btn) {
+  const group = btn.closest('.mcq-options');
+  if (!group || group.dataset.answered) return;
+  const qid = group.dataset.qid;
+  const correct = parseInt(group.dataset.correct, 10);
+  const chosen = parseInt(btn.dataset.i, 10);
+  applyMcqResult(group, chosen, correct);
+
+  const key = group.dataset.prefix === 'l' ? 'listening' : 'practice';
+  saveAnswer(`${key}_${qid}`, chosen);
+  saveAnswer(`${key}_${qid}_correct`, correct);
+  saveAnswer(`${key}_${qid}_is_right`, chosen === correct ? 1 : 0);
+  // Track the score
+  if (!state.answers[key + '_total']) state.answers[key + '_total'] = 0;
+  if (!state.answers[key + '_correct']) state.answers[key + '_correct'] = 0;
+  state.answers[key + '_total']++;
+  if (chosen === correct) state.answers[key + '_correct']++;
+}
+
 // ── LISTENING ──
 let listeningPlays = 0;
+const MAX_PLAYS = 3;
+
+function playsLeftHtml(left) {
+  return left === 0
+    ? bi('No plays left', 'No quedan reproducciones')
+    : bi(left + ' ' + plural(left, 'play', 'plays') + ' left', 'Quedan ' + left + ' ' + plural(left, 'reproducción', 'reproducciones'));
+}
+
 function renderListening(wrap, data) {
   listeningPlays = 0;
-  const qs = (data.questions || []).map((q, qi) => {
-    const opts = (q.options || []).map((o, oi) => `
-      <div class="mcq-opt" id="lo-${q.id}-${oi}" tabindex="0" role="button" aria-label="Option ${String.fromCharCode(65+oi)}: ${escHtml(o)}" onclick="selectListeningOpt('${q.id}', ${oi}, ${q.correct})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectListeningOpt('${q.id}', ${oi}, ${q.correct});}">
-        <div class="opt-letter">${String.fromCharCode(65+oi)}</div>
-        <div>${escHtml(o)}</div>
-      </div>`).join('');
-    return `
-      <div style="margin-bottom:20px;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">${qi+1}. ${biText(q.question, q.question_es)}</div>
-        <div class="mcq-options">${opts}</div>
-        <div id="lf-${q.id}" aria-live="polite" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
-      </div>`;
-  }).join('');
+  courseListenStart = null;
+  courseListenTotal = 0;
+  const qs = (data.questions || []).map((q, qi) => mcqBlock('l', q, qi)).join('');
 
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">LISTENING COMPREHENSION</div>
-      <div class="ac-heading">${biText(data.title, data.title_es)}</div>
+      <div class="ac-label">${bi('Listening comprehension', 'Comprensión auditiva')}</div>
       <div class="ac-body">${biText(data.instruction, data.instruction_es)}</div>
-      <div class="audio-box" id="listenBox" style="cursor:default;">
-        <div class="audio-btn" id="listenBtn" onclick="playListening()" style="cursor:pointer;">▶</div>
-        <div class="audio-btn" id="listenStopBtn" onclick="stopListening()" style="cursor:pointer;display:none;background:var(--rust,#b8471e);color:white;">■</div>
+      <div class="audio-box fp-audio" id="listenBox">
+        <button type="button" class="fp-audio__play" id="listenBtn" data-act="listen-play" aria-label="Play audio" data-label-es="Reproducir audio">${FP.icon('play_arrow')}</button>
+        <button type="button" class="fp-audio__play is-stop fp-hidden" id="listenStopBtn" data-act="listen-stop" aria-label="Stop audio" data-label-es="Detener audio">${FP.icon('stop')}</button>
         <div class="audio-info">
-          <div class="ai-label">AUDIO</div>
-          <div class="ai-status" id="listenStatus">Press play — up to 3 times</div>
-          <span id="listenPlayTime" style="font-size:10px;color:var(--muted);display:none;"></span>
+          <span class="ai-label">Audio</span>
+          <span class="ai-status" id="listenStatus" aria-live="polite">${bi('Press play. You can listen up to 3 times.', 'Toca reproducir. Puedes escuchar hasta 3 veces.')}</span>
+          <span class="ai-time fp-hidden" id="listenPlayTime"></span>
         </div>
-        <div class="audio-plays" id="listenPlays">3 plays left</div>
+        <div class="fp-audio__plays audio-plays" id="listenPlays">${playsLeftHtml(MAX_PLAYS)}</div>
       </div>
     </div>
     <div class="activity-card">
-      <div class="ac-label">COMPREHENSION QUESTIONS</div>
-      <div class="ac-heading">Answer what you heard</div>
+      <div class="ac-label">${bi('Comprehension questions', 'Preguntas de comprensión')}</div>
+      <h3 class="ac-heading">${bi('Answer what you heard', 'Responde lo que escuchaste')}</h3>
       ${qs}
     </div>
   `;
@@ -893,22 +1051,29 @@ var courseListenStart = null;
 var courseListenTotal = 0;
 
 function playListening() {
-  if (listeningPlays >= 3) return;
+  if (listeningPlays >= MAX_PLAYS) return;
+  if (!window.speechSynthesis) {
+    $('listenStatus').innerHTML = bi(
+      'Audio is not available on this device. Ask your teacher to read the text with you on the video call.',
+      'El audio no está disponible en este dispositivo. Pide a tu profesor que lea el texto contigo en la videollamada.');
+    return;
+  }
   listeningPlays++;
-  var left = 3 - listeningPlays;
-  document.getElementById('listenPlays').textContent = left === 0 ? 'No plays left' : left + ' play' + (left===1?'':'s') + ' left';
-  document.getElementById('listenStatus').textContent = tr('Playing…');
-  document.getElementById('listenBtn').style.display = 'none';
-  document.getElementById('listenStopBtn').style.display = 'flex';
+  var left = MAX_PLAYS - listeningPlays;
+  $('listenPlays').innerHTML = playsLeftHtml(left);
+  $('listenStatus').innerHTML = bi('Playing…', 'Reproduciendo…');
+  setHidden($('listenBtn'), true);
+  setHidden($('listenStopBtn'), false);
+  $('listenStopBtn').focus({ preventScroll: true });
   courseListenStart = Date.now();
-  if (left === 0) document.getElementById('listenBox').style.opacity = '0.7';
+  if (left === 0) $('listenBox').classList.add('is-spent');
   var text = state.steps[state.currentStep]?.data?.audioText || 'No audio available.';
   speakText(text, function() { finishCourseListening(left); });
 }
 
 function stopListening() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-  finishCourseListening(3 - listeningPlays);
+  finishCourseListening(MAX_PLAYS - listeningPlays);
 }
 
 function finishCourseListening(left) {
@@ -916,50 +1081,22 @@ function finishCourseListening(left) {
     courseListenTotal += Date.now() - courseListenStart;
     courseListenStart = null;
   }
-  document.getElementById('listenStopBtn').style.display = 'none';
-  document.getElementById('listenBtn').style.display = 'flex';
-  document.getElementById('listenStatus').textContent = left > 0 ? tr('Click to listen again') : tr('No more plays');
-  var ptEl = document.getElementById('listenPlayTime');
-  ptEl.style.display = 'inline';
+  var stopBtn = $('listenStopBtn'), playBtn = $('listenBtn');
+  if (!stopBtn || !playBtn) return; // the student already moved on
+  var hadFocus = document.activeElement === stopBtn;
+  setHidden(stopBtn, true);
+  setHidden(playBtn, false);
+  if (left === 0) playBtn.disabled = true;
+  else if (hadFocus) playBtn.focus({ preventScroll: true });
+  $('listenStatus').innerHTML = left > 0
+    ? bi('Tap to listen again', 'Toca para escuchar de nuevo')
+    : bi('No more plays', 'No hay más reproducciones');
+  var ptEl = $('listenPlayTime');
+  setHidden(ptEl, false);
   var s = Math.round(courseListenTotal / 1000);
-  ptEl.textContent = ' · ' + (s < 60 ? s + 's listened' : Math.floor(s/60) + 'm ' + (s%60) + 's listened');
-  if (left === 0) { document.getElementById('listenBtn').style.opacity = '0.4'; document.getElementById('listenBtn').style.cursor = 'default'; }
+  var t = s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  ptEl.innerHTML = bi(t + ' listened', t + ' escuchados');
 }
-
-function selectListeningOpt(qid, chosen, correct) {
-  // disable all options for this question
-  const parent = document.getElementById(`lo-${qid}-0`)?.closest('.mcq-options') ||
-                  document.getElementById(`lo-${qid}-0`)?.parentElement;
-  document.querySelectorAll(`[id^="lo-${qid}-"]`).forEach(el => {
-    el.classList.add('disabled');
-    el.onclick = null;
-  });
-  const chosenEl = document.getElementById(`lo-${qid}-${chosen}`);
-  const correctEl = document.getElementById(`lo-${qid}-${correct}`);
-  const fb = document.getElementById(`lf-${qid}`);
-  if (chosen === correct) {
-    chosenEl?.classList.add('correct');
-    if (fb) { fb.style.display='block'; fb.style.color='var(--green)'; fb.textContent=tr('✓ Correct!'); }
-  } else {
-    chosenEl?.classList.add('wrong');
-    correctEl?.classList.add('correct');
-    if (fb) { fb.style.display='block'; fb.style.color='var(--rust)'; fb.textContent=`The correct answer was ${String.fromCharCode(65+correct)}.`; }
-  }
-  saveAnswer(`listening_${qid}`, chosen);
-  saveAnswer(`listening_${qid}_correct`, correct);
-  saveAnswer(`listening_${qid}_is_right`, chosen === correct ? 1 : 0);
-  // Track listening score
-  if (!state.answers['listening_total']) state.answers['listening_total'] = 0;
-  if (!state.answers['listening_correct']) state.answers['listening_correct'] = 0;
-  state.answers['listening_total']++;
-  if (chosen === correct) state.answers['listening_correct']++;
-}
-
-// ── SPEAKING ──
-let recognition = null;
-let isRecording = false;
-let currentDrillId = null;
-let convRecording = false;
 
 // Audio recording state (MediaRecorder, per drill + conversation)
 let audioRecordings = {};     // { drillId: Blob, 'conversation': Blob }
@@ -1079,6 +1216,11 @@ async function uploadAudioRecordings() {
   }
 }
 
+
+// ── SPEAKING ──
+let recognition = null;
+let convRecording = false;
+
 /**
  * IOS-1b: recording the student's voice needs only MediaRecorder and a
  * microphone. Speech recognition (the live transcript and the pronunciation
@@ -1088,67 +1230,144 @@ async function uploadAudioRecordings() {
 function canRecordAudio() { return !!window.MediaRecorder && !!getAudioMimeType(); }
 function canTranscribe()  { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
 
-/** Bilingual (always both languages: it is shown before/without a known level). */
-var MSG_NO_RECORDING = 'Recording is not available on this device or browser. Update your device and open FluentPath in Safari, or practise aloud with your teacher on the video call. / ' +
-  'La grabación no está disponible en este dispositivo o navegador. Actualiza tu dispositivo y abre FluentPath en Safari, o practica en voz alta con tu profesor en la videollamada.';
-var MSG_MIC_DENIED = 'Microphone access was denied. Please allow the microphone for this site in your device settings. / ' +
-  'Se denegó el acceso al micrófono. Permite el micrófono para este sitio en los ajustes de tu dispositivo.';
+/** In-page messages (never alert()): bilingual markup, shown in a status line under the control. */
+var MSG_NO_RECORDING = bi(
+  'Recording is not available on this device or browser. Update your device and open FluentPath in Safari, or practise aloud with your teacher on the video call.',
+  'La grabación no está disponible en este dispositivo o navegador. Actualiza tu dispositivo y abre FluentPath en Safari, o practica en voz alta con tu profesor en la videollamada.');
+var MSG_MIC_DENIED = bi(
+  'Microphone access was denied. Please allow the microphone for this site in your device settings, then tap the microphone again.',
+  'Se denegó el acceso al micrófono. Permite el micrófono para este sitio en los ajustes de tu dispositivo y toca el micrófono de nuevo.');
+
+/** Show (or clear, with empty html) a message in a status line. kind: 'error' or plain. */
+function setRecMsg(id, html, isError) {
+  var el = $(id);
+  if (!el) return;
+  el.className = 'rec-status' + (html ? ' show' : '') + (isError ? ' is-error' : '');
+  el.innerHTML = html || '';
+}
+
+/** One place for the record button's look (spec 6.6): idle, requesting, recording, recorded, failed. */
+const REC_STATES = {
+  idle:       { icon: 'mic',  fill: false, en: 'Record yourself',                 es: 'Grábate' },
+  requesting: { icon: 'mic',  fill: false, en: 'Allow the microphone',            es: 'Permite el micrófono' },
+  recording:  { icon: 'stop', fill: true,  en: 'Recording… tap to stop',          es: 'Grabando… toca para detener' },
+  recorded:   { icon: 'mic',  fill: false, en: 'Recorded. Tap to record again.',  es: 'Grabado. Toca para grabar de nuevo.' },
+  failed:     { icon: 'mic',  fill: false, en: 'Could not record. Tap to try again.', es: 'No pudimos grabar. Toca para intentar de nuevo.' },
+};
+const CONV_LABELS = {
+  idle:     { en: 'Tap to start speaking. Aim for 30+ seconds.', es: 'Toca para empezar a hablar. Intenta 30+ segundos.' },
+};
+function setMicUi(btn, labelEl, stateName, overrides) {
+  if (!btn) return;
+  const st = Object.assign({}, REC_STATES[stateName], overrides && overrides[stateName]);
+  btn.classList.remove('is-requesting', 'is-recording', 'is-recorded', 'is-failed');
+  if (stateName !== 'idle') btn.classList.add('is-' + stateName);
+  btn.setAttribute('aria-pressed', stateName === 'recording' ? 'true' : 'false');
+  btn.setAttribute('aria-label', FP.ui.label(st.en, st.es));
+  btn.innerHTML = FP.icon(st.icon, { fill: st.fill });
+  if (labelEl) labelEl.innerHTML = bi(st.en, st.es);
+}
+function setDrillUi(id, stateName) { setMicUi($('drill-btn-' + id), $('drill-label-' + id), stateName); }
+function setConvUi(stateName) {
+  setMicUi($('convBtn'), $('convStatus'), stateName, CONV_LABELS);
+  var box = $('convRecorder');
+  if (box) box.classList.toggle('recording', stateName === 'recording' || stateName === 'requesting');
+}
+
+/** Play back the take the student just made, so "recorded" is something they can check. */
+var previewUrls = {};
+function showRecordingPreview(containerId, blob) {
+  var box = $(containerId);
+  if (!box) return;
+  if (previewUrls[containerId]) URL.revokeObjectURL(previewUrls[containerId]);
+  var url = URL.createObjectURL(blob);
+  previewUrls[containerId] = url;
+  box.innerHTML = '<audio class="fp-audio-preview" controls src="' + url + '" aria-label="' + escHtml(FP.ui.label('Your recording', 'Tu grabación')) + '"></audio>';
+}
+
+function youSaid(text) {
+  return '<span class="transcript-label">' + bi('You said:', 'Dijiste:') + '</span>"' + escHtml(text) + '"';
+}
 
 function renderSpeaking(wrap, data) {
-  const canRecord = canRecordAudio() || canTranscribe();
+  const record = canRecordAudio();
   const transcribe = canTranscribe();
-  const browserWarning = canRecord ? (transcribe ? '' : `
-    <div style="background:#eef4fb;border:1px solid #9bb7d4;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#1e3f66;">
-      ${biText('Your voice will be recorded for your teacher. Automatic feedback is not available on this device.', 'Tu voz se grabará para tu profesor. La retroalimentación automática no está disponible en este dispositivo.')}
-    </div>`) : `
-    <div style="background:#fff3e0;border:1px solid #e6a817;border-radius:8px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7a5600;">
-      <strong>${biText('Recording not available', 'Grabación no disponible')}</strong><br>
-      ${biText('Recording is not available on this device or browser. Update your device and open FluentPath in Safari, or practise aloud with your teacher on the video call.', 'La grabación no está disponible en este dispositivo o navegador. Actualiza tu dispositivo y abre FluentPath en Safari, o practica en voz alta con tu profesor en la videollamada.')}
-    </div>`;
-  const recDisabled = canRecord ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;background:var(--muted);"';
+  const canRecord = record || transcribe;
 
-  const drills = (data.drills || []).map(d => `
-    <div class="activity-card" style="margin-bottom:16px;">
-      <div class="ac-label">DRILL · PRONUNCIATION</div>
-      <div style="font-size:22px;font-family:var(--font-family-primary);font-weight:700;margin-bottom:8px;">"${escHtml(d.phrase)}"</div>
-      <div style="background:#fff8e6;border-left:3px solid var(--gold);padding:10px 14px;font-size:13px;color:var(--muted);font-style:italic;margin-bottom:16px;">💡 ${biText(d.tip, d.tip_es)}</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button data-phrase="${escHtml(d.phrase)}" onclick="speakText(this.dataset.phrase)" style="background:var(--blue);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;">${biText('🔊 Hear model', '🔊 Escuchar modelo')}</button>
-        <button data-id="${d.id}" data-phrase="${escHtml(d.phrase)}" onclick="startDrill(this.dataset.id, this.dataset.phrase)" id="drill-btn-${d.id}" ${recDisabled || `style="background:var(--ink);color:white;border:none;padding:8px 18px;font-size:13px;cursor:pointer;"`}>${biText('🎤 Record yourself', '🎤 Grábate')}</button>
+  // N-24: recordings live only in this page until the lesson is submitted. Say so.
+  let notes;
+  if (!canRecord) {
+    notes = bannerHtml('warning', MSG_NO_RECORDING, 'rec-note');
+  } else if (record) {
+    notes = bannerHtml('info',
+      bi('Your voice recordings stay on this page until you finish the lesson, then they are sent to your teacher. If you close or reload this page first, they are lost.',
+         'Tus grabaciones se quedan en esta página hasta que termines la lección y luego se envían a tu profesor. Si cierras o recargas la página antes, se pierden.') +
+      (transcribe ? '' : '<div class="fp-mt-3">' + bi('Automatic feedback is not available on this device.', 'La retroalimentación automática no está disponible en este dispositivo.') + '</div>'),
+      'rec-note');
+  } else {
+    notes = bannerHtml('info',
+      bi('Your voice cannot be saved on this device, so your teacher will not hear it. You still get feedback as you speak.',
+         'Tu voz no se puede guardar en este dispositivo, así que tu profesor no la escuchará. Aun así recibes retroalimentación mientras hablas.'),
+      'rec-note');
+  }
+
+  const drillList = data.drills || [];
+  const drills = drillList.map(d => `
+    <div class="activity-card">
+      <div class="ac-label">${bi('Drill · Pronunciation', 'Ejercicio · Pronunciación')}</div>
+      <div class="drill-phrase">"${escHtml(d.phrase)}"</div>
+      <div class="drill-tip">${FP.icon('lightbulb')}<div>${biText(d.tip, d.tip_es)}</div></div>
+      <div class="drill-actions">
+        <button type="button" class="fp-btn fp-btn--secondary" data-act="hear-model" data-phrase="${escHtml(d.phrase)}">${FP.icon('volume_up')}<span class="fp-bi">Hear the model<span class="fp-bi__es" lang="es">Escuchar el modelo</span></span></button>
+        <div class="rec-control">
+          <button type="button" class="fp-mic-btn" id="drill-btn-${escHtml(d.id)}" data-act="drill" data-id="${escHtml(d.id)}" data-phrase="${escHtml(d.phrase)}"${canRecord ? '' : ' disabled'}></button>
+          <span class="rec-label" id="drill-label-${escHtml(d.id)}"></span>
+        </div>
       </div>
-      <div id="drill-transcript-${d.id}" class="record-transcript"></div>
-      <div id="drill-feedback-${d.id}" class="record-feedback"></div>
+      <div class="rec-status" id="rec-msg-${escHtml(d.id)}" role="alert"></div>
+      <div id="drill-audio-${escHtml(d.id)}"></div>
+      <div id="drill-transcript-${escHtml(d.id)}" class="record-transcript" aria-live="polite"></div>
+      <div id="drill-feedback-${escHtml(d.id)}" class="record-feedback" aria-live="polite"></div>
     </div>
   `).join('');
 
   wrap.innerHTML = `
-    ${browserWarning}
+    ${notes}
     ${drills}
     <div class="activity-card">
-      <div class="ac-label">FREE SPEAKING TASK</div>
-      <div class="ac-heading">${biText(data.conversationPrompt || 'Speaking Practice', data.conversationPrompt_es)}</div>
-      <div class="ac-body" style="margin-bottom:16px;">${biText(data.instruction || '', data.instruction_es)}</div>
+      <div class="ac-label">${bi('Free speaking task', 'Tarea de conversación libre')}</div>
+      <h3 class="ac-heading">${data.conversationPrompt ? biText(data.conversationPrompt, data.conversationPrompt_es) : bi('Speaking practice', 'Práctica de conversación')}</h3>
+      <div class="ac-body">${biText(data.instruction || '', data.instruction_es)}</div>
       <div class="recorder-box" id="convRecorder">
-        <button class="record-btn" id="convBtn" onclick="toggleConvRecording()" ${canRecord ? '' : 'disabled style="opacity:0.4;cursor:not-allowed;"'}>🎤</button>
-        <div class="record-label">${biText('FREE SPEAKING', 'CONVERSACIÓN LIBRE')}</div>
-        <div class="record-status" id="convStatus">${canRecord ? biText('Press to start speaking — aim for 30+ seconds', 'Presiona para empezar a hablar — intenta 30+ segundos') : biText('Recording not available on this device', 'Grabación no disponible en este dispositivo')}</div>
+        <button type="button" class="fp-mic-btn record-btn" id="convBtn" data-act="conv"${canRecord ? '' : ' disabled'}></button>
+        <div class="record-label">${bi('Free speaking', 'Conversación libre')}</div>
+        <div class="record-status" id="convStatus" aria-live="polite"></div>
       </div>
-      <div id="conv-transcript" class="record-transcript"></div>
+      <div class="rec-status" id="conv-msg" role="alert"></div>
+      <div id="conv-audio"></div>
+      <div id="conv-transcript" class="record-transcript" aria-live="polite"></div>
     </div>
   `;
+
+  drillList.forEach(d => {
+    if (canRecord) setDrillUi(d.id, 'idle');
+    else $('drill-label-' + d.id).innerHTML = bi('Recording not available on this device', 'Grabación no disponible en este dispositivo');
+  });
+  if (canRecord) setConvUi('idle');
+  else $('convStatus').innerHTML = bi('Recording not available on this device', 'Grabación no disponible en este dispositivo');
 }
 
 // Active drill recorders: { drillId: { rec, mediaRec, phrase } }
 var activeDrills = {};
 
 function startDrill(id, phrase) {
+  const msgId = 'rec-msg-' + id;
   if (!canRecordAudio() && !canTranscribe()) {
-    alert(MSG_NO_RECORDING);
+    setRecMsg(msgId, MSG_NO_RECORDING, true);
     return;
   }
-  const btn = document.getElementById(`drill-btn-${id}`);
-  const tEl = document.getElementById(`drill-transcript-${id}`);
-  const fEl = document.getElementById(`drill-feedback-${id}`);
+  const tEl = $('drill-transcript-' + id);
+  const fEl = $('drill-feedback-' + id);
 
   // If already recording this drill, stop it
   if (activeDrills[id]) {
@@ -1156,8 +1375,10 @@ function startDrill(id, phrase) {
     return;
   }
 
-  btn.textContent = tr('⏹ Stop Recording');
-  btn.style.background = 'var(--rust)';
+  setRecMsg(msgId, '');
+  fEl.className = 'record-feedback';
+  fEl.innerHTML = '';
+  setDrillUi(id, canRecordAudio() ? 'requesting' : 'recording');
   tEl.classList.add('show');
   tEl.textContent = '…';
 
@@ -1181,7 +1402,7 @@ function startDrill(id, phrase) {
       text += e.results[i][0].transcript;
     }
     fullTranscript = text.trim();
-    tEl.textContent = tr('You said:') + ' "' + fullTranscript + '"';
+    tEl.innerHTML = youSaid(fullTranscript);
   };
   rec.onend = () => {
     // Restart if the user hasn't explicitly stopped
@@ -1195,10 +1416,9 @@ function startDrill(id, phrase) {
       // drop only the transcript side and keep going if we can record.
       if (activeDrills[id]) activeDrills[id].rec = null;
       if (!canRecordAudio()) {
-        alert(MSG_MIC_DENIED);
+        setRecMsg(msgId, MSG_MIC_DENIED, true);
         delete activeDrills[id];
-        btn.textContent = tr('🎤 Try again');
-        btn.style.background = 'var(--ink)';
+        setDrillUi(id, 'failed');
       }
     } else if (ev.error !== 'aborted' && ev.error !== 'no-speech') {
       console.warn('[FluentPath] Speech recognition error:', ev.error, ev.message);
@@ -1217,35 +1437,42 @@ function startDrill(id, phrase) {
       activeDrills[id].rec = null;
       rec = null;
       if (!canRecordAudio()) {
-        btn.textContent = tr('🎤 Try again');
-        btn.style.background = 'var(--ink)';
+        setRecMsg(msgId, MSG_MIC_DENIED, true);
+        setDrillUi(id, 'failed');
         delete activeDrills[id];
         return;
       }
     }
   }
 
+  const noCapture = () => {
+    // No audio capture. With a working recogniser the transcript still counts;
+    // without one there is nothing to record, so say so instead of hanging.
+    if (!activeDrills[id]) return;
+    if (!activeDrills[id].rec) {
+      setRecMsg(msgId, MSG_MIC_DENIED, true);
+      delete activeDrills[id];
+      setDrillUi(id, 'failed');
+    } else {
+      setDrillUi(id, 'recording');
+    }
+  };
+
   streamPromise.then(stream => {
     if (!activeDrills[id]) return;
-    if (!stream) {
-      // No audio capture. With a working recogniser the transcript still counts;
-      // without one there is nothing to record, so say so instead of hanging.
-      if (!activeDrills[id].rec) {
-        alert(MSG_MIC_DENIED);
-        delete activeDrills[id];
-        btn.textContent = tr('🎤 Try again');
-        btn.style.background = 'var(--ink)';
-      }
-      return;
-    }
+    if (!stream) { noCapture(); return; }
     mediaRec = new MediaRecorder(stream, { mimeType: mime });
     mediaRec.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
     mediaRec.onstop = () => {
-      if (audioChunks.length > 0) audioRecordings[id] = new Blob(audioChunks, { type: mime });
+      if (audioChunks.length > 0) {
+        audioRecordings[id] = new Blob(audioChunks, { type: mime });
+        showRecordingPreview('drill-audio-' + id, audioRecordings[id]);
+      }
     };
     activeDrills[id].mediaRec = mediaRec;
     mediaRec.start();
-  }).catch(() => { /* audio capture unavailable — transcript still works */ });
+    setDrillUi(id, 'recording');
+  }).catch(() => { noCapture(); /* audio capture unavailable — transcript still works */ });
 }
 
 function stopDrill(id) {
@@ -1256,68 +1483,58 @@ function stopDrill(id) {
   if (drill.rec) try { drill.rec.stop(); } catch(e) {}
   if (drill.mediaRec && drill.mediaRec.state !== 'inactive') try { drill.mediaRec.stop(); } catch(e) {}
 
-  const btn = document.getElementById(`drill-btn-${id}`);
-  const tEl = document.getElementById(`drill-transcript-${id}`);
-  const fEl = document.getElementById(`drill-feedback-${id}`);
-
-  if (btn) {
-    btn.textContent = tr('🎤 Record again');
-    btn.style.background = 'var(--ink)';
-  }
-
+  const tEl = $('drill-transcript-' + id);
+  const fEl = $('drill-feedback-' + id);
   const said = drill.getTranscript();
+  setDrillUi(id, (said || drill.mediaRec) ? 'recorded' : 'idle');
+
   if (said) {
-    if (tEl) { tEl.textContent = tr('You said:') + ' "' + said + '"'; tEl.classList.add('show'); }
+    if (tEl) { tEl.innerHTML = youSaid(said); tEl.classList.add('show'); }
     const score = similarity(said.toLowerCase(), drill.phrase.toLowerCase());
     if (fEl) {
-      fEl.classList.add('show');
       if (score > 0.7) {
         fEl.className = 'record-feedback show good';
-        fEl.textContent = tr('✓ Great job! Your pronunciation was clear.');
+        fEl.innerHTML = FP.icon('check') + '<div>' + bi('Great job! Your pronunciation was clear.', '¡Excelente! Tu pronunciación fue clara.') + '</div>';
       } else {
         fEl.className = 'record-feedback show ok';
-        fEl.textContent = tr('💡 Keep practicing — try again and speak slowly.');
+        fEl.innerHTML = FP.icon('lightbulb') + '<div>' + bi('Keep practising. Try again and speak slowly.', 'Sigue practicando. Intenta de nuevo y habla despacio.') + '</div>';
       }
     }
     saveAnswer(`drill_${id}`, said);
     saveAnswer(`drill_${id}_score`, Math.round(score * 100) / 100);
   } else if (drill.rec || canTranscribe()) {
-    if (tEl) tEl.textContent = tr('No speech detected — try again.');
+    if (tEl) tEl.innerHTML = bi('No speech detected. Try again.', 'No se detectó voz. Intenta de nuevo.');
   } else if (tEl) {
     // IOS-1b: recording-only device. There is no transcript to show, but the audio is kept.
-    tEl.textContent = tr('Recording saved. You can record again if you want.');
+    tEl.innerHTML = bi('Recorded. It is sent to your teacher when you finish the lesson.', 'Grabado. Se envía a tu profesor cuando termines la lección.');
     tEl.classList.add('show');
   }
 }
 
 function toggleConvRecording() {
   if (!canRecordAudio() && !canTranscribe()) {
-    alert(MSG_NO_RECORDING);
+    setRecMsg('conv-msg', MSG_NO_RECORDING, true);
     return;
   }
-  const btn = document.getElementById('convBtn');
-  const box = document.getElementById('convRecorder');
-  const tEl = document.getElementById('conv-transcript');
-  const statusEl = document.getElementById('convStatus');
+  const tEl = $('conv-transcript');
 
   if (!convRecording) {
     convRecording = true;
-    btn.classList.add('recording');
-    box.classList.add('recording');
-    statusEl.textContent = tr('Recording… speak clearly');
-    btn.textContent = '⏹';
+    setRecMsg('conv-msg', '');
+    setConvUi(canRecordAudio() ? 'requesting' : 'recording');
 
     // Start MediaRecorder using the shared stream (already granted by the drills).
     const mime = getAudioMimeType();
     const audioChunks = [];
     (canRecordAudio() ? getSpeakingStream() : Promise.resolve(null)).then(stream => {
+      if (!convRecording) return; // stopped while the microphone prompt was open
       if (!stream) {
         if (!canTranscribe()) { // nothing can capture the answer: say so, don't sit on "Recording…"
-          alert(MSG_MIC_DENIED);
+          setRecMsg('conv-msg', MSG_MIC_DENIED, true);
           convRecording = false;
-          btn.classList.remove('recording'); box.classList.remove('recording');
-          btn.textContent = '🎤';
-          statusEl.textContent = '';
+          setConvUi('failed');
+        } else {
+          setConvUi('recording');
         }
         return;
       }
@@ -1325,10 +1542,21 @@ function toggleConvRecording() {
       convMediaRecorder.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunks.push(ev.data); };
       convMediaRecorder.onstop = () => {
         // Do NOT stop stream.getTracks() — releaseSpeakingStream() handles cleanup.
-        if (audioChunks.length > 0) audioRecordings['conversation'] = new Blob(audioChunks, { type: mime });
+        if (audioChunks.length > 0) {
+          audioRecordings['conversation'] = new Blob(audioChunks, { type: mime });
+          showRecordingPreview('conv-audio', audioRecordings['conversation']);
+        }
       };
       convMediaRecorder.start();
-    }).catch(err => console.warn('[FluentPath] MediaRecorder failed for conversation:', err));
+      setConvUi('recording');
+    }).catch(err => {
+      console.warn('[FluentPath] MediaRecorder failed for conversation:', err);
+      if (convRecording && !canTranscribe()) {
+        setRecMsg('conv-msg', MSG_MIC_DENIED, true);
+        convRecording = false;
+        setConvUi('failed');
+      }
+    });
 
     if (!canTranscribe()) { recognition = null; return; } // IOS-1b: audio only; the recorder above is already running
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1352,10 +1580,9 @@ function toggleConvRecording() {
       }
       // IOS-1b: a refused/failed recogniser ends the transcript, not the recording.
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') recognition = null;
-      if (!convMediaRecorder || convMediaRecorder.state === 'inactive') {
+      if (e.error !== 'aborted' && e.error !== 'no-speech' && (!convMediaRecorder || convMediaRecorder.state === 'inactive')) {
         convRecording = false;
-        btn.classList.remove('recording'); box.classList.remove('recording');
-        btn.textContent = '🎤';
+        setConvUi('idle');
       }
       // Do not stop convMediaRecorder here — the user may click stop manually,
       // and continuous recognition fires onerror transiently without ending the session
@@ -1366,12 +1593,10 @@ function toggleConvRecording() {
     }
   } else {
     convRecording = false;
+    const hadAudio = !!(convMediaRecorder && convMediaRecorder.state !== 'inactive');
     recognition?.stop();
-    if (convMediaRecorder && convMediaRecorder.state !== 'inactive') convMediaRecorder.stop();
-    btn.classList.remove('recording');
-    box.classList.remove('recording');
-    btn.textContent = '🎤';
-    statusEl.textContent = tr('Recording saved. You can record again if you want.');
+    if (hadAudio) convMediaRecorder.stop();
+    setConvUi(hadAudio || state.answers['speaking_conv'] ? 'recorded' : 'idle');
   }
 }
 
@@ -1381,149 +1606,98 @@ function similarity(a, b) {
   return match / Math.max(aW.length, bW.length);
 }
 
+
 // ── PRACTICE ──
 function renderPractice(wrap, data) {
-  const qs = (data.questions || []).map((q, qi) => {
-    const opts = (q.options || []).map((o, oi) => `
-      <div class="mcq-opt" id="po-${q.id}-${oi}" tabindex="0" role="button" aria-label="Option ${String.fromCharCode(65+oi)}: ${escHtml(o)}" onclick="selectPracticeOpt('${q.id}', ${oi}, ${q.correct})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPracticeOpt('${q.id}', ${oi}, ${q.correct});}">
-        <div class="opt-letter">${String.fromCharCode(65+oi)}</div>
-        <div>${escHtml(o)}</div>
-      </div>`).join('');
-    return `
-      <div style="margin-bottom:24px;">
-        <div style="font-size:15px;font-weight:600;margin-bottom:10px;">${qi+1}. ${biText(q.question, q.question_es)}</div>
-        <div class="mcq-options">${opts}</div>
-        <div id="pf-${q.id}" aria-live="polite" style="font-size:12px;font-style:italic;margin-top:6px;display:none;"></div>
-      </div>`;
-  }).join('');
+  const qs = (data.questions || []).map((q, qi) => mcqBlock('p', q, qi)).join('');
 
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">COMPREHENSION & PRACTICE</div>
-      <div class="ac-heading">${biText(data.title, data.title_es)}</div>
+      <div class="ac-label">${bi('Comprehension & practice', 'Comprensión y práctica')}</div>
       <div class="ac-body">${biText(data.instruction, data.instruction_es)}</div>
     </div>
     <div class="activity-card">${qs}</div>
   `;
 }
 
-function selectPracticeOpt(qid, chosen, correct) {
-  document.querySelectorAll(`[id^="po-${qid}-"]`).forEach(el => { el.classList.add('disabled'); el.onclick = null; });
-  const chosenEl = document.getElementById(`po-${qid}-${chosen}`);
-  const correctEl = document.getElementById(`po-${qid}-${correct}`);
-  const fb = document.getElementById(`pf-${qid}`);
-  if (chosen === correct) {
-    chosenEl?.classList.add('correct');
-    if (fb) { fb.style.display='block'; fb.style.color='var(--green)'; fb.textContent=tr('✓ Correct!'); }
-  } else {
-    chosenEl?.classList.add('wrong');
-    correctEl?.classList.add('correct');
-    if (fb) { fb.style.display='block'; fb.style.color='var(--rust)'; fb.textContent=`Not quite — the answer was ${String.fromCharCode(65+correct)}.`; }
-  }
-  saveAnswer(`practice_${qid}`, chosen);
-  saveAnswer(`practice_${qid}_correct`, correct);
-  saveAnswer(`practice_${qid}_is_right`, chosen === correct ? 1 : 0);
-  // Track practice score
-  if (!state.answers['practice_total']) state.answers['practice_total'] = 0;
-  if (!state.answers['practice_correct']) state.answers['practice_correct'] = 0;
-  state.answers['practice_total']++;
-  if (chosen === correct) state.answers['practice_correct']++;
+// ── WRITING ──
+function wordCountHtml(words, min) {
+  const w = plural(words, 'word', 'words'), p = plural(words, 'palabra', 'palabras');
+  return words >= min
+    ? FP.icon('check', { size: 'sm' }) + bi(`${words} ${w}. Goal reached.`, `${words} ${p}. Meta alcanzada.`)
+    : bi(`${words} ${w} · aim for ${min}+`, `${words} ${p} · meta: ${min}+`);
 }
 
-// ── WRITING ──
 function renderWriting(wrap, data) {
+  const min = data.minWords || 50;
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">WRITING TASK</div>
-      <div class="ac-heading">${biText(data.title, data.title_es)}</div>
+      <div class="ac-label">${bi('Writing task', 'Tarea de escritura')}</div>
       <div class="ac-body">${biText(data.instruction, data.instruction_es)}</div>
-      <div style="margin-top:16px;background:var(--cream);border-left:4px solid var(--rust);padding:14px 18px;">
-        <div style="font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px;">YOUR TASK</div>
-        <div style="font-size:15px;color:var(--ink);line-height:1.7;">${biText(data.prompt, data.prompt_es)}</div>
-      </div>
-      <textarea class="writing-area" id="writing-resp" placeholder="Write your response here…" oninput="updateWritingWC(this, ${data.minWords || 50})" required></textarea>
-      <div class="wc" id="writing-wc">0 words · aim for ${data.minWords || 50}+</div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--muted);cursor:pointer;">
-        <input type="checkbox" id="writing-skip" onchange="toggleWritingSkip(this)"> Skip this writing task
-      </label>
+      ${promptBox('Your task', 'Tu tarea', biText(data.prompt, data.prompt_es))}
+      ${answerBox('writing-resp', 'writing', { min: min, ph: ['Write your response here…', 'Escribe tu respuesta aquí…'], label: ['Your writing', 'Tu texto'] })}
+      <div class="wc" id="writing-wc">${wordCountHtml(0, min)}</div>
+      ${skipLabel('writing-resp', 'writing', 'Skip this writing task', 'Omitir esta tarea de escritura', 'writing-skip')}
     </div>
   `;
 }
 
 function updateWritingWC(el, min) {
   const words = el.value.trim() ? el.value.trim().split(/\s+/).length : 0;
-  const wc = document.getElementById('writing-wc');
-  wc.textContent = `${words} word${words===1?'':'s'}${words >= min ? ' ✓' : ' · aim for ' + min + '+'}`;
-  wc.style.color = words >= min ? 'var(--green)' : 'var(--muted)';
+  const wc = $('writing-wc');
+  wc.innerHTML = wordCountHtml(words, min);
+  wc.classList.toggle('is-ok', words >= min);
   saveAnswer('writing', el.value);
 }
 
-function toggleWritingSkip(checkbox) {
-  var textarea = document.getElementById('writing-resp');
-  if (checkbox.checked) {
-    textarea.required = false;
-    textarea.style.opacity = '0.4';
-    textarea.disabled = true;
-    saveAnswer('writing', '[SKIPPED]');
-  } else {
-    textarea.required = true;
-    textarea.style.opacity = '';
-    textarea.disabled = false;
-    saveAnswer('writing', textarea.value);
-  }
-}
-
-function toggleCourseSkip(checkbox, elementId, answerKey) {
-  var el = document.getElementById(elementId);
+/** The "skip" checkbox under a text box: greys the box out and records [SKIPPED] for the teacher. */
+function toggleSkip(checkbox) {
+  const el = $(checkbox.dataset.skipFor);
   if (!el) return;
-  if (checkbox.checked) {
-    el.required = false;
-    el.disabled = true;
-    el.style.opacity = '0.4';
-    saveAnswer(answerKey, '[SKIPPED]');
-  } else {
-    el.required = true;
-    el.disabled = false;
-    el.style.opacity = '';
-    saveAnswer(answerKey, el.value);
-  }
+  el.disabled = checkbox.checked;
+  saveAnswer(checkbox.dataset.skipKey, checkbox.checked ? '[SKIPPED]' : el.value);
 }
 
 // ── REVIEW ──
+// The value written to the sheet is the plain word; the hub shows old emoji rows and new word rows alike.
+const CONFIDENCE = [
+  { val: 'Hard',  es: 'Difícil', icon: 'sentiment_frustrated' },
+  { val: 'OK',    es: 'Normal',  icon: 'sentiment_neutral' },
+  { val: 'Good',  es: 'Bien',    icon: 'sentiment_satisfied' },
+  { val: 'Great', es: 'Genial',  icon: 'sentiment_very_satisfied' },
+];
+
 function renderReview(wrap, data) {
   const takeaways = (data.keyTakeaways || []).map((t, i) => `
-    <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule);">
-      <div style="width:24px;height:24px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700;flex-shrink:0;">${i+1}</div>
-      <div style="font-size:14px;line-height:1.7;">${escHtml(t)}</div>
-    </div>`).join('');
+    <li class="takeaway"><span class="fp-waypoint is-completed">${FP.icon('check_small')}</span><span>${biText(t, data.keyTakeaways_es && data.keyTakeaways_es[i])}</span></li>`).join('');
+
+  const faces = CONFIDENCE.map((c, i) => `
+    <button type="button" class="conf-btn" role="radio" aria-checked="false" tabindex="${i === 0 ? 0 : -1}" data-act="conf" data-val="${i}">${FP.icon(c.icon)}${bi(c.val, c.es)}</button>`).join('');
 
   wrap.innerHTML = `
     <div class="activity-card">
-      <div class="ac-label">LESSON REVIEW</div>
-      <div class="ac-heading">${biText(data.title || 'What You Learned Today', data.title_es)}</div>
-      <div style="margin-top:16px;">${takeaways}</div>
+      <div class="ac-label">${bi('Lesson review', 'Repaso de la lección')}</div>
+      <ul class="takeaways">${takeaways}</ul>
     </div>
     <div class="activity-card">
-      <div class="ac-label">SELF-ASSESSMENT</div>
-      <div class="ac-heading">${biText('How did today go?', '¿Cómo te fue hoy?')}</div>
-      <div class="ac-body">${biText('Rate your confidence today and leave yourself a note.', 'Califica tu confianza hoy y déjate una nota.')}</div>
-      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-        ${['😕 Hard','😐 OK','🙂 Good','😄 Great!'].map((l,i)=>`
-          <button onclick="selectConfidence(this, ${i})" data-val="${i}"
-            style="padding:10px 18px;border:1.5px solid var(--rule);background:white;cursor:pointer;font-size:14px;transition:all 0.2s;"
-            class="conf-btn">${l}</button>`).join('')}
-      </div>
-      <textarea class="writing-area" id="review-notes" placeholder="Any notes for your teacher or yourself? What was hard? What was easy?" style="min-height:80px;" oninput="saveAnswer('review_notes', this.value)" required></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted);cursor:pointer;"><input type="checkbox" onchange="toggleCourseSkip(this,'review-notes','review_notes')"> Skip this question</label>
+      <div class="ac-label">${bi('Self-assessment', 'Autoevaluación')}</div>
+      <h3 class="ac-heading" id="conf-heading">${bi('How did today go?', '¿Cómo te fue hoy?')}</h3>
+      <div class="ac-body">${bi('Rate your confidence today and leave yourself a note.', 'Califica tu confianza hoy y déjate una nota.')}</div>
+      <div class="conf-group" role="radiogroup" aria-labelledby="conf-heading">${faces}</div>
+      ${answerBox('review-notes', 'review_notes', { short: true, ph: ['Notes for your teacher or yourself', 'Notas para tu profesor o para ti'], label: ['Your notes', 'Tus notas'] })}
+      ${skipLabel('review-notes', 'review_notes', 'Skip this question', 'Omitir esta pregunta')}
     </div>
   `;
 }
 
-function selectConfidence(btn, val) {
-  document.querySelectorAll('.conf-btn').forEach(b => { b.style.background='white'; b.style.borderColor='var(--rule)'; });
-  btn.style.background = 'var(--green-bg)';
-  btn.style.borderColor = 'var(--green)';
-  saveAnswer('confidence', val);
+function selectConfidence(btn) {
+  document.querySelectorAll('.conf-btn').forEach(b => {
+    const on = b === btn;
+    b.classList.toggle('is-selected', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+  });
+  saveAnswer('confidence', parseInt(btn.dataset.val, 10));
 }
 
 // ══════════════════════════════════════════════════════
@@ -1537,11 +1711,6 @@ function nextStep() {
     if (ckptInterval) saveLessonCheckpoint();
   } else {
     finishLesson();
-  }
-  if (state.currentStep === state.steps.length - 1) {
-    document.getElementById('btnNext').textContent = tr('Finish Lesson ✓');
-  } else {
-    document.getElementById('btnNext').textContent = tr('Continue →');
   }
 }
 
@@ -1559,6 +1728,7 @@ function saveAnswer(key, value) {
 var paused = false;
 var totalPausedTime = 0;  // seconds spent paused (reported to teacher)
 var pauseStartedAt = 0;
+var pauseReturnFocus = null;
 
 function startTimer(initialElapsed) {
   state.timeElapsed = initialElapsed || 0;
@@ -1572,21 +1742,25 @@ function startTimer(initialElapsed) {
       clearInterval(state.timerInterval);
     }
   }, 1000);
-  // Show pause button
-  var pb = document.getElementById('navPause');
-  if (pb) pb.style.display = '';
+  setPauseButton(false);
+  setHidden($('navPause'), false);
 }
 
 function updateTimerDisplay() {
   const remaining = Math.max(0, LESSON_DURATION - state.timeElapsed);
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
-  const el = document.getElementById('navTimer');
+  const el = $('navTimer');
   el.textContent = `${m}:${String(s).padStart(2,'0')}`;
-  var cls = 'nav-timer';
-  if (paused) cls += ' paused';
-  else if (remaining < 600) cls += ' warning';
-  el.className = cls;
+  el.classList.toggle('paused', paused);
+  el.classList.toggle('warning', !paused && remaining < 600);
+}
+
+function setPauseButton(isPaused) {
+  const btn = $('navPause');
+  if (!btn) return;
+  btn.innerHTML = FP.icon(isPaused ? 'play_arrow' : 'pause');
+  btn.setAttribute('aria-label', isPaused ? FP.ui.label('Resume lesson', 'Continuar la lección') : FP.ui.label('Pause lesson', 'Pausar la lección'));
 }
 
 function togglePause() {
@@ -1601,25 +1775,10 @@ function pauseLesson() {
   paused = true;
   pauseStartedAt = Date.now();
   updateTimerDisplay();
-  var btn = document.getElementById('navPause');
-  if (btn) { btn.textContent = '▶'; btn.title = 'Resume lesson'; }
-
-  // Show pause overlay
-  var overlay = document.getElementById('fp-pause-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'fp-pause-overlay';
-    overlay.className = 'pause-overlay';
-    overlay.innerHTML =
-      '<div class="pause-card">' +
-        '<div class="pause-title">Paused</div>' +
-        '<div class="pause-sub">Your timer is paused. Click Resume when you\'re ready to continue.</div>' +
-        '<button class="pause-resume" onclick="togglePause()">Resume</button>' +
-      '</div>';
-    document.body.appendChild(overlay);
-  } else {
-    overlay.style.display = 'flex';
-  }
+  setPauseButton(true);
+  pauseReturnFocus = document.activeElement;
+  $('fp-pause-overlay').classList.add('is-open');
+  $('pauseResume').focus();
 }
 
 function resumeLesson() {
@@ -1629,11 +1788,10 @@ function resumeLesson() {
     pauseStartedAt = 0;
   }
   updateTimerDisplay();
-  var btn = document.getElementById('navPause');
-  if (btn) { btn.textContent = '⏸'; btn.title = 'Pause lesson'; }
-
-  var overlay = document.getElementById('fp-pause-overlay');
-  if (overlay) overlay.style.display = 'none';
+  setPauseButton(false);
+  $('fp-pause-overlay').classList.remove('is-open');
+  if (pauseReturnFocus && pauseReturnFocus.focus && document.contains(pauseReturnFocus)) pauseReturnFocus.focus({ preventScroll: true });
+  pauseReturnFocus = null;
 }
 
 // Auto-pause when tab is hidden
@@ -1663,19 +1821,18 @@ async function finishLesson() {
   // Stop any active drill recordings
   try { Object.keys(activeDrills).forEach(function(id) { stopDrill(id); }); } catch(e) {}
 
-  var pb = document.getElementById('navPause');
-  if (pb) pb.style.display = 'none';
+  setHidden($('navPause'), true);
+  setHidden($('navTimer'), true);
 
   lessonEndTime = new Date();
   lessonAudioJson = null;
   const elapsed = Math.round(state.timeElapsed / 60);
 
-  document.getElementById('stat-time').textContent = elapsed + 'm';
-  document.getElementById('stat-steps').textContent = state.steps.length;
-  document.getElementById('stat-day').textContent = state.dayNumber + ' / ' + FP.COURSE_DAYS;
+  $('stat-time').textContent = elapsed + 'm';
+  $('stat-steps').textContent = state.steps.length;
+  $('stat-day').textContent = state.dayNumber + ' / ' + FP.COURSE_DAYS;
 
   showScreen('screen-complete');
-  document.getElementById('progressBar').style.width = '100%';
 
   // Identity only; the day counter moves after the save is verified.
   try {
@@ -1686,41 +1843,42 @@ async function finishLesson() {
   await submitLesson();
 }
 
+/** The status line on the complete screen: an icon plus bilingual words (kind: '' | 'ok' | 'warn'). */
+function setSaveStatus(kind, html) {
+  const el = $('saveStatus');
+  el.className = 'save-status' + (kind ? ' ' + kind : '');
+  el.innerHTML = FP.icon(kind === 'ok' ? 'check' : kind === 'warn' ? 'warning' : 'hourglass_top') +
+    '<div class="save-status__body">' + html + '</div>';
+}
+
 /**
  * Upload audio, save the lesson, and confirm the row landed. Used by
  * finishLesson and by the Retry button. Safe to repeat: the backend ignores a
  * second save carrying the same submission_id.
  */
 async function submitLesson() {
-  const statusEl = document.getElementById('saveStatus');
-  const oldRetry = document.getElementById('retryLessonBtn');
+  const oldRetry = $('retryLessonBtn');
   if (oldRetry) oldRetry.remove();
-  FP.showSaveOverlay('Saving your lesson — please wait…');
+  FP.showSaveOverlay(bi('Saving your lesson. Please wait…', 'Guardando tu lección. Espera un momento…'), true);
 
   let audioUploadFailed = false;
   try {
     // Upload audio recordings first (may take a few seconds); skip if already done.
     if (!lessonAudioJson && !GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT') && Object.keys(audioRecordings).length > 0) {
-      FP.updateSaveOverlay('Uploading your recordings…');
-      statusEl.textContent = tr('Uploading your recordings… please wait.');
-      statusEl.className = 'save-status';
+      FP.updateSaveOverlay(bi('Uploading your recordings…', 'Subiendo tus grabaciones…'), true);
+      setSaveStatus('', bi('Uploading your recordings. Please wait.', 'Subiendo tus grabaciones. Espera un momento.'));
       lessonAudioJson = await uploadAudioRecordings();
-      if (!lessonAudioJson) {
-        audioUploadFailed = true;
-        statusEl.textContent = tr('⚠ Audio upload failed — your written work will still be saved.');
-        statusEl.className = 'save-status warn';
-      }
+      if (!lessonAudioJson) audioUploadFailed = true;
     }
     releaseSpeakingStream();
 
-    FP.updateSaveOverlay('Saving your progress to Google Sheets…');
-    statusEl.textContent = 'Saving your lesson progress…';
-    statusEl.className = 'save-status';
+    FP.updateSaveOverlay(bi('Saving your progress…', 'Guardando tu progreso…'), true);
+    setSaveStatus('', bi('Saving your lesson progress…', 'Guardando el progreso de tu lección…'));
     const sent = await saveProgress(lessonEndTime, lessonAudioJson);
 
     let verified = false;
     if (sent) {
-      FP.updateSaveOverlay('Verifying save…');
+      FP.updateSaveOverlay(bi('Checking that it saved…', 'Comprobando que se guardó…'), true);
       verified = await verifyLessonSave(state.submissionId);
     }
 
@@ -1730,12 +1888,13 @@ async function submitLesson() {
         localStorage.setItem('fp_last_lesson_date', state.lessonDate);
       } catch(e) { /* localStorage unavailable */ }
       clearLessonCheckpoint();
-      statusEl.textContent = '✓ Progress saved to your record.';
-      statusEl.className = 'save-status ok';
+      setViewProgressPrimary(true);
+      setSaveStatus('ok', bi('Your progress is saved.', 'Tu progreso se guardó.'));
     } else {
-      statusEl.textContent = tr('⚠ We could not confirm your lesson was saved. Tap "Try saving again". Your answers are still saved on this device — do not close this page.');
-      statusEl.className = 'save-status warn';
-      showLessonRetry(statusEl);
+      setSaveStatus('warn', bi(
+        'We could not confirm your lesson was saved. Tap "Try saving again". Your answers are still saved on this device. Do not close this page.',
+        'No pudimos confirmar que tu lección se guardó. Toca "Intentar guardar de nuevo". Tus respuestas siguen guardadas en este dispositivo. No cierres esta página.'));
+      showLessonRetry($('saveStatus'));
     }
   } finally {
     FP.hideSaveOverlay();
@@ -1743,10 +1902,14 @@ async function submitLesson() {
   // The status line is overwritten by the save result, so re-add the audio
   // warning: otherwise the student never learns the teacher can't hear them.
   if (audioUploadFailed) {
-    statusEl.textContent += ' ' + tr('⚠ Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.');
-    statusEl.className = 'save-status warn';
+    const el = $('saveStatus');
+    el.classList.remove('ok');
+    el.classList.add('warn');
+    el.querySelector('.save-status__body').insertAdjacentHTML('beforeend', '<span class="save-status__line">' + bi(
+      'Your recordings were not uploaded, so your teacher cannot hear them. Please tell your teacher.',
+      'Tus grabaciones no se subieron, así que tu profesor no puede escucharlas. Por favor avísale a tu profesor.') + '</span>');
   }
-  document.getElementById('btnViewProgress').style.display = 'inline-block';
+  setHidden($('btnViewProgress'), false);
 }
 
 /** N-12 / DATA-6: saved means the sheet returns a lesson row with OUR submission_id. */
@@ -1765,25 +1928,34 @@ async function verifyLessonSave(submissionId) {
   return false;
 }
 
+
 function showLessonRetry(statusEl) {
   const btn = document.createElement('button');
   btn.id = 'retryLessonBtn';
-  btn.className = 'btn-begin fp-retry';
-  btn.textContent = tr('Try saving again');
+  btn.type = 'button';
+  btn.className = 'fp-btn fp-btn--primary fp-btn--block fp-retry';
+  btn.innerHTML = bi('Try saving again', 'Intentar guardar de nuevo');
   btn.addEventListener('click', function () {
     btn.disabled = true;
     submitLesson();
   });
   statusEl.insertAdjacentElement('afterend', btn);
+  setViewProgressPrimary(false); // one primary action at a time: the retry
+}
+
+/** "View progress" is the primary button once the save is confirmed; while a retry is offered it steps back. */
+function setViewProgressPrimary(primary) {
+  const a = $('btnViewProgress');
+  a.classList.toggle('fp-btn--primary', primary);
+  a.classList.toggle('fp-btn--secondary', !primary);
 }
 
 async function saveProgress(endTime, speakingAudioJson) {
   if (GOOGLE_SHEET_WEBHOOK.includes('YOUR_APPS_SCRIPT')) return false;
 
-  const writing = document.getElementById('writing-resp')?.value || state.answers['writing'] || '';
-  const notes   = document.getElementById('review-notes')?.value || state.answers['review_notes'] || '';
-  const confMap = ['Hard','OK','Good','Great!'];
-  const confVal = state.answers['confidence'] != null ? confMap[state.answers['confidence']] : 'Not rated';
+  const writing = $('writing-resp')?.value || state.answers['writing'] || '';
+  const notes   = $('review-notes')?.value || state.answers['review_notes'] || '';
+  const confVal = state.answers['confidence'] != null ? CONFIDENCE[state.answers['confidence']].val : 'Not rated';
 
   const payload = {
     action: 'save_progress',
@@ -1837,22 +2009,23 @@ window.addEventListener('DOMContentLoaded', () => {
   // Session guard — the daily course requires a logged-in student.
   if (FP.getSession && !FP.getSession()) { FP.redirectToLogin(); return; }
 
-  document.getElementById('lessonDate').value = localDateString();
+  $('lessonDate').value = localDateString();
   if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
   // FLOW-1b: the name is the logged-in student's, shown read-only.
   var savedName = localStorage.getItem('fp_student_name');
   if (!savedName) { FP.redirectToLogin(); return; }
-  document.getElementById('studentName').value = savedName;
+  $('studentName').value = savedName;
   state.studentName = savedName;
+
+  initLessonEvents();
+  setPauseButton(false);
 
   // FLOW-1 / DATA-3: level and day come from the server, not from localStorage.
   loadCourseState();
 
   tryResumeLesson();
 
-  // Initialize video call request button
-  if (typeof CallRequest !== 'undefined') {
-    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber });
-  }
+  // Video call request: a compact control in the header (re-initialised with the day once it is known).
+  initCallControl();
 });

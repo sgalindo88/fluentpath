@@ -42,7 +42,6 @@ var APP_SHELL = [
   './src/scripts/student-lesson.js',
   './src/scripts/call-request.js',
   './src/scripts/password-reset.js',
-  './src/scripts/i18n.js',
   './src/scripts/icons.js',
   './src/scripts/ui.js',
   './src/styles/tokens.css',

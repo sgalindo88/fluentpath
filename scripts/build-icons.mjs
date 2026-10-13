@@ -37,6 +37,8 @@ const ICONS = {
   group: 0, monitoring: 0, calendar_month: 0, assignment: 0, tune: 0, trending_up: 0, auto_stories: 0,
   person: 0, settings: 0, check_circle: 1, cancel: 1, mail: 0, save: 0, wand_stars: 0, recycling: 0,
   download_2: 0, upload_2: 0,
+  // Lesson
+  play_arrow: 1, celebration: 1, lock: 0, replay: 0,
 };
 
 function pathOf(file) {
