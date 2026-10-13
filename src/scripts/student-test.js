@@ -47,6 +47,16 @@
 const FORMSPREE_ENDPOINT   = FP.FORMSPREE_ENDPOINT;
 const GOOGLE_SHEET_WEBHOOK = FP.WEBHOOK_URL;
 
+// Bilingual text (English, Spanish beneath; Spanish hidden for B2+ by ui.js). Test items
+// (passages, questions, answer options) stay English: they are what is being tested.
+const bi = FP.ui.bi;
+const esOnly = FP.ui.es;
+/** Icon + bilingual message, for feedback banners and statuses. `html` is already escaped. */
+const iconMsg = (icon, html, opts) => FP.icon(icon, Object.assign({ size: 'sm' }, opts || {})) + '<span>' + html + '</span>';
+const playsLeftHtml = (left) => left === 0
+  ? bi('No plays left', 'Sin reproducciones')
+  : bi(left + (left === 1 ? ' play left' : ' plays left'), left + (left === 1 ? ' reproducción' : ' reproducciones'));
+
 // ── STATE ──
 const state = {
   answers: {},
@@ -137,9 +147,11 @@ function tryResumeTest() {
       if (data.chosenTask) chooseTask(data.chosenTask);
       // Restore audio play counts display
       var playsLeft = MAX_PLAYS - state.listeningPlays;
-      document.getElementById('audioPlaysLeft').textContent = playsLeft > 0 ? playsLeft + ' plays left' : 'No plays left';
+      document.getElementById('audioPlaysLeft').innerHTML = playsLeftHtml(Math.max(playsLeft, 0));
+      if (playsLeft <= 0) document.getElementById('playBtn').disabled = true;
       var dPlays = MAX_PLAYS - state.dictationPlays;
-      document.getElementById('dictPlaysLeft').textContent = dPlays > 0 ? dPlays + ' plays left' : 'No plays left';
+      document.getElementById('dictPlaysLeft').innerHTML = playsLeftHtml(Math.max(dPlays, 0));
+      if (dPlays <= 0) document.getElementById('dictPlayBtn').disabled = true;
       showScreen(data.screen);
       startTestAutoSave();
     },
@@ -168,18 +180,19 @@ function showScreen(id) {
 
 function updateNav(id) {
   const labels = {
-    'screen-cover': 'General Placement',
-    'screen-reading-intro': 'Part 01 · Reading',
-    'screen-reading': 'Part 01 · Reading',
-    'screen-writing-intro': 'Part 02 · Writing',
-    'screen-writing': 'Part 02 · Writing',
-    'screen-listening-intro': 'Part 03 · Listening',
-    'screen-listening': 'Part 03 · Listening',
-    'screen-speaking-intro': 'Part 04 · Speaking',
-    'screen-speaking': 'Part 04 · Speaking',
-    'screen-results': 'Results',
+    'screen-cover':          ['General placement', 'Prueba general'],
+    'screen-reading-intro':  ['Part 01 · Reading', 'Parte 01 · Lectura'],
+    'screen-reading':        ['Part 01 · Reading', 'Parte 01 · Lectura'],
+    'screen-writing-intro':  ['Part 02 · Writing', 'Parte 02 · Escritura'],
+    'screen-writing':        ['Part 02 · Writing', 'Parte 02 · Escritura'],
+    'screen-listening-intro':['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
+    'screen-listening':      ['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
+    'screen-speaking-intro': ['Part 04 · Speaking', 'Parte 04 · Expresión oral'],
+    'screen-speaking':       ['Part 04 · Speaking', 'Parte 04 · Expresión oral'],
+    'screen-results':        ['Results', 'Resultados'],
   };
-  document.getElementById('navSection').textContent = labels[id] || '';
+  const l = labels[id];
+  document.getElementById('navSection').innerHTML = l ? bi(l[0], l[1]) : '';
 }
 
 const screenOrder = ['screen-cover','screen-reading-intro','screen-reading','screen-writing-intro','screen-writing','screen-listening-intro','screen-listening','screen-speaking-intro','screen-speaking','screen-results'];
@@ -188,6 +201,8 @@ function updateProgress(id) {
   const idx = screenOrder.indexOf(id);
   const pct = idx < 0 ? 0 : Math.round((idx / (screenOrder.length - 1)) * 100);
   document.getElementById('progressBar').style.width = pct + '%';
+  const outer = document.querySelector('.progress-bar-outer');
+  if (outer) outer.setAttribute('aria-valuenow', String(pct));
 }
 
 // ── beforeunload — warn when test is in progress ──
@@ -196,22 +211,34 @@ function onBeforeUnload(e) { if (testInProgress) { e.preventDefault(); } }
 window.addEventListener('beforeunload', onBeforeUnload);
 
 // ── START ──
+function setFieldError(inputEl, html) {
+  let msg = inputEl.parentElement.querySelector('.fp-field-error');
+  if (!html) {
+    inputEl.classList.remove('is-error');
+    inputEl.removeAttribute('aria-invalid');
+    if (msg) msg.remove();
+    return;
+  }
+  inputEl.classList.add('is-error');
+  inputEl.setAttribute('aria-invalid', 'true');
+  if (!msg) {
+    msg = document.createElement('div');
+    msg.className = 'fp-field-error';
+    msg.setAttribute('role', 'alert');
+    inputEl.insertAdjacentElement('afterend', msg);
+  }
+  msg.innerHTML = iconMsg('warning', html);
+}
+
 function startTest() {
   const nameEl = document.getElementById('candidateName');
   const dateEl = document.getElementById('candidateDate');
+  setFieldError(nameEl, '');
   if (!nameEl.value.trim()) {
-    nameEl.style.borderColor = 'var(--rust)';
+    setFieldError(nameEl, bi('Please write your name.', 'Escribe tu nombre.'));
     nameEl.focus();
-    nameEl.placeholder = 'Name is required *';
     return;
   }
-  if (!dateEl.value) {
-    dateEl.style.borderColor = 'var(--rust)';
-    dateEl.focus();
-    return;
-  }
-  nameEl.style.borderColor = '';
-  dateEl.style.borderColor = '';
   if (!dateEl.value) dateEl.value = localDateString();
   testInProgress = true;
   state.startTime = new Date();
@@ -221,19 +248,23 @@ function startTest() {
 }
 
 // ── MCQ ──
+function verdictHtml(ok) {
+  return '<span class="fp-answer__verdict">' + FP.icon(ok ? 'check_small' : 'close_small', { size: 'sm' }) +
+    (ok ? bi('Correct', 'Correcto') : bi('Not quite', 'No exactamente')) + '</span>';
+}
+
 function selectMCQ(qId, letter, isCorrect) {
   if (state.answers[qId]) return; // already answered
   state.answers[qId] = { selected: letter, correct: isCorrect };
 
-  const card = document.getElementById(qId + '-card') || document.querySelector(`[id^="${qId}"]`)?.closest('.question-card');
   const btns = document.querySelectorAll(`[onclick*="'${qId}'"]`);
-
   btns.forEach(btn => {
     btn.disabled = true;
     const btnLetter = btn.querySelector('.opt-letter').textContent.trim();
     const correctLetter = CORRECT_ANSWERS[qId];
-    if (btnLetter === correctLetter) btn.classList.add('correct');
-    else if (btnLetter === letter && !isCorrect) btn.classList.add('wrong');
+    btn.setAttribute('aria-checked', btnLetter === letter ? 'true' : 'false');
+    if (btnLetter === correctLetter) { btn.classList.add('correct'); btn.insertAdjacentHTML('beforeend', verdictHtml(true)); }
+    else if (btnLetter === letter && !isCorrect) { btn.classList.add('wrong'); btn.insertAdjacentHTML('beforeend', verdictHtml(false)); }
   });
 
   const fb = document.getElementById(qId + '-fb');
@@ -241,11 +272,12 @@ function selectMCQ(qId, letter, isCorrect) {
     fb.setAttribute('aria-live', 'polite');
     fb.classList.add('show');
     if (isCorrect) {
+      const m = MCQ_MARKS[qId] || 2;
       fb.classList.add('correct-fb');
-      fb.textContent = '✓ Correct! +' + (MCQ_MARKS[qId] || 2) + ' marks';
+      fb.innerHTML = iconMsg('check_small', bi('Correct! +' + m + ' marks', '¡Correcto! +' + m + ' puntos'));
     } else {
       fb.classList.add('wrong-fb');
-      fb.textContent = '✗ Incorrect. The correct answer is ' + CORRECT_ANSWERS[qId] + '.';
+      fb.innerHTML = iconMsg('close_small', bi('Not quite. The correct answer is ' + CORRECT_ANSWERS[qId] + '.', 'No exactamente. La respuesta correcta es ' + CORRECT_ANSWERS[qId] + '.'));
     }
   }
   updateScoreDisplay();
@@ -259,9 +291,11 @@ function toggleMulti(qId, letter) {
   if (state.q19selected.has(letter)) {
     state.q19selected.delete(letter);
     btn.classList.remove('selected');
+    btn.setAttribute('aria-pressed', 'false');
   } else {
     state.q19selected.add(letter);
     btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
   }
   // Auto-submit when 2 selected
   if (state.q19selected.size >= 2) submitQ19();
@@ -276,8 +310,8 @@ function submitQ19() {
     if (!btn.classList.contains('q-feedback') && btn.tagName === 'BUTTON') {
       btn.disabled = true;
       const letter = btn.id.replace('q19-','');
-      if (Q19_CORRECT.has(letter)) btn.classList.add('correct');
-      else if (state.q19selected.has(letter)) btn.classList.add('wrong');
+      if (Q19_CORRECT.has(letter)) { btn.classList.add('correct'); btn.insertAdjacentHTML('beforeend', verdictHtml(true)); }
+      else if (state.q19selected.has(letter)) { btn.classList.add('wrong'); btn.insertAdjacentHTML('beforeend', verdictHtml(false)); }
     }
   });
 
@@ -286,11 +320,17 @@ function submitQ19() {
   fb.classList.add('show');
   if (correct) {
     fb.classList.add('correct-fb');
-    fb.textContent = '✓ Correct! Both answers found. +2 marks';
+    fb.innerHTML = iconMsg('check_small', bi('Correct! Both answers found. +2 marks', '¡Correcto! Encontraste las dos respuestas. +2 puntos'));
     state.answers['q19'] = { correct: true, marks: 2 };
+  } else if (partialCorrect > 0) {
+    fb.classList.add('info-fb');
+    fb.innerHTML = iconMsg('lightbulb', bi(`Partly correct. ${partialCorrect} of 2 correct answers selected. +${partialCorrect} mark${partialCorrect>1?'s':''}.`,
+      `Parcialmente correcto. Elegiste ${partialCorrect} de 2 respuestas correctas. +${partialCorrect} punto${partialCorrect>1?'s':''}.`));
+    state.answers['q19'] = { correct: false, marks: partialCorrect };
   } else {
-    fb.classList.add(partialCorrect > 0 ? 'info-fb' : 'wrong-fb');
-    fb.textContent = partialCorrect > 0 ? `Partially correct. ${partialCorrect}/2 correct answers selected. +${partialCorrect} mark${partialCorrect>1?'s':''}.` : '✗ Neither answer was correct. Correct answers: Reception and the Website.';
+    fb.classList.add('wrong-fb');
+    fb.innerHTML = iconMsg('close_small', bi('Not quite. Neither answer was correct. The correct answers are: At reception and On the website.',
+      'No exactamente. Ninguna respuesta fue correcta. Las respuestas correctas son: At reception y On the website.'));
     state.answers['q19'] = { correct: false, marks: partialCorrect };
   }
   updateScoreDisplay();
@@ -305,13 +345,11 @@ function toggleSkipQ(checkbox, qId) {
   var el = document.getElementById(qId);
   if (checkbox.checked) {
     el.required = false;
-    el.disabled = true;
-    el.style.opacity = '0.4';
+    el.disabled = true; // :disabled styles the field as skipped
     state.textAnswers[qId] = '[SKIPPED]';
   } else {
     el.required = true;
     el.disabled = false;
-    el.style.opacity = '';
     state.textAnswers[qId] = el.value;
   }
 }
@@ -320,18 +358,25 @@ function updateWordCount() {
   const text = document.getElementById('q14').value.trim();
   const words = text ? text.split(/\s+/).length : 0;
   const wc = document.getElementById('wordCount');
-  wc.textContent = words + ' words';
-  wc.style.color = (words >= 120 && words <= 150) ? 'var(--green)' : words > 150 ? 'var(--rust)' : 'var(--muted)';
+  const inRange = words >= 120 && words <= 150;
+  const over = words > 150;
+  wc.className = 'word-count' + (inRange ? ' is-ok' : over ? ' is-over' : '');
+  wc.innerHTML = (inRange ? FP.icon('check_small', { size: 'sm' }) : over ? FP.icon('warning', { size: 'sm' }) : '') +
+    '<span>' + bi(words + ' words' + (over ? ' (aim for 120–150)' : ''), words + ' palabras' + (over ? ' (intenta escribir 120–150)' : '')) + '</span>';
   saveText('q14');
 }
 
 function chooseTask(opt) {
   state.chosenTask = opt;
-  document.getElementById('taskA').classList.toggle('chosen', opt === 'A');
-  document.getElementById('taskB').classList.toggle('chosen', opt === 'B');
-  document.getElementById('q14').placeholder = opt === 'A'
-    ? 'Write your informal email here (120–150 words)…'
-    : 'Write your opinion paragraph here (120–150 words)…';
+  [['A', 'taskA'], ['B', 'taskB']].forEach(([o, id]) => {
+    const b = document.getElementById(id);
+    b.classList.toggle('chosen', opt === o);
+    b.setAttribute('aria-pressed', opt === o ? 'true' : 'false');
+  });
+  const q14 = document.getElementById('q14');
+  q14.setAttribute('data-placeholder-en', opt === 'A' ? 'Write your informal email here (120–150 words)…' : 'Write your opinion paragraph here (120–150 words)…');
+  q14.setAttribute('data-ph-es', opt === 'A' ? 'Escribe aquí tu correo informal (120–150 palabras)…' : 'Escribe aquí tu párrafo de opinión (120–150 palabras)…');
+  FP.ui.localizeAttrs(q14.parentElement);
 }
 
 // ── SCORE DISPLAY ──
@@ -370,10 +415,39 @@ var speakingAudio = {};       // { q21: Blob }, the latest take for each questio
 var speakingStream = null;
 var speakingAudioJson = null; // set once uploaded; a retry reuses it instead of re-uploading
 
-const MSG_NO_SPEAKING = 'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call. / ' +
-  'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.';
-const MSG_NO_MIC = 'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap Record again. / ' +
-  'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca Grabar de nuevo.';
+const MSG_NO_SPEAKING = () => bi(
+  'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call.',
+  'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.');
+const MSG_NO_MIC = () => bi(
+  'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap the microphone again.',
+  'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca el micrófono de nuevo.');
+
+/** Show a message in a question's status line. kind: 'error' or '' (plain). `html` is escaped markup. */
+function setRecStatus(qId, html, kind) {
+  const el = document.getElementById('rec-status-' + qId);
+  el.style.display = html ? 'block' : 'none';
+  el.className = 'rec-status' + (kind === 'error' ? ' is-error' : '');
+  el.innerHTML = html || '';
+}
+
+/** One place for the record button's look (spec 6.6): idle, requesting, recording, recorded, failed. */
+const REC_STATES = {
+  idle:       { icon: 'mic',  fill: false, en: 'Record your answer',            es: 'Graba tu respuesta' },
+  requesting: { icon: 'mic',  fill: false, en: 'Allow the microphone',          es: 'Permite el micrófono' },
+  recording:  { icon: 'stop', fill: true,  en: 'Recording… tap to stop',        es: 'Grabando… toca para detener' },
+  recorded:   { icon: 'mic',  fill: false, en: 'Recorded. Tap to record again.', es: 'Grabado. Toca para grabar de nuevo.' },
+  failed:     { icon: 'mic',  fill: false, en: 'Could not record. Tap to try again.', es: 'No pudimos grabar. Toca para intentar de nuevo.' },
+};
+function setRecUi(qId, stateName) {
+  const st = REC_STATES[stateName];
+  const btn = document.getElementById('rec-btn-' + qId);
+  btn.classList.remove('is-requesting', 'is-recording', 'is-recorded', 'is-failed');
+  if (stateName !== 'idle') btn.classList.add('is-' + stateName);
+  btn.setAttribute('aria-pressed', stateName === 'recording' ? 'true' : 'false');
+  btn.setAttribute('aria-label', FP.ui.label(st.en, st.es));
+  btn.innerHTML = FP.icon(st.icon, { fill: st.fill });
+  document.getElementById('rec-label-' + qId).innerHTML = bi(st.en, st.es);
+}
 
 function getAudioMimeType() {
   const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
@@ -418,25 +492,18 @@ function stopSpeakingRec(qId) {
   rec.recording = false;
   if (rec.recognition) { try { rec.recognition.stop(); } catch (e) {} }
   if (rec.recorder && rec.recorder.state !== 'inactive') { try { rec.recorder.stop(); } catch (e) {} }
-  var btn = document.getElementById('rec-btn-' + qId);
-  var statusEl = document.getElementById('rec-status-' + qId);
-  btn.textContent = '🎤 Record again';
-  btn.classList.remove('is-recording');
-  statusEl.style.display = 'block';
-  statusEl.textContent = canRecordAudio()
-    ? '✓ Recording saved. Tap Record again to replace it. / Grabación guardada. Toca Grabar de nuevo para reemplazarla.'
-    : 'Recording stopped.';
+  setRecStatus(qId, '');
+  // With a recording the state is "recorded" (and a player appears); a transcript-only device just goes back to idle.
+  setRecUi(qId, canRecordAudio() ? 'recorded' : 'idle');
   state.textAnswers[qId + '_transcript'] = rec.transcript;
 }
 
 async function toggleSpeakingRec(qId) {
-  var statusEl = document.getElementById('rec-status-' + qId);
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!canRecordAudio() && !SR) {
     // IOS-1c: do not send an iPad/iPhone user off to install another browser.
     // The notes box above is the answer; the teacher listens on the video call.
-    statusEl.style.display = 'block';
-    statusEl.textContent = MSG_NO_SPEAKING;
+    setRecStatus(qId, MSG_NO_SPEAKING());
     return;
   }
 
@@ -448,24 +515,26 @@ async function toggleSpeakingRec(qId) {
   // One question at a time.
   Object.keys(speakingRecorders).forEach(function (k) { if (k !== qId) stopSpeakingRec(k); });
 
-  var btn = document.getElementById('rec-btn-' + qId);
   var transcriptEl = document.getElementById('rec-transcript-' + qId);
-  statusEl.style.display = 'block';
+  setRecStatus(qId, '');
 
   // Ask for the microphone first, inside the tap that started this (iOS requires it).
   var stream = null;
   if (canRecordAudio()) {
     rec.starting = true;
+    setRecUi(qId, 'requesting');
     stream = await getSpeakingStream();
     rec.starting = false;
-    if (!stream && !SR) { statusEl.textContent = MSG_NO_MIC; return; }
+    if (!stream && !SR) {
+      setRecUi(qId, 'failed');
+      setRecStatus(qId, MSG_NO_MIC(), 'error');
+      return;
+    }
   }
 
   rec.transcript = '';
   rec.recording = true;
-  btn.textContent = '■ Stop Recording';
-  btn.classList.add('is-recording');
-  statusEl.textContent = 'Recording… speak now. / Grabando… habla ahora.';
+  setRecUi(qId, 'recording');
 
   if (stream) {
     var mime = getAudioMimeType();
@@ -482,7 +551,7 @@ async function toggleSpeakingRec(qId) {
         player.id = 'rec-audio-' + qId;
         player.controls = true;
         player.className = 'fp-audio-preview';
-        statusEl.insertAdjacentElement('afterend', player);
+        document.getElementById('rec-status-' + qId).insertAdjacentElement('afterend', player);
       }
       if (player.src) URL.revokeObjectURL(player.src);
       player.src = URL.createObjectURL(speakingAudio[qId]);
@@ -549,90 +618,62 @@ function speakText(text, onEnd) {
   speakEnglish(text, onEnd); // shared voice: same as the lessons (utils.js)
 }
 
-// ── Listening audio with stop button and play-time tracking ──
-let listeningPlayStart = null;
-let listeningTotalTime = 0;
-let dictationPlayStart = null;
-let dictationTotalTime = 0;
+// ── Listening and dictation audio: play/stop, plays left, time listened ──
+const AUDIO_UI = {
+  listening: { box: 'listeningAudioBox', play: 'playBtn', stop: 'stopBtn', status: 'audioStatus', time: 'audioPlayTime', left: 'audioPlaysLeft',
+    again: ['Tap play to listen again', 'Toca reproducir para escuchar otra vez'] },
+  dictation: { box: 'dictationAudioBox', play: 'dictPlayBtn', stop: 'dictStopBtn', status: 'dictAudioStatus', time: 'dictPlayTime', left: 'dictPlaysLeft',
+    again: ['Tap play to hear it again', 'Toca reproducir para oírla otra vez'] },
+};
+const audioClock = { listening: { start: null, total: 0 }, dictation: { start: null, total: 0 } };
+
+function audioPlayStart(kind, left) {
+  const u = AUDIO_UI[kind];
+  document.getElementById(u.left).innerHTML = playsLeftHtml(left);
+  document.getElementById(u.status).innerHTML = bi('Playing…', 'Reproduciendo…');
+  document.getElementById(u.play).style.display = 'none';
+  const stop = document.getElementById(u.stop);
+  stop.style.display = 'inline-flex';
+  stop.focus(); // the play button just vanished: keep keyboard focus on the control that replaces it
+  audioClock[kind].start = Date.now();
+}
+
+function audioPlayEnd(kind, left) {
+  const u = AUDIO_UI[kind], clock = audioClock[kind];
+  if (clock.start) { clock.total += Date.now() - clock.start; clock.start = null; }
+  document.getElementById(u.stop).style.display = 'none';
+  const play = document.getElementById(u.play);
+  play.style.display = 'inline-flex';
+  document.getElementById(u.status).innerHTML = left > 0 ? bi(u.again[0], u.again[1]) : bi('No more plays available', 'Ya no hay más reproducciones');
+  const t = document.getElementById(u.time);
+  t.style.display = 'inline';
+  t.innerHTML = bi('Listened for ' + formatPlayTime(clock.total), 'Escuchado: ' + formatPlayTime(clock.total));
+  if (left === 0) { play.disabled = true; document.getElementById(u.box).classList.add('is-exhausted'); }
+  else play.focus();
+}
 
 function playListeningAudio() {
   if (state.listeningPlays >= MAX_PLAYS) return;
   state.listeningPlays++;
   var left = MAX_PLAYS - state.listeningPlays;
-  document.getElementById('audioPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
-  document.getElementById('audioStatus').textContent = 'Playing…';
-  document.getElementById('playBtn').style.display = 'none';
-  document.getElementById('stopBtn').style.display = 'flex';
-  listeningPlayStart = Date.now();
-  if (left === 0) {
-    document.getElementById('listeningAudioBox').style.opacity = '0.7';
-  }
-  speakText(LISTENING_TEXT, function() {
-    finishListeningPlay(left);
-  });
+  audioPlayStart('listening', left);
+  speakText(LISTENING_TEXT, function() { audioPlayEnd('listening', left); });
 }
-
 function stopListeningAudio() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-  var left = MAX_PLAYS - state.listeningPlays;
-  finishListeningPlay(left);
-}
-
-function finishListeningPlay(left) {
-  if (listeningPlayStart) {
-    listeningTotalTime += Date.now() - listeningPlayStart;
-    listeningPlayStart = null;
-  }
-  document.getElementById('stopBtn').style.display = 'none';
-  document.getElementById('playBtn').style.display = 'flex';
-  document.getElementById('audioStatus').textContent = left > 0 ? 'Click to listen again' : 'No more plays available';
-  var ptEl = document.getElementById('audioPlayTime');
-  ptEl.style.display = 'inline';
-  ptEl.textContent = ' · ' + formatPlayTime(listeningTotalTime);
-  if (left === 0) {
-    document.getElementById('playBtn').style.opacity = '0.4';
-    document.getElementById('playBtn').style.cursor = 'default';
-  }
+  audioPlayEnd('listening', MAX_PLAYS - state.listeningPlays);
 }
 
 function playDictationAudio() {
   if (state.dictationPlays >= MAX_PLAYS) return;
   state.dictationPlays++;
   var left = MAX_PLAYS - state.dictationPlays;
-  document.getElementById('dictPlaysLeft').textContent = left === 0 ? 'No plays left' : left + ' play' + (left === 1 ? '' : 's') + ' left';
-  document.getElementById('dictAudioStatus').textContent = 'Playing…';
-  document.getElementById('dictPlayBtn').style.display = 'none';
-  document.getElementById('dictStopBtn').style.display = 'flex';
-  dictationPlayStart = Date.now();
-  if (left === 0) {
-    document.getElementById('dictationAudioBox').style.opacity = '0.7';
-  }
-  speakText(DICTATION_TEXT, function() {
-    finishDictationPlay(left);
-  });
+  audioPlayStart('dictation', left);
+  speakText(DICTATION_TEXT, function() { audioPlayEnd('dictation', left); });
 }
-
 function stopDictationAudio() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
-  var left = MAX_PLAYS - state.dictationPlays;
-  finishDictationPlay(left);
-}
-
-function finishDictationPlay(left) {
-  if (dictationPlayStart) {
-    dictationTotalTime += Date.now() - dictationPlayStart;
-    dictationPlayStart = null;
-  }
-  document.getElementById('dictStopBtn').style.display = 'none';
-  document.getElementById('dictPlayBtn').style.display = 'flex';
-  document.getElementById('dictAudioStatus').textContent = left > 0 ? 'Click to hear again' : 'No more plays available';
-  var ptEl = document.getElementById('dictPlayTime');
-  ptEl.style.display = 'inline';
-  ptEl.textContent = ' · ' + formatPlayTime(dictationTotalTime);
-  if (left === 0) {
-    document.getElementById('dictPlayBtn').style.opacity = '0.4';
-    document.getElementById('dictPlayBtn').style.cursor = 'default';
-  }
+  audioPlayEnd('dictation', MAX_PLAYS - state.dictationPlays);
 }
 
 // Preload voices on page load
@@ -659,28 +700,31 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
   // Time summary
   const duration = state.endTime && state.startTime ? state.endTime - state.startTime : null;
   const timeSummary = document.getElementById('timeSummary');
-  timeSummary.innerHTML = [
-    { label: 'Started', value: state.startTime ? state.startTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
-    { label: 'Finished', value: state.endTime ? state.endTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—' },
-    { label: 'Duration', value: duration ? formatDuration(duration) : '—' },
-  ].map(item => `<div><div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px;">${item.label}</div><div style="font-family:var(--font-family-primary);font-size:22px;font-weight:700;color:var(--ink);">${item.value}</div></div>`).join('');
+  const timeItems = [
+    ['Started', 'Inicio', state.startTime ? state.startTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'],
+    ['Finished', 'Fin', state.endTime ? state.endTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'],
+    ['Duration', 'Duración', duration ? formatDuration(duration) : '—'],
+  ];
+  timeSummary.innerHTML = timeItems.map(([en, es, value]) =>
+    '<div class="ts-item"><div class="ts-label">' + bi(en, es) + '</div><div class="ts-value">' + value + '</div></div>').join('');
 
-  // Submission banner
+  // Submission banner (message is already escaped, bilingual markup)
   const banner = document.getElementById('submissionBanner');
   banner.classList.remove('fp-hidden', 'fp-banner--success', 'fp-banner--error');
   if (submissionOk) {
     banner.classList.add('fp-banner--success');
-    banner.textContent = '✓ ' + submissionMsg;
+    banner.setAttribute('role', 'status');
+    banner.innerHTML = FP.icon('check', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
   } else {
     banner.classList.add('fp-banner--error');
     banner.setAttribute('role', 'alert');
-    banner.textContent = submissionMsg;
+    banner.innerHTML = FP.icon('warning', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
     // Give the student a way out rather than a dead end.
     const retry = document.createElement('button');
     retry.id = 'retrySubmitBtn';
     retry.type = 'button';
     retry.className = 'fp-btn fp-btn--primary';
-    retry.textContent = 'Retry submission';
+    retry.innerHTML = bi('Retry submission', 'Reintentar el envío');
     retry.setAttribute('onclick', 'retrySubmission()');
     banner.appendChild(retry);
   }
@@ -700,7 +744,7 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
 
 // ── DUAL SUBMISSION (Email + Google Sheet) ──
 async function submitResults() {
-  FP.showSaveOverlay('Submitting your test results…');
+  FP.showSaveOverlay(bi('Submitting your test results…', 'Enviando los resultados de tu prueba…'), true);
 
   const missingFormspree = FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID_HERE');
   const missingSheet     = GOOGLE_SHEET_WEBHOOK.includes('YOUR_SCRIPT_ID_HERE');
@@ -784,7 +828,7 @@ async function submitResults() {
 
   // ── Speaking recordings → Drive (before the row, so the row can reference them) ──
   if (!missingSheet && Object.keys(speakingAudio).length) {
-    FP.updateSaveOverlay('Uploading your recordings…');
+    FP.updateSaveOverlay(bi('Uploading your recordings…', 'Subiendo tus grabaciones…'), true);
     sheetPayload.speaking_audio_json = await uploadSpeakingAudio();
   }
   releaseSpeakingStream(); // the mic is no longer needed
@@ -800,7 +844,7 @@ async function submitResults() {
     } catch { results.sheet = 'error'; }
 
     if (results.sheet === 'sent') {
-      FP.updateSaveOverlay('Confirming your results were saved…');
+      FP.updateSaveOverlay(bi('Confirming your results were saved…', 'Confirmando que tus resultados se guardaron…'), true);
       results.verified = await verifySubmission(submissionId);
     }
   }
@@ -814,20 +858,20 @@ async function submitResults() {
   let ok, msg;
   if (bothUnconfigured) {
     ok = false;
-    msg = '⚠️ Submission endpoints not configured. Please ask your examiner to set up the test.';
+    msg = bi('Submission is not set up. Please ask your teacher to set up the test.', 'El envío no está configurado. Pide a tu profesor que configure la prueba.');
   } else if (results.verified) {
     ok = true;
     msg = results.email === 'ok'
-      ? 'Your results have been saved and emailed to your examiner.'
-      : 'Your results have been saved.';
+      ? bi('Your results have been saved and emailed to your teacher.', 'Tus resultados se guardaron y se enviaron por correo a tu profesor.')
+      : bi('Your results have been saved.', 'Tus resultados se guardaron.');
   } else if (results.email === 'ok') {
     ok = false;
-    msg = '⚠️ We emailed your results to your examiner, but could not confirm they were saved. ' +
-          'Please tap "Retry submission" — your answers are still saved on this device.';
+    msg = bi('We emailed your results to your teacher, but could not confirm they were saved. Tap "Retry submission". Your answers are still saved on this device.',
+      'Enviamos tus resultados por correo a tu profesor, pero no pudimos confirmar que se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo.');
   } else {
     ok = false;
-    msg = '⚠️ We could not confirm your results were saved. Please tap "Retry submission". ' +
-          'Your answers are still saved on this device — do not close this page.';
+    msg = bi('We could not confirm your results were saved. Tap "Retry submission". Your answers are still saved on this device. Do not close this page.',
+      'No pudimos confirmar que tus resultados se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo. No cierres esta página.');
   }
 
   FP.hideSaveOverlay();
@@ -871,14 +915,14 @@ async function verifySubmission(submissionId) {
  */
 async function retrySubmission() {
   const btn = document.getElementById('retrySubmitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Retrying…'; }
+  if (btn) { btn.disabled = true; btn.classList.add('is-loading'); btn.innerHTML = bi('Retrying…', 'Reintentando…'); }
 
   if (state.submissionId) {
-    FP.showSaveOverlay('Checking whether your results arrived…');
+    FP.showSaveOverlay(bi('Checking whether your results arrived…', 'Revisando si llegaron tus resultados…'), true);
     const alreadyLanded = await verifySubmission(state.submissionId);
     FP.hideSaveOverlay();
     if (alreadyLanded) {
-      showResultsScreen(true, 'Your results have been saved.', true);
+      showResultsScreen(true, bi('Your results have been saved.', 'Tus resultados se guardaron.'), true);
       return;
     }
   }
@@ -913,45 +957,51 @@ function restartTest() {
     if (st) { st.style.display = 'none'; st.textContent = ''; }
     var tr = document.getElementById('rec-transcript-' + q);
     if (tr) { tr.style.display = 'none'; tr.textContent = ''; }
-    var b = document.getElementById('rec-btn-' + q);
-    if (b) { b.textContent = '🎤 Record your answer'; b.classList.remove('is-recording'); }
+    setRecUi(q, 'idle');
   });
 
   // Reset all MCQ buttons
   document.querySelectorAll('.option-btn').forEach(btn => {
     btn.disabled = false;
     btn.classList.remove('selected','correct','wrong');
+    if (btn.getAttribute('role') === 'radio') btn.setAttribute('aria-checked', 'false');
+    else if (btn.hasAttribute('aria-pressed')) btn.setAttribute('aria-pressed', 'false');
+    btn.tabIndex = btn.dataset.firstOption === '1' ? 0 : (btn.getAttribute('role') === 'radio' ? -1 : 0);
+    const v = btn.querySelector('.fp-answer__verdict');
+    if (v) v.remove();
   });
 
   // Reset all feedbacks
   document.querySelectorAll('.q-feedback').forEach(fb => {
     fb.className = 'q-feedback';
-    fb.textContent = '';
+    fb.innerHTML = '';
   });
 
   // Reset text inputs
   document.querySelectorAll('.text-input-area').forEach(el => el.value = '');
-  document.getElementById('wordCount').textContent = '0 words';
+  updateWordCount();
 
   // Reset task choice
-  document.getElementById('taskA').classList.remove('chosen');
-  document.getElementById('taskB').classList.remove('chosen');
+  ['taskA', 'taskB'].forEach(id => { const b = document.getElementById(id); b.classList.remove('chosen'); b.setAttribute('aria-pressed', 'false'); });
 
   // Reset audio players
-  document.getElementById('audioStatus').textContent = 'Press play to listen — you may play this up to 3 times';
-  document.getElementById('playBtn').textContent = '▶';
-  document.getElementById('audioPlaysLeft').textContent = '3 plays left';
-  document.getElementById('listeningAudioBox').style.opacity = '';
-  document.getElementById('listeningAudioBox').style.cursor = '';
-  document.getElementById('dictAudioStatus').textContent = 'Press play to hear the sentence';
-  document.getElementById('dictPlayBtn').textContent = '▶';
-  document.getElementById('dictPlaysLeft').textContent = '3 plays left';
-  document.getElementById('dictationAudioBox').style.opacity = '';
-  document.getElementById('dictationAudioBox').style.cursor = '';
+  Object.keys(AUDIO_UI).forEach(kind => {
+    const u = AUDIO_UI[kind];
+    audioClock[kind] = { start: null, total: 0 };
+    document.getElementById(u.status).innerHTML = kind === 'listening'
+      ? bi('Press play to listen. You can play it up to 3 times.', 'Toca reproducir para escuchar. Puedes escucharlo hasta 3 veces.')
+      : bi('Press play to hear the sentence', 'Toca reproducir para escuchar la oración');
+    document.getElementById(u.left).innerHTML = playsLeftHtml(MAX_PLAYS);
+    const play = document.getElementById(u.play);
+    play.disabled = false; play.style.display = 'inline-flex';
+    document.getElementById(u.stop).style.display = 'none';
+    const t = document.getElementById(u.time); t.style.display = 'none'; t.textContent = '';
+    document.getElementById(u.box).classList.remove('is-exhausted');
+  });
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   // Reset submission banner
   const banner = document.getElementById('submissionBanner');
-  if (banner) { banner.classList.add('fp-hidden'); banner.classList.remove('fp-banner--error'); banner.classList.add('fp-banner--success'); banner.textContent = ''; }
+  if (banner) { banner.classList.add('fp-hidden'); banner.classList.remove('fp-banner--error'); banner.classList.add('fp-banner--success'); banner.innerHTML = ''; }
 
   // Reset nav score
   document.getElementById('navScore').textContent = '';
@@ -959,8 +1009,46 @@ function restartTest() {
   showScreen('screen-cover');
 }
 
+/**
+ * UX-10: each single-answer question is a radiogroup (arrow keys move between options,
+ * one tab stop per group, Space/Enter chooses); Q19 is a group of toggle buttons; the
+ * Q14 task choice reports which task is pressed. Done here once instead of on 24 blocks.
+ */
+function enhanceOptionGroups() {
+  document.querySelectorAll('.options-grid').forEach((grid, i) => {
+    const prompt = grid.closest('.question-card')?.querySelector('.q-prompt');
+    if (prompt) { if (!prompt.id) prompt.id = 'qp-' + i; grid.setAttribute('aria-labelledby', prompt.id); }
+    const opts = Array.from(grid.querySelectorAll('.option-btn'));
+    if (grid.id === 'q19-options') {
+      grid.setAttribute('role', 'group');
+      opts.forEach(b => b.setAttribute('aria-pressed', 'false'));
+      return;
+    }
+    grid.setAttribute('role', 'radiogroup');
+    opts.forEach((b, k) => {
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', 'false');
+      b.tabIndex = k === 0 ? 0 : -1;
+      if (k === 0) b.dataset.firstOption = '1';
+    });
+    grid.addEventListener('keydown', e => {
+      const keys = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
+      if (!(e.key in keys)) return;
+      const enabled = opts.filter(b => !b.disabled);
+      const at = enabled.indexOf(document.activeElement);
+      if (at < 0 || !enabled.length) return;
+      e.preventDefault();
+      const next = enabled[(at + keys[e.key] + enabled.length) % enabled.length];
+      enabled.forEach(b => { b.tabIndex = b === next ? 0 : -1; });
+      next.focus();
+    });
+  });
+  ['taskA', 'taskB'].forEach(id => document.getElementById(id).setAttribute('aria-pressed', 'false'));
+}
+
 // Set today's date on load
 window.addEventListener('DOMContentLoaded', () => {
+  enhanceOptionGroups();
   // Session guard — the placement test requires a logged-in student (free, not public).
   if (FP.getSession && !FP.getSession()) { FP.redirectToLogin(); return; }
 
@@ -975,7 +1063,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Initialize video call request button (re-init when student enters name)
   function initCallRequest() {
-    if (typeof CallRequest !== 'undefined') CallRequest.init({ page: 'test' });
+    if (typeof CallRequest !== 'undefined') CallRequest.init({ page: 'test', mount: '#callSlot', compact: true });
   }
   initCallRequest();
   nameField.addEventListener('blur', initCallRequest);

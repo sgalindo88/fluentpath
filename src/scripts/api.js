@@ -207,7 +207,7 @@ FP.api = (function () {
  * Show a full-screen overlay that blocks all interaction.
  * @param {string} [message] - text to display (default "Saving…")
  */
-FP.showSaveOverlay = function (message) {
+FP.showSaveOverlay = function (message, isHtml) {
   var el = document.getElementById('fp-save-overlay');
   if (!el) {
     el = document.createElement('div');
@@ -223,7 +223,8 @@ FP.showSaveOverlay = function (message) {
       '</div>';
     (document.body || document.documentElement).appendChild(el);
   }
-  document.getElementById('fp-save-msg').textContent = message || 'Saving…';
+  var msg = document.getElementById('fp-save-msg');
+  if (isHtml) msg.innerHTML = message; else msg.textContent = message || 'Saving…';
   el.classList.add('is-open');
 };
 
@@ -231,9 +232,10 @@ FP.showSaveOverlay = function (message) {
  * Update the overlay message without hiding it.
  * @param {string} message
  */
-FP.updateSaveOverlay = function (message) {
+FP.updateSaveOverlay = function (message, isHtml) {
   var m = document.getElementById('fp-save-msg');
-  if (m) m.textContent = message;
+  if (!m) return;
+  if (isHtml) m.innerHTML = message; else m.textContent = message;
 };
 
 /**

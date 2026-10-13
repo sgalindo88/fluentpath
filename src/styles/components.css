@@ -309,6 +309,11 @@
 .fp-call { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .fp-call .fp-bi { text-align: left; }
 .fp-call.is-pending #fp-call-btn { opacity: 0.9; cursor: default; }
+/* In a page header: an icon button; the label shows from 600px up */
+.fp-call--compact .fp-btn { min-height: 44px; padding: 8px 12px; }
+.fp-call--compact .fp-call__label { display: none; }
+@media (min-width: 600px) { .fp-call--compact .fp-call__label { display: inline; } }
+.fp-call--compact.is-pending #fp-call-btn { opacity: 1; cursor: pointer; }
 .fp-fab .fp-bi { text-align: left; }
 .fp-fab.is-pending #fp-call-btn { opacity: 0.9; cursor: default; }
 

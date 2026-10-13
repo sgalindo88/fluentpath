@@ -117,9 +117,31 @@ FP.ui = (function () {
   function showSpanishFor(level) { return !/^(B2|C1|C2)/i.test(String(level || '')); }
   function setLevel(level) {
     document.documentElement.classList.toggle('fp-no-es', !showSpanishFor(level));
+    localizeAttrs();
   }
   function spanishOn() { return !document.documentElement.classList.contains('fp-no-es'); }
   try { setLevel(localStorage.getItem('fp_cefr_level')); } catch (e) { /* storage unavailable: show Spanish */ }
+
+  /**
+   * Attributes can't carry markup, so a Spanish version rides in a data attribute and is
+   * merged in as "English / Spanish" for A1-B1 and unplaced students (English only for B2+):
+   *   data-ph-es  → placeholder      data-label-es → aria-label      data-title-es → title
+   */
+  function localizeAttrs(root) {
+    if (typeof document === 'undefined' || !document.querySelectorAll) return;
+    var pairs = [['data-ph-es', 'placeholder'], ['data-label-es', 'aria-label'], ['data-title-es', 'title']];
+    pairs.forEach(function (p) {
+      (root || document).querySelectorAll('[' + p[0] + ']').forEach(function (el) {
+        if (!el.hasAttribute('data-' + p[1] + '-en')) el.setAttribute('data-' + p[1] + '-en', el.getAttribute(p[1]) || '');
+        var en = el.getAttribute('data-' + p[1] + '-en');
+        el.setAttribute(p[1], spanishOn() ? en + ' / ' + el.getAttribute(p[0]) : en);
+      });
+    });
+  }
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { localizeAttrs(); });
+    else localizeAttrs();
+  }
 
   /** Inline Spanish after an English phrase: " · Spanish" (hidden for B2 and up). */
   function es(text) { return '<span class="fp-es" lang="es"> · ' + esc(text) + '</span>'; }
@@ -147,6 +169,6 @@ FP.ui = (function () {
 
   return {
     toast: toast, banner: banner, removeBanner: removeBanner, bi: bi, dateEs: dateEs, esc: esc,
-    es: es, label: label, setLevel: setLevel, showSpanishFor: showSpanishFor, spanishOn: spanishOn,
+    es: es, label: label, localizeAttrs: localizeAttrs, setLevel: setLevel, showSpanishFor: showSpanishFor, spanishOn: spanishOn,
   };
 })();

@@ -21,6 +21,7 @@ var CallRequest = (function () {
     btnEl: null,
     wrapEl: null,
     mountEl: null, // optional: place the control inside the page instead of floating
+    compact: false, // header variant: icon button, label hidden on phones
   };
 
   function getStudentName() {
@@ -49,7 +50,7 @@ var CallRequest = (function () {
     if (state.btnEl) return state.btnEl;
     var wrap = document.createElement('div');
     wrap.id = 'fp-call-wrap';
-    wrap.className = state.mountEl ? 'fp-call' : 'fp-fab';
+    wrap.className = state.mountEl ? (state.compact ? 'fp-call fp-call--compact' : 'fp-call') : 'fp-fab';
     var btn = document.createElement('button');
     btn.id = 'fp-call-btn';
     btn.type = 'button';
@@ -62,6 +63,13 @@ var CallRequest = (function () {
     return btn;
   }
 
+  /** Button content: an icon plus the bilingual label. In compact mode (the page header) the label
+   *  hides on phones, so the button carries its own accessible name. */
+  function setButton(btn, icon, en, es) {
+    btn.innerHTML = FP.icon(icon) + '<span class="fp-call__label">' + bi(en, es) + '</span>';
+    btn.setAttribute('aria-label', FP.ui.label(en, es));
+  }
+
   function renderButton() {
     var btn = ensureButton();
     var wrap = state.wrapEl;
@@ -72,15 +80,22 @@ var CallRequest = (function () {
     btn.classList.remove('fp-btn--primary');
     btn.classList.add('fp-btn--secondary');
     wrap.classList.remove('is-pending');
+    btn.removeAttribute('aria-disabled');
     if (!state.currentRequest) {
-      btn.innerHTML = FP.icon('videocam') + bi('Request a video call', 'Pedir una videollamada');
+      setButton(btn, 'videocam', 'Request a video call', 'Pedir una videollamada');
       return;
     }
     if (state.currentRequest.status === 'pending') {
       wrap.classList.add('is-pending');
+      if (state.compact) {
+        // header: one control; tapping it checks for the teacher's link
+        setButton(btn, 'hourglass_top', 'Request pending. Tap to check.', 'Solicitud pendiente. Toca para revisar.');
+        btn.onclick = refresh;
+        return;
+      }
       btn.setAttribute('aria-disabled', 'true');
       btn.onclick = null;
-      btn.innerHTML = FP.icon('hourglass_top') + bi('Request pending…', 'Solicitud pendiente…');
+      setButton(btn, 'hourglass_top', 'Request pending…', 'Solicitud pendiente…');
       var r = document.createElement('button');
       r.id = 'fp-call-refresh';
       r.type = 'button';
@@ -90,11 +105,10 @@ var CallRequest = (function () {
       wrap.appendChild(r);
       return;
     }
-    btn.removeAttribute('aria-disabled');
     if (state.currentRequest.status === 'sent' && state.currentRequest.call_link) {
       btn.classList.remove('fp-btn--secondary');
       btn.classList.add('fp-btn--primary');
-      btn.innerHTML = FP.icon('videocam') + bi("Join teacher's call", 'Unirme a la llamada del profesor');
+      setButton(btn, 'videocam', "Join teacher's call", 'Unirme a la llamada del profesor');
       btn.onclick = function () { window.open(state.currentRequest.call_link, '_blank'); };
     }
   }
@@ -177,6 +191,7 @@ var CallRequest = (function () {
     state.page = (opts && opts.page) || 'hub';
     state.dayNumber = (opts && opts.dayNumber) || '';
     state.mountEl = (opts && opts.mount) ? document.querySelector(opts.mount) : null;
+    state.compact = !!(opts && opts.compact);
     if (!getStudentName()) return; // no name yet — don't show button
     ensureButton();
     renderButton();

@@ -25,50 +25,59 @@
 </head>
 <body>
 
-<div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
-
-<nav class="top-nav">
-  <div class="nav-title">FluentPath <em>Placement</em> Test</div>
-  <div class="nav-section" id="navSection">General Placement</div>
-  <div class="nav-score" id="navScore"></div>
-</nav>
+<header class="fp-header test-header">
+  <a class="hub-home" href="../app.html" aria-label="FluentPath">
+    <img class="fp-logo" src="img/logo-primary-horizontal.svg" alt="FluentPath">
+  </a>
+  <div class="test-header__meta">
+    <span class="nav-section" id="navSection"></span>
+    <span class="nav-score" id="navScore"></span>
+    <div id="callSlot"></div>
+  </div>
+</header>
+<div class="progress-bar-outer" role="progressbar" aria-label="Test progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-bar-inner" id="progressBar"></div></div>
 
 <div class="main">
 
 <!-- ══════════════════ COVER ══════════════════ -->
 <div class="screen active" id="screen-cover">
   <div class="cover">
-    <div class="cover-eyebrow">General Placement · All Levels</div>
-    <h1>FluentPath<br><em>Placement</em><br>Test</h1>
-    <div class="cover-desc">A comprehensive assessment of speaking, writing, listening and reading skills</div>
-    <div class="cover-rule"></div>
+    <p class="cover-eyebrow">General placement · All levels<span class="fp-bi__es" lang="es">Prueba general · Todos los niveles</span></p>
+    <h1>Placement test<span class="fp-bi__es" lang="es">Prueba de nivel</span></h1>
+    <p class="cover-desc">A check of your reading, writing, listening and speaking. It takes about 40 minutes.<span class="fp-bi__es" lang="es">Una evaluación de tu lectura, escritura, comprensión auditiva y expresión oral. Dura unos 40 minutos.</span></p>
+    <div class="fp-banner fp-banner--info cover-tip" role="note">
+      <i data-icon="lightbulb" data-icon-class="fp-banner__icon"></i>
+      <div class="fp-banner__body">Do your best. If a question is too hard, you can skip it. Your teacher will use the result to find the right level for you.<span class="fp-bi__es" lang="es">Haz tu mejor esfuerzo. Si una pregunta es muy difícil, puedes omitirla. Tu profesor usará el resultado para encontrar el nivel adecuado para ti.</span></div>
+    </div>
     <div class="candidate-form">
-      <div class="field-group">
-        <label>Your Name</label>
-        <input type="text" id="candidateName" placeholder="Full name *" required>
+      <div class="fp-field">
+        <label class="fp-label" for="candidateName">Your name<span class="fp-bi__es" lang="es">Tu nombre</span></label>
+        <input class="fp-input" type="text" id="candidateName" placeholder="Full name" data-ph-es="Nombre completo" autocomplete="name" required>
       </div>
-      <div class="field-group">
-        <label>Date</label>
-        <input type="date" id="candidateDate" required readonly>
+      <div class="fp-field">
+        <label class="fp-label" for="candidateDate">Date<span class="fp-bi__es" lang="es">Fecha</span></label>
+        <input class="fp-input" type="date" id="candidateDate" required readonly>
       </div>
     </div>
-    <div class="sections-overview">
-      <div class="overview-card reading"><div class="oc-label">Part 01</div><div class="oc-title">Reading</div><div class="oc-marks">20 marks</div></div>
-      <div class="overview-card writing"><div class="oc-label">Part 02</div><div class="oc-title">Writing</div><div class="oc-marks">25 marks</div></div>
-      <div class="overview-card listening"><div class="oc-label">Part 03</div><div class="oc-title">Listening</div><div class="oc-marks">15 marks</div></div>
-      <div class="overview-card speaking"><div class="oc-label">Part 04</div><div class="oc-title">Speaking</div><div class="oc-marks">20 marks</div></div>
-    </div>
-    <button class="btn-start" id="btnStartTest" onclick="startTest()">Begin Test →</button>
+    <ul class="sections-overview">
+      <li class="overview-card"><i data-icon="menu_book" data-icon-size="lg"></i><div class="oc-label">Part 01</div><div class="oc-title">Reading<span class="fp-bi__es" lang="es">Lectura</span></div><div class="oc-marks">20 marks<span class="fp-bi__es" lang="es">20 puntos</span></div></li>
+      <li class="overview-card"><i data-icon="edit" data-icon-size="lg"></i><div class="oc-label">Part 02</div><div class="oc-title">Writing<span class="fp-bi__es" lang="es">Escritura</span></div><div class="oc-marks">25 marks<span class="fp-bi__es" lang="es">25 puntos</span></div></li>
+      <li class="overview-card"><i data-icon="headphones" data-icon-size="lg"></i><div class="oc-label">Part 03</div><div class="oc-title">Listening<span class="fp-bi__es" lang="es">Comprensión auditiva</span></div><div class="oc-marks">15 marks<span class="fp-bi__es" lang="es">15 puntos</span></div></li>
+      <li class="overview-card"><i data-icon="record_voice_over" data-icon-size="lg"></i><div class="oc-label">Part 04</div><div class="oc-title">Speaking<span class="fp-bi__es" lang="es">Expresión oral</span></div><div class="oc-marks">20 marks<span class="fp-bi__es" lang="es">20 puntos</span></div></li>
+    </ul>
+    <button class="btn-start fp-btn fp-btn--primary fp-btn--block" id="btnStartTest" onclick="startTest()" type="button"><span class="fp-bi">Begin test<span class="fp-bi__es" lang="es">Comenzar la prueba</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
   </div>
 </div>
 
 <!-- ══════════════════ READING INTRO ══════════════════ -->
 <div class="screen" id="screen-reading-intro">
   <div class="section-intro">
+    <div class="si-icon"><i data-icon="menu_book" data-icon-size="lg"></i></div>
     <div class="si-num">01</div>
-    <h2>Reading</h2>
-    <p>You will read a short passage and answer comprehension questions, followed by vocabulary and grammar questions.<br><br><strong>20 marks &nbsp;·&nbsp; 10 questions</strong></p>
-    <button class="btn-nav primary" onclick="showScreen('screen-reading')">Start Reading →</button>
+    <h2>Reading<span class="fp-bi__es" lang="es">Lectura</span></h2>
+    <p>You will read a short passage and answer comprehension questions, followed by vocabulary and grammar questions.<span class="fp-bi__es" lang="es">Leerás un texto corto y responderás preguntas de comprensión, seguidas de preguntas de vocabulario y gramática.</span></p>
+    <p class="si-counts"><strong>20 marks · 10 questions<span class="fp-bi__es" lang="es">20 puntos · 10 preguntas</span></strong></p>
+    <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-reading')" type="button"><span class="fp-bi">Start reading<span class="fp-bi__es" lang="es">Empezar la lectura</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
   </div>
 </div>
 
@@ -76,13 +85,13 @@
 <div class="screen" id="screen-reading">
   <div class="question-area">
     <div class="passage">
-      <div class="passage-title">Read the following passage carefully</div>
+      <div class="passage-title">Read the following passage carefully<span class="fp-bi__es" lang="es">Lee el siguiente texto con atención</span></div>
       City farming—growing food in urban spaces—has become increasingly popular over the last decade. Rooftops, balconies, and abandoned lots are being transformed into productive gardens. Supporters argue that urban farms reduce food miles, strengthen communities, and improve mental health. Critics, however, point out that most city farms produce very little food relative to the land and resources they use. Despite this debate, local governments in many cities continue to fund and encourage the movement.
     </div>
 
     <!-- Q1 -->
     <div class="question-card" id="q1-card">
-      <span class="q-num-big">Question 1 of 10 &nbsp;·&nbsp; Reading</span>
+      <span class="q-num-big">Question 1 of 10 · Reading<span class="fp-bi__es" lang="es">Pregunta 1 de 10 · Lectura</span></span>
       <div class="q-prompt">What is the main topic of this passage?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q1','A',false)"><span class="opt-letter">A</span> The decline of traditional farming</button>
@@ -95,7 +104,7 @@
 
     <!-- Q2 -->
     <div class="question-card" id="q2-card">
-      <span class="q-num-big">Question 2 of 10 &nbsp;·&nbsp; Reading</span>
+      <span class="q-num-big">Question 2 of 10 · Reading<span class="fp-bi__es" lang="es">Pregunta 2 de 10 · Lectura</span></span>
       <div class="q-prompt">According to the passage, what is one criticism of urban farming?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q2','A',false)"><span class="opt-letter">A</span> It is illegal in most cities</button>
@@ -108,7 +117,7 @@
 
     <!-- Q3 -->
     <div class="question-card" id="q3-card">
-      <span class="q-num-big">Question 3 of 10 &nbsp;·&nbsp; Reading</span>
+      <span class="q-num-big">Question 3 of 10 · Reading<span class="fp-bi__es" lang="es">Pregunta 3 de 10 · Lectura</span></span>
       <div class="q-prompt">The word <em>"productive"</em> in the passage most closely means:</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q3','A',false)"><span class="opt-letter">A</span> decorative</button>
@@ -121,7 +130,7 @@
 
     <!-- Q4 -->
     <div class="question-card" id="q4-card">
-      <span class="q-num-big">Question 4 of 10 &nbsp;·&nbsp; Reading</span>
+      <span class="q-num-big">Question 4 of 10 · Reading<span class="fp-bi__es" lang="es">Pregunta 4 de 10 · Lectura</span></span>
       <div class="q-prompt">Based on the passage, which of the following statements is TRUE?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q4','A',false)"><span class="opt-letter">A</span> All governments oppose urban farming</button>
@@ -134,7 +143,7 @@
 
     <!-- Q5 -->
     <div class="question-card" id="q5-card">
-      <span class="q-num-big">Question 5 of 10 &nbsp;·&nbsp; Reading</span>
+      <span class="q-num-big">Question 5 of 10 · Reading<span class="fp-bi__es" lang="es">Pregunta 5 de 10 · Lectura</span></span>
       <div class="q-prompt">What does the phrase <em>"food miles"</em> most likely refer to?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q5','A',false)"><span class="opt-letter">A</span> The nutritional value of food</button>
@@ -147,7 +156,7 @@
 
     <!-- Q6 -->
     <div class="question-card" id="q6-card">
-      <span class="q-num-big">Question 6 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <span class="q-num-big">Question 6 of 10 · Vocabulary<span class="fp-bi__es" lang="es">Pregunta 6 de 10 · Vocabulario</span></span>
       <div class="q-prompt">Choose the word that best completes the sentence:<br><em>"Despite the rain, the team ________ to finish the project on time."</em></div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q6','A',true)"><span class="opt-letter">A</span> managed</button>
@@ -160,7 +169,7 @@
 
     <!-- Q7 -->
     <div class="question-card" id="q7-card">
-      <span class="q-num-big">Question 7 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <span class="q-num-big">Question 7 of 10 · Vocabulary<span class="fp-bi__es" lang="es">Pregunta 7 de 10 · Vocabulario</span></span>
       <div class="q-prompt">Which sentence uses the word <em>"raise"</em> correctly?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q7','A',false)"><span class="opt-letter">A</span> "She raise the question during the meeting."</button>
@@ -173,7 +182,7 @@
 
     <!-- Q8 -->
     <div class="question-card" id="q8-card">
-      <span class="q-num-big">Question 8 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <span class="q-num-big">Question 8 of 10 · Vocabulary<span class="fp-bi__es" lang="es">Pregunta 8 de 10 · Vocabulario</span></span>
       <div class="q-prompt">Fill in the blank with the correct preposition:<br><em>"She has been working ________ this company for three years."</em></div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q8','A',false)"><span class="opt-letter">A</span> in</button>
@@ -186,7 +195,7 @@
 
     <!-- Q9 -->
     <div class="question-card" id="q9-card">
-      <span class="q-num-big">Question 9 of 10 &nbsp;·&nbsp; Vocabulary</span>
+      <span class="q-num-big">Question 9 of 10 · Vocabulary<span class="fp-bi__es" lang="es">Pregunta 9 de 10 · Vocabulario</span></span>
       <div class="q-prompt">Select the word closest in meaning to <em>"hesitant"</em>:</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q9','A',false)"><span class="opt-letter">A</span> confident</button>
@@ -199,7 +208,7 @@
 
     <!-- Q10 -->
     <div class="question-card" id="q10-card">
-      <span class="q-num-big">Question 10 of 10 &nbsp;·&nbsp; Grammar</span>
+      <span class="q-num-big">Question 10 of 10 · Grammar<span class="fp-bi__es" lang="es">Pregunta 10 de 10 · Gramática</span></span>
       <div class="q-prompt">Identify the sentence with correct grammar:</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q10','A',false)"><span class="opt-letter">A</span> "If I would have known, I called you."</button>
@@ -211,8 +220,8 @@
     </div>
 
     <div class="nav-buttons">
-      <div class="marks-note i18n-text">Reading · 20 marks</div>
-      <button class="btn-nav primary" onclick="finishReading()">Continue to Writing →</button>
+      <div class="marks-note">Reading · 20 marks<span class="fp-bi__es" lang="es">Lectura · 20 puntos</span></div>
+      <button class="fp-btn fp-btn--primary" onclick="finishReading()" type="button"><span class="fp-bi">Continue to writing<span class="fp-bi__es" lang="es">Continuar con escritura</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
     </div>
   </div>
 </div>
@@ -220,10 +229,12 @@
 <!-- ══════════════════ WRITING INTRO ══════════════════ -->
 <div class="screen" id="screen-writing-intro">
   <div class="section-intro">
+    <div class="si-icon"><i data-icon="edit" data-icon-size="lg"></i></div>
     <div class="si-num">02</div>
-    <h2>Writing</h2>
-    <p>You will complete sentence transformation tasks and write a short text of 120–150 words.<br><br><strong>25 marks &nbsp;·&nbsp; 4 tasks</strong></p>
-    <button class="btn-nav primary" onclick="showScreen('screen-writing')">Start Writing →</button>
+    <h2>Writing<span class="fp-bi__es" lang="es">Escritura</span></h2>
+    <p>You will complete sentence tasks and write a short text of 120–150 words.<span class="fp-bi__es" lang="es">Completarás tareas con oraciones y escribirás un texto corto de 120 a 150 palabras.</span></p>
+    <p class="si-counts"><strong>25 marks · 4 tasks<span class="fp-bi__es" lang="es">25 puntos · 4 tareas</span></strong></p>
+    <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-writing')" type="button"><span class="fp-bi">Start writing<span class="fp-bi__es" lang="es">Empezar a escribir</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
   </div>
 </div>
 
@@ -233,31 +244,31 @@
 
     <!-- Q11 -->
     <div class="question-card">
-      <span class="q-num-big">Question 11 &nbsp;·&nbsp; Passive Voice</span>
+      <span class="q-num-big">Question 11 · Passive Voice<span class="fp-bi__es" lang="es">Pregunta 11 · Voz pasiva</span></span>
       <div class="q-prompt">Rewrite the following sentence in the <strong>passive voice</strong>:<br><em>"The chef prepared the meal in less than ten minutes."</em></div>
-      <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" oninput="saveText('q11')" required>
-      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q11')"> Skip this question</label>
+      <input type="text" class="text-input-area" id="q11" placeholder="Write your passive voice sentence here…" data-ph-es="Escribe aquí tu oración en voz pasiva…" oninput="saveText('q11')" required>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q11')"><span>Skip this question<span class="fp-bi__es" lang="es">Omitir esta pregunta</span></span></label>
     </div>
 
     <!-- Q12 -->
     <div class="question-card">
-      <span class="q-num-big">Question 12 &nbsp;·&nbsp; Combining Sentences</span>
+      <span class="q-num-big">Question 12 · Combining Sentences<span class="fp-bi__es" lang="es">Pregunta 12 · Unir oraciones</span></span>
       <div class="q-prompt">Combine these two sentences into one using an appropriate connector:<br><em>"She was tired." &nbsp; "She stayed up to finish her essay."</em></div>
-      <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" oninput="saveText('q12')" required>
-      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q12')"> Skip this question</label>
+      <input type="text" class="text-input-area" id="q12" placeholder="Write your combined sentence here…" data-ph-es="Escribe aquí tu oración combinada…" oninput="saveText('q12')" required>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q12')"><span>Skip this question<span class="fp-bi__es" lang="es">Omitir esta pregunta</span></span></label>
     </div>
 
     <!-- Q13 -->
     <div class="question-card">
-      <span class="q-num-big">Question 13 &nbsp;·&nbsp; Error Correction</span>
+      <span class="q-num-big">Question 13 · Error Correction<span class="fp-bi__es" lang="es">Pregunta 13 · Corrección de errores</span></span>
       <div class="q-prompt">Correct all errors in the following sentence and write the corrected version:<br><em>"Yesterday, he go to the market and buyed some vegetable for his mother."</em></div>
-      <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" oninput="saveText('q13')" required>
-      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q13')"> Skip this question</label>
+      <input type="text" class="text-input-area" id="q13" placeholder="Write the corrected sentence here…" data-ph-es="Escribe aquí la oración corregida…" oninput="saveText('q13')" required>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q13')"><span>Skip this question<span class="fp-bi__es" lang="es">Omitir esta pregunta</span></span></label>
     </div>
 
     <!-- Q14 -->
     <div class="question-card">
-      <span class="q-num-big">Question 14 &nbsp;·&nbsp; Short Writing Task (20 marks)</span>
+      <span class="q-num-big">Question 14 · Short Writing Task (20 marks)<span class="fp-bi__es" lang="es">Pregunta 14 · Tarea de escritura corta (20 puntos)</span></span>
       <div class="q-prompt">Choose <strong>one</strong> of the tasks below and write <strong>120–150 words</strong>:</div>
       <div class="task-choices">
         <button class="task-choice-btn" id="taskA" onclick="chooseTask('A')">
@@ -269,14 +280,14 @@
           <div class="tch-desc">Do you think social media has made people more or less connected? Write a paragraph giving your opinion and supporting it with at least two reasons.</div>
         </button>
       </div>
-      <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" oninput="updateWordCount()" required></textarea>
+      <textarea class="text-input-area" id="q14" placeholder="Choose an option above, then write your response here…" data-ph-es="Elige una opción arriba y escribe aquí tu respuesta…" oninput="updateWordCount()" required></textarea>
       <div class="word-count" id="wordCount">0 words</div>
-      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q14')"> Skip this question</label>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q14')"><span>Skip this question<span class="fp-bi__es" lang="es">Omitir esta pregunta</span></span></label>
     </div>
 
     <div class="nav-buttons">
-      <div class="marks-note i18n-text">Writing · 25 marks</div>
-      <button class="btn-nav primary" onclick="showScreen('screen-listening-intro')">Continue to Listening →</button>
+      <div class="marks-note">Writing · 25 marks<span class="fp-bi__es" lang="es">Escritura · 25 puntos</span></div>
+      <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-listening-intro')" type="button"><span class="fp-bi">Continue to listening<span class="fp-bi__es" lang="es">Continuar con comprensión auditiva</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
     </div>
   </div>
 </div>
@@ -284,10 +295,12 @@
 <!-- ══════════════════ LISTENING INTRO ══════════════════ -->
 <div class="screen" id="screen-listening-intro">
   <div class="section-intro">
+    <div class="si-icon"><i data-icon="headphones" data-icon-size="lg"></i></div>
     <div class="si-num">03</div>
-    <h2>Listening</h2>
-    <p>Press play to listen to the audio recording, then answer the comprehension questions below. You may play the audio up to <strong>3 times</strong>.<br><br><strong>15 marks &nbsp;·&nbsp; 6 questions</strong></p>
-    <button class="btn-nav primary" onclick="showScreen('screen-listening')">Start Listening →</button>
+    <h2>Listening<span class="fp-bi__es" lang="es">Comprensión auditiva</span></h2>
+    <p>Press play to listen to the recording, then answer the questions below. You can play the audio up to 3 times.<span class="fp-bi__es" lang="es">Toca reproducir para escuchar la grabación y luego responde las preguntas. Puedes escuchar el audio hasta 3 veces.</span></p>
+    <p class="si-counts"><strong>15 marks · 6 questions<span class="fp-bi__es" lang="es">15 puntos · 6 preguntas</span></strong></p>
+    <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-listening')" type="button"><span class="fp-bi">Start listening<span class="fp-bi__es" lang="es">Empezar a escuchar</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
   </div>
 </div>
 
@@ -296,19 +309,19 @@
   <div class="question-area">
 
     <div class="audio-box is-static" id="listeningAudioBox">
-      <div class="play-btn" id="playBtn" onclick="playListeningAudio()">▶</div>
-      <div class="play-btn play-btn--stop" id="stopBtn" onclick="stopListeningAudio()" style="display:none;">■</div>
+      <button type="button" class="play-btn" id="playBtn" onclick="playListeningAudio()" aria-label="Play audio" data-label-es="Reproducir audio"><i data-icon="volume_up" data-icon-size=""></i></button>
+      <button type="button" class="play-btn play-btn--stop" id="stopBtn" onclick="stopListeningAudio()" aria-label="Stop audio" data-label-es="Detener audio" style="display:none;"><i data-icon="stop" data-icon-size=""></i></button>
       <div class="audio-info">
         <strong>Community Centre Announcement</strong>
-        <span id="audioStatus">Press play to listen — you may play this up to 3 times</span>
+        <span id="audioStatus" role="status">Press play to listen. You can play it up to 3 times.<span class="fp-bi__es" lang="es">Toca reproducir para escuchar. Puedes escucharlo hasta 3 veces.</span></span>
         <span id="audioPlayTime" class="audio-time" style="display:none;"></span>
       </div>
-      <div id="audioPlaysLeft" class="audio-plays-left">3 plays left</div>
+      <div id="audioPlaysLeft" class="audio-plays-left" aria-live="polite">3 plays left<span class="fp-bi__es" lang="es">3 reproducciones</span></div>
     </div>
 
     <!-- Q15 -->
     <div class="question-card">
-      <span class="q-num-big">Question 15 &nbsp;·&nbsp; Listening</span>
+      <span class="q-num-big">Question 15 · Listening<span class="fp-bi__es" lang="es">Pregunta 15 · Comprensión auditiva</span></span>
       <div class="q-prompt">What is the speaker's job?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q15','A',false)"><span class="opt-letter">A</span> Swimming instructor</button>
@@ -321,7 +334,7 @@
 
     <!-- Q16 -->
     <div class="question-card">
-      <span class="q-num-big">Question 16 &nbsp;·&nbsp; Listening</span>
+      <span class="q-num-big">Question 16 · Listening<span class="fp-bi__es" lang="es">Pregunta 16 · Comprensión auditiva</span></span>
       <div class="q-prompt">When has the yoga class been rescheduled to?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q16','A',false)"><span class="opt-letter">A</span> Wednesday at 7 p.m.</button>
@@ -334,7 +347,7 @@
 
     <!-- Q17 -->
     <div class="question-card">
-      <span class="q-num-big">Question 17 &nbsp;·&nbsp; Listening</span>
+      <span class="q-num-big">Question 17 · Listening<span class="fp-bi__es" lang="es">Pregunta 17 · Comprensión auditiva</span></span>
       <div class="q-prompt">Why will the swimming pool be closed?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q17','A',false)"><span class="opt-letter">A</span> Renovation works</button>
@@ -347,7 +360,7 @@
 
     <!-- Q18 -->
     <div class="question-card">
-      <span class="q-num-big">Question 18 &nbsp;·&nbsp; Listening</span>
+      <span class="q-num-big">Question 18 · Listening<span class="fp-bi__es" lang="es">Pregunta 18 · Comprensión auditiva</span></span>
       <div class="q-prompt">How many days will the swimming pool be closed?</div>
       <div class="options-grid">
         <button class="option-btn" onclick="selectMCQ('q18','A',false)"><span class="opt-letter">A</span> 5 days</button>
@@ -360,9 +373,9 @@
 
     <!-- Q19 -->
     <div class="question-card">
-      <span class="q-num-big">Question 19 &nbsp;·&nbsp; Listening — 1 mark each</span>
-      <div class="q-prompt">Where can you get more information about the changes? <em>Select all that apply.</em></div>
-      <div class="multi-note">Select all correct answers (2 marks total)</div>
+      <span class="q-num-big">Question 19 · Listening — 1 mark each<span class="fp-bi__es" lang="es">Pregunta 19 · Comprensión auditiva — 1 punto cada una</span></span>
+      <div class="q-prompt">Where can you get more information about the changes? <strong>Select all that apply.</strong></div>
+      <div class="multi-note">Select all correct answers (2 marks total)<span class="fp-bi__es" lang="es">Elige todas las respuestas correctas (2 puntos en total)</span></div>
       <div class="options-grid" id="q19-options">
         <button class="option-btn" id="q19-A" onclick="toggleMulti('q19','A')"><span class="opt-letter">A</span> By calling the yoga instructor</button>
         <button class="option-btn" id="q19-B" onclick="toggleMulti('q19','B')"><span class="opt-letter">B</span> At reception</button>
@@ -374,25 +387,25 @@
 
     <!-- Q20 Dictation -->
     <div class="question-card">
-      <span class="q-num-big">Question 20 &nbsp;·&nbsp; Dictation (5 marks)</span>
-      <div class="q-prompt">Listen to the sentence and write exactly what you hear. You may play it up to <strong>3 times</strong>.</div>
+      <span class="q-num-big">Question 20 · Dictation (5 marks)<span class="fp-bi__es" lang="es">Pregunta 20 · Dictado (5 puntos)</span></span>
+      <div class="q-prompt">Listen to the sentence and write exactly what you hear.<span class="fp-bi__es" lang="es">Escucha la oración y escribe exactamente lo que oyes. Puedes reproducirla hasta 3 veces.</span></div>
       <div class="audio-box is-static mb-14" id="dictationAudioBox">
-        <div class="play-btn" id="dictPlayBtn" onclick="playDictationAudio()">▶</div>
-        <div class="play-btn play-btn--stop" id="dictStopBtn" onclick="stopDictationAudio()" style="display:none;">■</div>
-        <div class="audio-info">
-          <strong>Dictation Sentence</strong>
-          <span id="dictAudioStatus">Press play to hear the sentence</span>
-          <span id="dictPlayTime" class="audio-time" style="display:none;"></span>
-        </div>
-        <div id="dictPlaysLeft" class="audio-plays-left">3 plays left</div>
+      <button type="button" class="play-btn" id="dictPlayBtn" onclick="playDictationAudio()" aria-label="Play audio" data-label-es="Reproducir audio"><i data-icon="volume_up" data-icon-size=""></i></button>
+      <button type="button" class="play-btn play-btn--stop" id="dictStopBtn" onclick="stopDictationAudio()" aria-label="Stop audio" data-label-es="Detener audio" style="display:none;"><i data-icon="stop" data-icon-size=""></i></button>
+      <div class="audio-info">
+        <strong>Dictation sentence</strong>
+        <span id="dictAudioStatus" role="status">Press play to hear the sentence<span class="fp-bi__es" lang="es">Toca reproducir para escuchar la oración</span></span>
+        <span id="dictPlayTime" class="audio-time" style="display:none;"></span>
       </div>
-      <textarea class="text-input-area" id="q20" placeholder="Write what you heard here…" rows="3" oninput="saveText('q20')" required></textarea>
-      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q20')"> Skip this question</label>
+      <div id="dictPlaysLeft" class="audio-plays-left" aria-live="polite">3 plays left<span class="fp-bi__es" lang="es">3 reproducciones</span></div>
+    </div>
+      <textarea class="text-input-area" id="q20" placeholder="Write what you heard here…" data-ph-es="Escribe aquí lo que escuchaste…" rows="3" oninput="saveText('q20')" required></textarea>
+      <label class="skip-label"><input type="checkbox" onchange="toggleSkipQ(this,'q20')"><span>Skip this question<span class="fp-bi__es" lang="es">Omitir esta pregunta</span></span></label>
     </div>
 
     <div class="nav-buttons">
-      <div class="marks-note i18n-text">Listening · 15 marks</div>
-      <button class="btn-nav primary" onclick="showScreen('screen-speaking-intro')">Continue to Speaking →</button>
+      <div class="marks-note">Listening · 15 marks<span class="fp-bi__es" lang="es">Comprensión auditiva · 15 puntos</span></div>
+      <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-speaking-intro')" type="button"><span class="fp-bi">Continue to speaking<span class="fp-bi__es" lang="es">Continuar con expresión oral</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
     </div>
   </div>
 </div>
@@ -400,10 +413,12 @@
 <!-- ══════════════════ SPEAKING INTRO ══════════════════ -->
 <div class="screen" id="screen-speaking-intro">
   <div class="section-intro">
+    <div class="si-icon"><i data-icon="record_voice_over" data-icon-size="lg"></i></div>
     <div class="si-num">04</div>
-    <h2>Speaking</h2>
-    <p>This section is conducted with an examiner. Read each prompt aloud and record or note your responses.<br>You may use the notes fields to jot down key points before speaking.<br><br><strong>20 marks &nbsp;·&nbsp; 3 tasks</strong></p>
-    <button class="btn-nav primary" onclick="showScreen('screen-speaking')">Start Speaking →</button>
+    <h2>Speaking<span class="fp-bi__es" lang="es">Expresión oral</span></h2>
+    <p>Read each prompt aloud and record your answer with the microphone. You can write notes first to plan what to say.<span class="fp-bi__es" lang="es">Lee cada pregunta en voz alta y graba tu respuesta con el micrófono. Puedes escribir notas antes para planear lo que vas a decir.</span></p>
+    <p class="si-counts"><strong>20 marks · 3 tasks<span class="fp-bi__es" lang="es">20 puntos · 3 tareas</span></strong></p>
+    <button class="fp-btn fp-btn--primary" onclick="showScreen('screen-speaking')" type="button"><span class="fp-bi">Start speaking<span class="fp-bi__es" lang="es">Empezar a hablar</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
   </div>
 </div>
 
@@ -411,91 +426,103 @@
 <div class="screen" id="screen-speaking">
   <div class="question-area">
 
-    <div class="speaking-examiner-note">
-      💬 Record your spoken answers using the microphone button below each question. You can also use the notes field to plan before speaking. Your teacher will be listening on the video call.
+    <div class="fp-banner fp-banner--info speaking-examiner-note" role="note">
+      <i data-icon="lightbulb" data-icon-size="" data-icon-class="fp-banner__icon"></i>
+      <div class="fp-banner__body">Record each answer with the microphone button. You can write notes first to plan what to say. Your teacher will listen on the video call.<span class="fp-bi__es" lang="es">Graba cada respuesta con el botón del micrófono. Puedes escribir notas antes para planear lo que vas a decir. Tu profesor escuchará en la videollamada.</span></div>
     </div>
 
     <!-- Q21 -->
     <div class="question-card">
-      <span class="q-num-big">Part A &nbsp;·&nbsp; Introduction</span>
+      <span class="q-num-big">Part A · Introduction<span class="fp-bi__es" lang="es">Parte A · Introducción</span></span>
       <div class="speaking-card">
         <div class="sc-label">Question 21</div>
         <div class="sc-prompt">Tell me a little about yourself — where you're from, what you do, and what you enjoy doing in your free time.</div>
         <div class="sc-note">Speak for 1–2 minutes. Try to give extended answers, not just one-word replies.</div>
       </div>
       <div class="speaking-input">
-        <label>Notes / Key Points (optional)</label>
-        <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q21')" required></textarea>
-        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" type="button">🎤 Record your answer</button>
-        <div id="rec-status-q21" class="rec-status" style="display:none;"></div>
+        <label for="q21">Notes / key points (optional)<span class="fp-bi__es" lang="es">Notas / ideas clave (opcional)</span></label>
+        <textarea class="text-input-area" id="q21" placeholder="Jot down a few ideas before speaking…" data-ph-es="Anota algunas ideas antes de hablar…" rows="3" oninput="saveText('q21')" required></textarea>
+        <div class="rec-row">
+          <button type="button" class="fp-mic-btn record-speaking-btn" id="rec-btn-q21" onclick="toggleSpeakingRec('q21')" aria-pressed="false" aria-describedby="rec-label-q21"><i data-icon="mic" data-icon-size=""></i></button>
+          <span class="rec-label" id="rec-label-q21">Record your answer<span class="fp-bi__es" lang="es">Graba tu respuesta</span></span>
+        </div>
+        <div id="rec-status-q21" class="rec-status" role="status" style="display:none;"></div>
         <div id="rec-transcript-q21" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
     <!-- Q22 -->
     <div class="question-card">
-      <span class="q-num-big">Part A &nbsp;·&nbsp; Everyday Topics</span>
+      <span class="q-num-big">Part A · Everyday Topics<span class="fp-bi__es" lang="es">Parte A · Temas cotidianos</span></span>
       <div class="speaking-card">
         <div class="sc-label">Question 22</div>
         <div class="sc-prompt">Describe a person in your life who has had an important influence on you. How have they influenced you?</div>
         <div class="sc-note">Use descriptive language and a mix of past and present tenses.</div>
       </div>
       <div class="speaking-input">
-        <label>Notes / Key Points (optional)</label>
-        <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" rows="3" oninput="saveText('q22')" required></textarea>
-        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" type="button">🎤 Record your answer</button>
-        <div id="rec-status-q22" class="rec-status" style="display:none;"></div>
+        <label for="q22">Notes / key points (optional)<span class="fp-bi__es" lang="es">Notas / ideas clave (opcional)</span></label>
+        <textarea class="text-input-area" id="q22" placeholder="Jot down a few ideas before speaking…" data-ph-es="Anota algunas ideas antes de hablar…" rows="3" oninput="saveText('q22')" required></textarea>
+        <div class="rec-row">
+          <button type="button" class="fp-mic-btn record-speaking-btn" id="rec-btn-q22" onclick="toggleSpeakingRec('q22')" aria-pressed="false" aria-describedby="rec-label-q22"><i data-icon="mic" data-icon-size=""></i></button>
+          <span class="rec-label" id="rec-label-q22">Record your answer<span class="fp-bi__es" lang="es">Graba tu respuesta</span></span>
+        </div>
+        <div id="rec-status-q22" class="rec-status" role="status" style="display:none;"></div>
         <div id="rec-transcript-q22" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
     <!-- Q23 -->
     <div class="question-card">
-      <span class="q-num-big">Part B &nbsp;·&nbsp; Extended Speaking (2 minutes)</span>
+      <span class="q-num-big">Part B · Extended Speaking (2 minutes)<span class="fp-bi__es" lang="es">Parte B · Expresión oral extendida (2 minutos)</span></span>
       <div class="speaking-card">
         <div class="sc-label">Question 23 &nbsp;·&nbsp; 1 minute to prepare</div>
         <div class="sc-prompt">Talk about a place you have visited or would like to visit. Describe what it is like, explain why it is (or would be) meaningful to you, and say whether you would recommend it to others.</div>
         <div class="sc-note">Organise your ideas: describe → why it matters → recommendation.</div>
       </div>
       <div class="speaking-input">
-        <label>Preparation Notes (1 minute)</label>
-        <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" rows="4" oninput="saveText('q23')" required></textarea>
-        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" type="button">🎤 Record your answer</button>
-        <div id="rec-status-q23" class="rec-status" style="display:none;"></div>
+        <label for="q23">Preparation notes (1 minute)<span class="fp-bi__es" lang="es">Notas de preparación (1 minuto)</span></label>
+        <textarea class="text-input-area" id="q23" placeholder="Plan your answer here before speaking for 2 minutes…" data-ph-es="Planea aquí tu respuesta antes de hablar 2 minutos…" rows="4" oninput="saveText('q23')" required></textarea>
+        <div class="rec-row">
+          <button type="button" class="fp-mic-btn record-speaking-btn" id="rec-btn-q23" onclick="toggleSpeakingRec('q23')" aria-pressed="false" aria-describedby="rec-label-q23"><i data-icon="mic" data-icon-size=""></i></button>
+          <span class="rec-label" id="rec-label-q23">Record your answer<span class="fp-bi__es" lang="es">Graba tu respuesta</span></span>
+        </div>
+        <div id="rec-status-q23" class="rec-status" role="status" style="display:none;"></div>
         <div id="rec-transcript-q23" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
     <!-- Q24 -->
     <div class="question-card">
-      <span class="q-num-big">Part C &nbsp;·&nbsp; Discussion & Opinion</span>
+      <span class="q-num-big">Part C · Discussion & Opinion<span class="fp-bi__es" lang="es">Parte C · Debate y opinión</span></span>
       <div class="speaking-card">
         <div class="sc-label">Question 24</div>
         <div class="sc-prompt">Some people think that university education should be free for everyone. Others believe students should pay for it themselves. What do you think, and why?</div>
         <div class="sc-note">Give your opinion clearly, support it with reasons, and be ready for follow-up questions from the examiner.</div>
       </div>
       <div class="speaking-input">
-        <label>Notes / Key Arguments (optional)</label>
-        <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" rows="3" oninput="saveText('q24')" required></textarea>
-        <button class="record-speaking-btn fp-btn fp-btn--primary" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" type="button">🎤 Record your answer</button>
-        <div id="rec-status-q24" class="rec-status" style="display:none;"></div>
+        <label for="q24">Notes / key arguments (optional)<span class="fp-bi__es" lang="es">Notas / argumentos clave (opcional)</span></label>
+        <textarea class="text-input-area" id="q24" placeholder="Note your main arguments here…" data-ph-es="Anota aquí tus argumentos principales…" rows="3" oninput="saveText('q24')" required></textarea>
+        <div class="rec-row">
+          <button type="button" class="fp-mic-btn record-speaking-btn" id="rec-btn-q24" onclick="toggleSpeakingRec('q24')" aria-pressed="false" aria-describedby="rec-label-q24"><i data-icon="mic" data-icon-size=""></i></button>
+          <span class="rec-label" id="rec-label-q24">Record your answer<span class="fp-bi__es" lang="es">Graba tu respuesta</span></span>
+        </div>
+        <div id="rec-status-q24" class="rec-status" role="status" style="display:none;"></div>
         <div id="rec-transcript-q24" class="rec-transcript" style="display:none;"></div>
       </div>
     </div>
 
     <div class="nav-buttons">
-      <div class="marks-note i18n-text">Speaking · 20 marks</div>
-      <button class="btn-nav primary" onclick="finishTest()">Finish Test & See Results →</button>
+      <div class="marks-note">Speaking · 20 marks<span class="fp-bi__es" lang="es">Expresión oral · 20 puntos</span></div>
+      <button class="fp-btn fp-btn--primary" onclick="finishTest()" type="button"><span class="fp-bi">Finish the test<span class="fp-bi__es" lang="es">Terminar la prueba</span></span><i data-icon="arrow_right_alt" data-icon-size=""></i></button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════ SUBMITTING OVERLAY ══════════════════ -->
+<!-- ══════════════════ SUBMITTING ══════════════════ -->
 <div class="screen" id="screen-submitting">
-  <div class="submitting">
-    <div class="submitting-eyebrow i18n-text">Please wait</div>
-    <div class="submitting-title">Submitting your<br><em>results…</em></div>
-    <div class="submitting-spinner" aria-hidden="true"></div>
+  <div class="submitting" role="status" aria-live="polite">
+    <span class="fp-spinner submitting-spinner" aria-hidden="true"></span>
+    <h2 class="submitting-title">Submitting your results…<span class="fp-bi__es" lang="es">Enviando tus resultados…</span></h2>
     <div id="submittingStatus" class="submitting-status"></div>
   </div>
 </div>
@@ -508,36 +535,39 @@
     <div id="submissionBanner" class="fp-banner fp-banner--success fp-mb-8 fp-hidden" role="status"></div>
 
     <div class="results-header">
-      <div class="eyebrow">Test Complete</div>
-      <h2>Thank <em>You!</em></h2>
+      <p class="eyebrow">Test complete<span class="fp-bi__es" lang="es">Prueba terminada</span></p>
+      <h2>Thank you!<span class="fp-bi__es" lang="es">¡Gracias!</span></h2>
     </div>
 
-    <div class="results-lede i18n-text">
-      Your test has been submitted. Your examiner will review all sections — including writing and speaking — and get back to you with your full results.
-    </div>
+    <p class="results-lede">Your test has been submitted. Your teacher will review all sections, including writing and speaking, and get back to you with your full results.<span class="fp-bi__es" lang="es">Enviaste tu prueba. Tu profesor revisará todas las secciones, incluidas escritura y expresión oral, y te dará tus resultados completos.</span></p>
 
     <!-- Time summary -->
     <div id="timeSummary" class="time-summary"></div>
 
-    <div class="cefr-guide">
-      <div class="cg-title">CEFR Level Reference Guide</div>
-      <div class="cefr-note i18n-text">Your examiner will use this scale to assign your final level once all sections are graded.</div>
-      <div class="cefr-row"><span class="cefr-level">A1</span><span class="cefr-range">0–10 pts</span><span>Beginner: can understand and use very basic expressions</span></div>
-      <div class="cefr-row"><span class="cefr-level">A2</span><span class="cefr-range">11–20 pts</span><span>Elementary: can communicate in simple, routine tasks</span></div>
-      <div class="cefr-row"><span class="cefr-level">B1</span><span class="cefr-range">21–35 pts</span><span>Intermediate: can deal with most situations while travelling or working</span></div>
-      <div class="cefr-row"><span class="cefr-level">B2</span><span class="cefr-range">36–50 pts</span><span>Upper-Intermediate: can interact with fluency and spontaneity</span></div>
-      <div class="cefr-row"><span class="cefr-level">C1</span><span class="cefr-range">51–65 pts</span><span>Advanced: can express ideas fluently and use language flexibly</span></div>
-      <div class="cefr-row"><span class="cefr-level">C2</span><span class="cefr-range">66–80 pts</span><span>Proficiency: near-native mastery; precise, spontaneous, effortless use</span></div>
-    </div>
+    <section class="fp-card cefr-guide" aria-labelledby="cefrTitle">
+      <h3 class="cg-title" id="cefrTitle">CEFR level guide<span class="fp-bi__es" lang="es">Guía de niveles CEFR</span></h3>
+      <p class="cefr-note">Your teacher will use this scale to give you a level once every section is graded.<span class="fp-bi__es" lang="es">Tu profesor usará esta escala para darte un nivel cuando todas las secciones estén calificadas.</span></p>
+      <div class="fp-table-wrap"><table class="fp-table cefr-table">
+        <thead class="fp-sr-only"><tr><th>Level</th><th>Points</th><th>Description</th></tr></thead>
+        <tbody>
+        <tr><th scope="row" class="cefr-level">A1</th><td class="cefr-range">0–10 pts</td><td>Beginner: can understand and use very basic expressions<span class="fp-bi__es" lang="es">Principiante: entiende y usa expresiones muy básicas</span></td></tr>
+        <tr><th scope="row" class="cefr-level">A2</th><td class="cefr-range">11–20 pts</td><td>Elementary: can communicate in simple, routine tasks<span class="fp-bi__es" lang="es">Elemental: se comunica en tareas simples y cotidianas</span></td></tr>
+        <tr><th scope="row" class="cefr-level">B1</th><td class="cefr-range">21–35 pts</td><td>Intermediate: can deal with most situations while travelling or working<span class="fp-bi__es" lang="es">Intermedio: maneja la mayoría de las situaciones al viajar o trabajar</span></td></tr>
+        <tr><th scope="row" class="cefr-level">B2</th><td class="cefr-range">36–50 pts</td><td>Upper-Intermediate: can interact with fluency and spontaneity<span class="fp-bi__es" lang="es">Intermedio alto: se comunica con fluidez y espontaneidad</span></td></tr>
+        <tr><th scope="row" class="cefr-level">C1</th><td class="cefr-range">51–65 pts</td><td>Advanced: can express ideas fluently and use language flexibly<span class="fp-bi__es" lang="es">Avanzado: expresa ideas con fluidez y usa el idioma con flexibilidad</span></td></tr>
+        <tr><th scope="row" class="cefr-level">C2</th><td class="cefr-range">66–80 pts</td><td>Proficiency: near-native mastery; precise, spontaneous, effortless use<span class="fp-bi__es" lang="es">Dominio: casi como un hablante nativo; preciso, espontáneo y natural</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
 
-    <div class="next-box">
-      <strong class="next-title i18n-text">What happens next?</strong>
-      Your examiner will grade your writing (Q11–14) and speaking (Q21–24) sections and combine them with your reading and listening scores to produce a final result. You will be contacted once grading is complete.
-    </div>
+    <section class="fp-card next-box" aria-labelledby="nextTitle">
+      <h3 class="next-title" id="nextTitle">What happens next?<span class="fp-bi__es" lang="es">¿Qué sigue?</span></h3>
+      <p>Your teacher will grade your writing (Q11–14) and speaking (Q21–24) and combine them with your reading and listening scores to give you a final result. You will be contacted once grading is complete.<span class="fp-bi__es" lang="es">Tu profesor calificará tu escritura (P11–14) y tu expresión oral (P21–24) y las combinará con tus puntajes de lectura y comprensión auditiva para darte un resultado final. Te contactará cuando termine.</span></p>
+    </section>
 
     <div id="submitStatus" class="submit-status" style="display:none;"></div>
 
-    <a href="../app.html" class="fp-btn fp-btn--secondary fp-btn--block fp-mt-6">Return to FluentPath</a>
+    <a href="../app.html" class="fp-btn fp-btn--primary fp-btn--block fp-mt-6"><span class="fp-bi">Back to my route<span class="fp-bi__es" lang="es">Volver a mi ruta</span></span></a>
   </div>
 </div>
 
@@ -545,7 +575,5 @@
 
 <script src="scripts/student-test.js"></script>
 <script src="scripts/call-request.js"></script>
-<script src="scripts/i18n.js"></script>
-<script>if (typeof I18n !== 'undefined') I18n.setLevel('test');</script>
 </body>
 </html>
