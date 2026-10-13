@@ -90,7 +90,7 @@ body {
 .fg label { display:block; font-size:9px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:6px; }
 .fg input, .fg select {
   width:100%; background:white; border:1px solid var(--rule); border-bottom:2px solid var(--ink);
-  padding:10px 12px; font-family:var(--font-family-primary); font-size:14px; color:var(--ink); outline:none;
+  padding:10px 12px; font-family:var(--font-family-primary); font-size:var(--font-size-input); color:var(--ink); outline:none;
 }
 .fg input:focus, .fg select:focus { border-bottom-color:var(--rust); }
 
@@ -248,7 +248,7 @@ body {
 .writing-area {
   width:100%; min-height:160px; border:1px solid var(--rule);
   border-bottom:2px solid var(--ink); background:var(--cream);
-  padding:14px 16px; font-family:var(--font-family-primary); font-size:14px;
+  padding:14px 16px; font-family:var(--font-family-primary); font-size:var(--font-size-input);
   color:var(--ink); outline:none; resize:vertical; line-height:1.7; margin-top:16px;
 }
 .writing-area:focus { border-bottom-color:var(--rust); background:white; }

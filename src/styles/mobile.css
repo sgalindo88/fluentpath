@@ -18,20 +18,9 @@ button, a, [onclick], .option-btn, .mcq-opt, .level-card, .vocab-item, .task-cho
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
 
-  /* ── Prevent iOS auto-zoom on input focus ─────────────────
-     iOS Safari zooms in when font-size < 16px on focus.
-     Force 16px minimum on all form controls.
-     ─────────────────────────────────────────────────────────── */
-  input,
-  textarea,
-  select,
-  .text-input-area,
-  .writing-area,
-  .field-group input,
-  .fg input,
-  .fg select {
-    font-size: 16px !important;
-  }
+  /* iOS auto-zoom on focus: handled for ALL widths (iPad zooms too) by the base
+     rule in tokens.css (input, select, textarea { font-size: var(--font-size-input) }).
+     Component rules that size a form control must use var(--font-size-input), not px. */
 
   /* ── Touch targets — WCAG minimum 44px, we target 48px ──── */
   .option-btn,
