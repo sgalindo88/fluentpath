@@ -194,6 +194,38 @@ describe('create_account + login handlers', () => {
     expect(fp._mail[0].to).toBe('maria@x.com');
   });
 
+  it('teacher settings default to the teacher account, save per login, and become the contact for every student', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Sebastian Galindo', password: 'pw1234', role: 'teacher' }, {});
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+    const teacher = { role: 'teacher', email: 't@x.com' };
+    expect(fp.handleGetTeacherSettings(teacher)).toEqual({ login_email: 't@x.com', teacher_name: 'Sebastian Galindo', notify_email: 't@x.com' });
+    expect(() => fp.handleGetTeacherSettings({ role: 'student', email: 'maria@x.com' })).toThrow(/Teacher login/);
+    // before anything is saved the account supplies the contact
+    expect(fp.teacherContact()).toEqual({ name: 'Sebastian Galindo', email: 't@x.com' });
+    expect(fp.getNotificationSettings('Maria').teacherEmail).toBe('t@x.com');
+    expect(() => fp.handleUpdateTeacherSettings(teacher, 'Sebastian', 'not-an-email')).toThrow(/valid notification email/);
+    expect(() => fp.handleUpdateTeacherSettings(teacher, '', 'a@x.com')).toThrow(/Name is required/);
+    fp.handleUpdateTeacherSettings(teacher, 'Prof. Galindo', 'alerts@x.com');
+    fp.handleUpdateTeacherSettings(teacher, 'Prof. Galindo', 'alerts@x.com'); // saving again updates, no second row
+    expect(fp._ss.getSheetByName('Teacher Settings').getLastRow()).toBe(2);
+    expect(fp.handleGetTeacherSettings(teacher)).toEqual({ login_email: 't@x.com', teacher_name: 'Prof. Galindo', notify_email: 'alerts@x.com' });
+    expect(fp.getNotificationSettings('Maria').teacherEmail).toBe('alerts@x.com');
+    expect(fp.handleGetSettings('Maria').teacher_name).toBe('Prof. Galindo'); // what students see
+  });
+
+  it('the teacher\'s student profile reads back what update_settings saved (permissions survive a reload)', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+    expect(fp.handleGetStudentProfile('Maria')).toMatchObject({ found: true, access_granted: false, student_email: 'maria@x.com' });
+    fp.POST_HANDLERS.update_settings({ student_name: 'Maria', cefr_level: 'A2', allow_spanish: 'true', allow_skip_test: 'true', allow_retake_test: 'true', access_granted: 'true', course_month: '3', notes: 'Cook', notify_on_test: 'true' });
+    expect(fp.handleGetStudentProfile('Maria')).toMatchObject({
+      found: true, cefr_level: 'A2', course_month: 3, notes: 'Cook', allow_spanish: true, allow_skip_test: true,
+      allow_retake_test: true, access_granted: true, notify_on_test: true, notify_on_submission: false, notify_on_call_request: true,
+    });
+    expect(fp.handleGetStudentProfile('Nobody').found).toBe(false);
+  });
+
   it('a teacher account does not appear in the student list', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});

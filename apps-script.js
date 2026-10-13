@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.52.0';
+var BACKEND_VERSION = '0.53.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -310,6 +310,7 @@ function validateTeacherToken(params) {
  *   save_marks             TEACHER session
  *   save_attendance        TEACHER session
  *   update_settings        TEACHER session
+ *   update_teacher_settings TEACHER session
  *   delete_library_entry   TEACHER session
  *   promote_student        TEACHER session
  *   send_call_link         TEACHER session
@@ -328,6 +329,7 @@ function validateTeacherToken(params) {
 var TEACHER_ACTIONS = {
   'save_marks': true,
   'update_settings': true,
+  'update_teacher_settings': true,
   'save_attendance': true,
   'delete_library_entry': true,
   'ai_summary': true,
@@ -1011,6 +1013,7 @@ var UNLOCKED_POST = { 'ai_summary': true };
 /** GET actions that require a TEACHER session once AUTH_ENFORCED is on. */
 var TEACHER_GET_ACTIONS = {
   'get_students': true, 'get_library': true, 'get_call_requests': true, 'get_student_contact': true,
+  'get_student_profile': true, 'get_teacher_settings': true,
   'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
   // SEC-3: only the examiner panel reads recordings; no student page calls this.
   // Teacher-only means a student session cannot read another student's audio.
@@ -1110,7 +1113,7 @@ function getNotificationSettings(studentName) {
   var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
   if (!row) return null;
   return {
-    teacherEmail:        String(row['teacher_email'] || '').trim(),
+    teacherEmail:        teacherContact().email || String(row['teacher_email'] || '').trim(),
     studentEmail:        String(row['student_email'] || '').trim(),
     notifyOnTest:        String(row['notify_on_test']).toLowerCase() === 'true',
     notifyOnSubmission:  String(row['notify_on_submission']).toLowerCase() === 'true',
@@ -1516,6 +1519,9 @@ var HEADERS = {
     // sheets non-destructively, so current students survive the migration.
     'paid', 'access_granted', 'stripe_customer_id', 'paid_at'
   ],
+  // The teacher's own settings (one row per teacher login). With a single teacher these
+  // apply to every student: the name shown to students and the address ALL notifications go to.
+  'Teacher Settings': ['login_email', 'teacher_name', 'notify_email', 'updated_at'],
   'Lesson Marks': [
     'graded_at', 'teacher_name', 'student_name',
     'lesson_date', 'day_number', 'level',
@@ -1587,6 +1593,8 @@ var GET_HANDLERS = {
   get_active_call_request: function(p) { return handleGetActiveCallRequest(p.student); },
   get_call_requests:     function(_) { return handleGetCallRequests(); },
   get_student_contact:   function(p) { return { email: studentEmailFor(p.student) }; },
+  get_student_profile:   function(p) { return handleGetStudentProfile(p.student); },
+  get_teacher_settings:  function(p, session) { return handleGetTeacherSettings(session); },
 };
 
 function doGet(e) {
@@ -1926,7 +1934,12 @@ function handleGetSettings(studentName) {
   if (!studentName) return { found: false };
   var cacheKey = 'settings_' + String(studentName).toLowerCase().trim();
   var cached = cacheGet(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    var fresh = {};
+    Object.keys(cached).forEach(function(k) { fresh[k] = cached[k]; });
+    fresh.teacher_name = teacherContact().name || cached.teacher_name;
+    return fresh;
+  }
 
   var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
   if (!row) return { found: false };
@@ -1940,7 +1953,110 @@ function handleGetSettings(studentName) {
     teacher_name: row['teacher_name'] || null
   };
   cachePut(cacheKey, result);
+  result.teacher_name = teacherContact().name || result.teacher_name;
   return result;
+}
+
+/**
+ * The teacher's contact: the most recently saved Teacher Settings row, else the
+ * first active teacher account (its display name and login email). {name, email}.
+ * One teacher is assumed; with several, the last one to save settings wins.
+ */
+function teacherContact() {
+  var out = { name: '', email: '' };
+  try {
+    var th = HEADERS['Teacher Settings'];
+    var ts = getOrCreateSheet('Teacher Settings', th);
+    if (ts.getLastRow() > 1) {
+      var rows = ts.getRange(2, 1, ts.getLastRow() - 1, th.length).getValues();
+      for (var i = rows.length - 1; i >= 0; i--) {
+        var name = String(rows[i][th.indexOf('teacher_name')] || '').trim();
+        var mail = String(rows[i][th.indexOf('notify_email')] || '').trim();
+        if (!out.name && name) out.name = name;
+        if (!out.email && mail) out.email = mail;
+        if (out.name && out.email) return out;
+      }
+    }
+    var ah = HEADERS['Accounts'];
+    var as = getOrCreateSheet('Accounts', ah);
+    if (as.getLastRow() > 1) {
+      var accts = as.getRange(2, 1, as.getLastRow() - 1, ah.length).getValues();
+      for (var j = 0; j < accts.length; j++) {
+        if (String(accts[j][ah.indexOf('role')]) !== 'teacher' || !truthy(accts[j][ah.indexOf('active')])) continue;
+        if (!out.name) out.name = String(accts[j][ah.indexOf('student_name')] || '').trim();
+        if (!out.email) out.email = String(accts[j][ah.indexOf('email')] || '').trim();
+        break;
+      }
+    }
+  } catch (err) { /* contact details are a convenience; never block a request on them */ }
+  return out;
+}
+
+/** Teacher settings for the logged-in teacher: saved values, else their account's name and email. */
+function handleGetTeacherSettings(session) {
+  if (!session || session.role !== 'teacher') throw new Error('Teacher login required');
+  var th = HEADERS['Teacher Settings'];
+  var sheet = getOrCreateSheet('Teacher Settings', th);
+  var login = String(session.email || '').toLowerCase().trim();
+  var saved = null;
+  if (sheet.getLastRow() > 1) {
+    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, th.length).getValues();
+    for (var i = rows.length - 1; i >= 0; i--) {
+      if (String(rows[i][0]).toLowerCase().trim() === login) { saved = rows[i]; break; }
+    }
+  }
+  var account = findAccountByEmail(login) || {};
+  return {
+    login_email: login,
+    teacher_name: (saved && String(saved[th.indexOf('teacher_name')] || '').trim()) || String(account.student_name || ''),
+    notify_email: (saved && String(saved[th.indexOf('notify_email')] || '').trim()) || login
+  };
+}
+
+/** Save the logged-in teacher's name and notification address. */
+function handleUpdateTeacherSettings(session, name, notifyEmail) {
+  if (!session || session.role !== 'teacher') throw new Error('Teacher login required');
+  name = String(name || '').trim();
+  notifyEmail = String(notifyEmail || '').trim();
+  if (!name) throw new Error('Name is required');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notifyEmail)) throw new Error('A valid notification email is required');
+  var th = HEADERS['Teacher Settings'];
+  var sheet = getOrCreateSheet('Teacher Settings', th);
+  var login = String(session.email || '').toLowerCase().trim();
+  var row = [sheetSafe(login), sheetSafe(name), sheetSafe(notifyEmail), new Date().toLocaleString()];
+  var target = -1;
+  if (sheet.getLastRow() > 1) {
+    var logins = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    for (var i = 0; i < logins.length; i++) {
+      if (String(logins[i][0]).toLowerCase().trim() === login) { target = i + 2; break; }
+    }
+  }
+  if (target > 0) sheet.getRange(target, 1, 1, th.length).setValues([row]);
+  else sheet.appendRow(row);
+  return { result: 'success' };
+}
+
+/** Everything the teacher's Student Profile form shows, read from the Settings row (teacher-only). */
+function handleGetStudentProfile(studentName) {
+  if (!studentName) return { found: false };
+  var row = findLastByStudent('Settings', HEADERS['Settings'], studentName);
+  if (!row) return { found: false, student_email: studentEmailFor(studentName) };
+  var yes = function(k) { return String(row[k]).toLowerCase() === 'true'; };
+  return {
+    found: true,
+    cefr_level: String(row['cefr_level'] || ''),
+    course_month: parseInt(row['course_month'], 10) || 1,
+    notes: String(row['notes'] || ''),
+    allow_spanish: yes('allow_spanish'),
+    allow_skip_test: yes('allow_skip_test'),
+    allow_retake_test: yes('allow_retake_test'),
+    access_granted: yes('access_granted'),
+    notify_on_test: yes('notify_on_test'),
+    notify_on_submission: yes('notify_on_submission'),
+    notify_on_call_request: String(row['notify_on_call_request']).toLowerCase() !== 'false',
+    difficulty_json: String(row['difficulty_json'] || ''),
+    student_email: studentEmailFor(studentName)
+  };
 }
 
 
@@ -3565,6 +3681,10 @@ var POST_HANDLERS = {
     data['updated_at'] = new Date().toLocaleString();
     upsertByStudent('Settings', HEADERS['Settings'], name, data);
     cacheInvalidateStudent(name);
+  },
+
+  update_teacher_settings: function(params, e, session) {
+    return { _json: handleUpdateTeacherSettings(session, params['teacher_name'], params['notify_email']) };
   },
 
   delete_library_entry: function(params) {

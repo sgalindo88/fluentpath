@@ -121,11 +121,11 @@ d('teacher portal: create account', () => {
 d('teacher dashboard', () => {
   it('desktop: navy rail with icon links as buttons; no emoji on any panel', async () => {
     const { page, ctx, errors } = await openPanel();
-    expect(await page.locator('#sidebar .sb-link').count()).toBe(10);
-    expect(await page.locator('#sidebar .sb-link svg.fp-icon').count()).toBe(10);
+    expect(await page.locator('#sidebar .sb-link').count()).toBe(11);
+    expect(await page.locator('#sidebar .sb-link svg.fp-icon').count()).toBe(11);
     expect(await page.getAttribute('#nav-dashboard', 'aria-current')).toBe('page');
     expect(await page.isVisible('#navToggle')).toBe(false);
-    for (const id of ['dashboard', 'attendance', 'marking', 'placementtest', 'weekly', 'difficulty', 'progress', 'library', 'profile', 'classoverview']) {
+    for (const id of ['dashboard', 'attendance', 'marking', 'placementtest', 'weekly', 'difficulty', 'progress', 'library', 'profile', 'settings', 'classoverview']) {
       await page.evaluate((x) => showPanel(x), id);
       expect(EMOJI.test(await page.evaluate(() => document.body.innerText)), 'emoji on ' + id).toBe(false);
     }
@@ -168,17 +168,73 @@ d('teacher dashboard', () => {
     await ctx.close();
   });
 
-  it('TCH-6: no hardcoded teacher name; the greeting uses the name saved in the profile', async () => {
-    const { page, ctx } = await openPanel();
-    expect(await page.textContent('.panel-title')).not.toContain('Sebastian');
-    expect(await page.inputValue('#prof-teacher')).toBe('');
-    await page.evaluate(() => showPanel('profile'));
-    await page.fill('#prof-teacher', 'Ana Perez');
-    await page.evaluate(() => { ex.teacherName = document.getElementById('prof-teacher').value.trim(); saveToLocalStorage(); });
-    await page.reload({ waitUntil: 'load' });
-    await page.waitForSelector('#app', { state: 'visible' });
-    expect(await page.textContent('#panel-dashboard .panel-title')).toContain('Good morning, Ana Perez');
-    await ctx.close();
+  it('TCH-6: no hardcoded teacher name; the Settings page fills from the account, saves, and the greeting uses it', async () => {
+    let saved = null;
+    const h = {
+      ...handlers,
+      get_teacher_settings: () => ({ login_email: 't@x.com', teacher_name: saved ? saved.teacher_name : 'Sebastian Galindo', notify_email: saved ? saved.notify_email : 't@x.com' }),
+      update_teacher_settings: (p) => { saved = p; return { result: 'success' }; },
+    };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#app', { state: 'visible' });
+    await t.page.waitForFunction(() => document.getElementById('set-name').value === 'Sebastian Galindo');
+    expect(await t.page.inputValue('#set-notify')).toBe('t@x.com');
+    expect(await t.page.inputValue('#set-login')).toBe('t@x.com');
+    expect(await t.page.getAttribute('#set-login', 'readonly')).not.toBeNull();
+    expect(await t.page.textContent('#panel-dashboard .panel-title')).toContain('Sebastian Galindo');
+    await t.page.evaluate(() => showPanel('settings'));
+    await t.page.fill('#set-notify', 'bad');
+    await t.page.click('text=Save settings');
+    expect(await t.page.textContent('#settings-save-status')).toContain('valid notification email');
+    await t.page.fill('#set-name', 'Ana Perez');
+    await t.page.fill('#set-notify', 'ana@x.com');
+    await t.page.click('text=Save settings');
+    await t.page.waitForFunction(() => document.getElementById('settings-save-status').textContent.includes('saved'));
+    expect(saved).toMatchObject({ teacher_name: 'Ana Perez', notify_email: 'ana@x.com' });
+    expect(await t.page.textContent('#panel-dashboard .panel-title')).toContain('Ana Perez');
+    await t.page.click('text=Change password');
+    await t.page.waitForSelector('#fp-change-cur');
+    await t.ctx.close();
+  });
+
+  it('opening a student fills the profile from the sheet (permissions survive a reload), email is starred, no teacher fields', async () => {
+    const h = { ...handlers, get_student_profile: () => ({ found: true, cefr_level: 'A2', course_month: 2, notes: 'Cook', allow_spanish: true, allow_skip_test: true, allow_retake_test: true, access_granted: true, notify_on_test: true, notify_on_submission: false, notify_on_call_request: true, student_email: 'maria@x.com' }) };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#app', { state: 'visible' });
+    await t.page.waitForFunction(() => document.getElementById('prof-grant-access').checked);
+    for (const id of ['prof-allow-spanish', 'prof-allow-skip-test', 'prof-allow-retake-test', 'prof-grant-access', 'prof-notify-test']) expect(await t.page.isChecked('#' + id), id).toBe(true);
+    expect(await t.page.inputValue('#prof-level')).toBe('A2');
+    expect(await t.page.inputValue('#prof-notes')).toBe('Cook');
+    expect(await t.page.inputValue('#prof-email')).toBe('maria@x.com');
+    expect(await t.page.textContent('label[for="prof-email"]')).toContain('*');
+    expect(await t.page.textContent('label[for="prof-email"]')).not.toContain('required');
+    expect(await t.page.locator('#prof-teacher, #prof-teacher-email').count()).toBe(0);
+    await t.ctx.close();
+  });
+
+  it('video call: the dashboard notice links to the Video Call card, and Mark as Done shows a message', async () => {
+    let status = 'pending';
+    const h = {
+      ...handlers,
+      get_call_requests: () => ({ requests: status === 'pending' ? [{ id: 'r1', student_name: 'Maria Lopez', status: 'pending', requested_at: '2026-10-13T10:00:00Z', page: 'hub' }] : [] }),
+      update_call_status: () => { status = 'done'; return { result: 'success' }; },
+    };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#dash-call-requests a.link');
+    expect(await t.page.getAttribute('#dash-call-requests a.link', 'href')).toContain('panel=call');
+    await t.page.click('#dash-call-requests a.link');
+    await t.page.waitForSelector('#panel-profile.active');
+    await t.page.click('#prof-call-request-content >> text=Mark as Done');
+    await t.page.waitForSelector('.fp-toast');
+    expect(await t.page.textContent('.fp-toast')).toContain('marked as done');
+    expect(await t.page.textContent('#prof-call-request-content')).toContain('Marked as done');
+    await t.ctx.close();
   });
 
   it('TCH-1: switching student clears the cached lesson marks', async () => {
@@ -230,7 +286,7 @@ d('teacher dashboard', () => {
     await ctx.close();
   });
   it('the profile email fills from the registration email, is required, and the graded badge flips after a save', async () => {
-    const h = { ...handlers, get_student_contact: () => ({ email: 'maria@x.com' }) };
+    const h = { ...handlers, get_student_profile: () => ({ found: false, student_email: 'maria@x.com' }) };
     const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
     await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
     await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
