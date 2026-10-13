@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="FluentPath">
-  <rect width="100" height="100" rx="20" fill="#1a1208"/>
-  <!-- Serif "F" in paper, then a rust top bar (the "Path" accent) drawn over it -->
-  <rect x="34" y="22" width="13" height="56" fill="#f5f0e8"/>
-  <rect x="28" y="72" width="25" height="6" fill="#f5f0e8"/>
-  <rect x="34" y="46" width="27" height="12" fill="#f5f0e8"/>
-  <rect x="34" y="22" width="38" height="13" fill="#b8471e"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" role="img" aria-label="FluentPath">
+  <!-- Approved 16px mark (favicon-16px.svg) with the same geometry. The design file carried a
+       96px preview frame (CSS border and background on the root); here the cream tile is a real
+       rect so it renders the same in every browser tab, with no border. -->
+  <rect width="16" height="16" rx="3.5" fill="#F7F5F0"/>
+  <path d="M11.5 4.5C11.5 2.5 9.9 1.5 8.2 1.5C6.5 1.5 5.5 2.8 5.5 4.7V11.2C5.5 13 4.2 14.2 2.8 14.2C1.7 14.2 1 13.3 1 12.1C1 10.3 2.8 8.5 6 8.5H9.2"
+        stroke="#1E2A38" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="10.5" cy="8.5" r="1.6" fill="#FF6F61"/>
 </svg>

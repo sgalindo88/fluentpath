@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="80" height="80" fill="none" style="color: #1E2A38;">
+  <!-- Open interior loop counter geometry verified at 16px -->
+  <path d="M46 18C46 10.268 39.732 6 33 6C26.268 6 22 11.373 22 19V45C22 52.18 16.82 57 11.5 57C6.805 57 4 53.195 4 48.5C4 41.5 11.5 34 24 34H37" 
+        stroke="currentColor" 
+        stroke-width="6.5" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <!-- Immutable Waypoint Coral Dot (#FF6F61) -->
+  <circle cx="42" cy="34" r="6" fill="#FF6F61"/>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "name": "FluentPath",
+  "short_name": "FluentPath",
+  "description": "English for your life in a new country: a free placement test, a daily course and a real teacher.",
+  "start_url": "./app.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#1E2A38",
+  "background_color": "#F7F5F0",
+  "icons": [
+    { "src": "icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
