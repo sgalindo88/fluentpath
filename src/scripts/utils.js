@@ -27,7 +27,10 @@ function speakEnglish(text, onEnd) {
   u.lang = 'en-US';
   u.rate = 0.85;
   u.pitch = 1;
-  if (onEnd) u.onend = onEnd;
+  if (onEnd) {
+    u.onend = onEnd;
+    u.onerror = onEnd; // also when cut off by the next phrase, so a "playing" look never sticks
+  }
   window.speechSynthesis.speak(u);
 }
 

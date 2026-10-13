@@ -1253,9 +1253,17 @@ function initLessonEvents() {
       case 'listen-stop':
         stopListening();
         break;
-      case 'hear-model':
-        speakText(t.dataset.phrase);
+      case 'hear-model': {
+        // The button shows it is playing until the phrase ends (or is cut off by another one).
+        document
+          .querySelectorAll('[data-act="hear-model"].is-playing')
+          .forEach((b) => b.classList.remove('is-playing'));
+        t.classList.add('is-playing');
+        const done = () => t.classList.remove('is-playing');
+        if (!window.speechSynthesis) done();
+        else speakText(t.dataset.phrase, done);
         break;
+      }
       case 'drill':
         startDrill(t.dataset.id, t.dataset.phrase);
         break;
@@ -2364,6 +2372,7 @@ function renderReview(wrap, data) {
       <h3 class="ac-heading" id="conf-heading">${bi('How did today go?', '¿Cómo te fue hoy?')}</h3>
       <div class="ac-body">${bi('Rate your confidence today and leave yourself a note.', 'Califica tu confianza hoy y déjate una nota.')}</div>
       <div class="conf-group" role="radiogroup" aria-labelledby="conf-heading">${faces}</div>
+      <p class="rec-status is-error" id="confError" role="alert" hidden>${bi('Please choose how today went. Tap one of the faces.', 'Elige cómo te fue hoy. Toca una de las caritas.')}</p>
       ${answerBox('review-notes', 'review_notes', { short: true, ph: ['Notes for your teacher or yourself', 'Notas para tu profesor o para ti'], label: ['Your notes', 'Tus notas'] })}
       ${skipLabel('review-notes', 'review_notes', 'Skip this question', 'Omitir esta pregunta')}
     </div>
@@ -2378,6 +2387,11 @@ function selectConfidence(btn) {
     b.tabIndex = on ? 0 : -1;
   });
   saveAnswer('confidence', parseInt(btn.dataset.val, 10));
+  const err = $('confError');
+  if (err) {
+    err.hidden = true;
+    err.classList.remove('show');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -2479,8 +2493,11 @@ function resumeLesson() {
 
 // Auto-pause when tab is hidden
 document.addEventListener('visibilitychange', function () {
-  if (document.hidden && !paused && lessonInProgress) {
-    pauseLesson();
+  if (document.hidden && lessonInProgress) {
+    // A recording that is still "on" when the screen locks never ends cleanly: stop it, keep what was captured.
+    Object.keys(activeDrills).forEach(stopDrill);
+    if (convRecording) toggleConvRecording();
+    if (!paused) pauseLesson();
   }
 });
 
@@ -2494,6 +2511,18 @@ let lessonEndTime = null;
 let lessonAudioJson = null; // set once the recordings have uploaded
 
 async function finishLesson() {
+  // The face is required (the note is not): a lesson with no rating tells the teacher nothing.
+  if (state.answers['confidence'] == null) {
+    const err = $('confError');
+    if (err) {
+      err.hidden = false;
+      err.classList.add('show');
+    }
+    const first = document.querySelector('.conf-btn');
+    if (first) first.focus();
+    if (err) err.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
   lessonInProgress = false;
   if (paused) resumeLesson(); // ensure overlay is removed
   // Stop the 5 s autosave and write one final checkpoint; do NOT clear it yet.

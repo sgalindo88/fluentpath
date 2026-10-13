@@ -79,7 +79,7 @@ var CallRequest = (function () {
     var wrap = state.wrapEl;
     var oldRefresh = document.getElementById('fp-call-refresh');
     if (oldRefresh) oldRefresh.remove();
-    btn.disabled = false;
+    btn.disabled = !!state.sending;
     btn.onclick = onButtonClick;
     btn.classList.remove('fp-btn--primary');
     btn.classList.add('fp-btn--secondary');
@@ -144,12 +144,17 @@ var CallRequest = (function () {
   // ── ACTIONS ────────────────────────────────────────────
 
   async function onButtonClick() {
-    if (state.currentRequest) return; // already have a request
+    if (state.currentRequest || state.sending) return; // already have a request, or one is on its way
     var name = getStudentName();
     if (!name) {
       showToast(bi('Please log in first.', 'Inicia sesión primero.'), true, true);
       return;
     }
+    // Show that the tap registered straight away; the network can take a few seconds.
+    state.sending = true;
+    state.btnEl.disabled = true;
+    state.btnEl.setAttribute('aria-busy', 'true');
+    setButton(state.btnEl, 'hourglass_top', 'Sending request…', 'Enviando solicitud…');
     try {
       await apiPost('request_video_call', {
         student_name: name,
@@ -158,6 +163,7 @@ var CallRequest = (function () {
       });
       // Optimistic update — we don't get the id back from no-cors POST
       state.currentRequest = { status: 'pending', call_link: '' };
+      state.sending = false;
       renderButton();
       showToast(
         bi(
@@ -170,11 +176,16 @@ var CallRequest = (function () {
       // Poll after 3s to pick up the real id
       setTimeout(refresh, 3000);
     } catch (e) {
+      state.sending = false;
+      renderButton();
       showToast(
         bi('Could not send the request. Please try again.', 'No pudimos enviar la solicitud. Inténtalo de nuevo.'),
         true,
         true
       );
+    } finally {
+      state.sending = false;
+      if (state.btnEl) state.btnEl.removeAttribute('aria-busy');
     }
   }
 

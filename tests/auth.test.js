@@ -142,6 +142,20 @@ describe('create_account + login handlers', () => {
     expect(fp.handleGetStudents().students.length).toBe(1);
   });
 
+  it('finds the student\'s email from their registration, and emails a call link to it', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria Lopez', password: 'pw123', role: 'student' }, {});
+    expect(fp.studentEmailFor('maria lopez')).toBe('maria@x.com');
+    expect(fp.studentEmailFor('Nobody')).toBe('');
+    fp.handleRequestVideoCall('Maria Lopez', 'hub', '');
+    const id = fp._ss.getSheetByName('Video Call Requests').getRange(2, 1).getValue();
+    const res = fp.handleSendCallLink(id, 'https://meet.google.com/abc?x=1&y="2"');
+    expect(res).toEqual({ result: 'success', emailed: true });
+    expect(fp._mail.length).toBe(1);
+    expect(fp._mail[0].to).toBe('maria@x.com');
+    expect(fp._mail[0].htmlBody).toContain('x=1&amp;y=&quot;2&quot;');
+  });
+
   it('a teacher account does not appear in the student list', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});

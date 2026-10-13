@@ -189,7 +189,8 @@ describe('hub states', () => {
   it('logging out returns to the log in screen', async () => {
     const { page, ctx } = await open(states.mid);
     await page.waitForSelector('#screen-dashboard.active');
-    await page.click('button:has-text("Switch student")');
+    expect((await page.textContent('#logoutBtn')).replace(/\s+/g, ' ')).toContain('Log out');
+    await page.click('#logoutBtn');
     await page.waitForSelector('#screen-welcome.active');
     expect(await page.evaluate(() => localStorage.getItem('fp_session'))).toBeNull();
     await ctx.close();
@@ -240,7 +241,7 @@ describe('who sees Spanish: A1, A2, B1 and not-yet-placed students; B2 and up se
     const { page, ctx } = await open(LEVEL_PROGRESS({ cefr_level: 'C1', max_day: 2, lessons_completed: 2, lessons: LESSONS.slice(0, 2), test_date: '2026-10-01' }));
     await page.waitForSelector('#screen-dashboard.active');
     expect(await visibleEs(page)).toBe(0);
-    await page.click('button:has-text("Switch student")');
+    await page.click('#logoutBtn');
     await page.waitForSelector('#screen-welcome.active');
     expect(await page.locator('#screen-welcome .fp-bi__es:visible').count()).toBeGreaterThan(3);
     await ctx.close();

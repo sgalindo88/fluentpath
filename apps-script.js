@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.50.0';
+var BACKEND_VERSION = '0.51.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -1008,7 +1008,7 @@ var UNLOCKED_POST = { 'ai_summary': true };
 
 /** GET actions that require a TEACHER session once AUTH_ENFORCED is on. */
 var TEACHER_GET_ACTIONS = {
-  'get_students': true, 'get_library': true, 'get_call_requests': true,
+  'get_students': true, 'get_library': true, 'get_call_requests': true, 'get_student_contact': true,
   'get_class_overview': true, 'get_errors': true, 'get_student_report': true,
   // SEC-3: only the examiner panel reads recordings; no student page calls this.
   // Teacher-only means a student session cannot read another student's audio.
@@ -1128,6 +1128,28 @@ function sendNotificationEmail(to, subject, htmlBody) {
   } catch (e) {
     logError('notification', to, 'Email send failed: ' + e.message, { subject: subject });
   }
+}
+
+/**
+ * The student's email: the one the teacher saved in Settings, else the login email from
+ * Accounts. '' when neither exists. Used to prefill the profile and to email call links.
+ */
+function studentEmailFor(studentName) {
+  var name = String(studentName || '').toLowerCase().trim();
+  if (!name) return '';
+  var ns = getNotificationSettings(studentName);
+  if (ns && ns.studentEmail) return ns.studentEmail;
+  var headers = HEADERS['Accounts'];
+  var sheet = getOrCreateSheet('Accounts', headers);
+  if (sheet.getLastRow() < 2) return '';
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, headers.length).getValues();
+  var nameCol = headers.indexOf('student_name'), roleCol = headers.indexOf('role'), emailCol = headers.indexOf('email');
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (String(data[i][roleCol]) === 'student' && String(data[i][nameCol]).toLowerCase().trim() === name) {
+      return String(data[i][emailCol] || '').trim();
+    }
+  }
+  return '';
 }
 
 /** Notify the teacher that a student submitted a placement test. */
@@ -1562,6 +1584,7 @@ var GET_HANDLERS = {
   health:                function(_) { return handleHealth(); },
   get_active_call_request: function(p) { return handleGetActiveCallRequest(p.student); },
   get_call_requests:     function(_) { return handleGetCallRequests(); },
+  get_student_contact:   function(p) { return { email: studentEmailFor(p.student) }; },
 };
 
 function doGet(e) {
@@ -2951,7 +2974,24 @@ function handleSendCallLink(requestId, callLink) {
   sheet.getRange(rowNum, linkCol).setValue(callLink);
   sheet.getRange(rowNum, sentCol).setValue(new Date().toISOString());
   sheet.getRange(rowNum, statusCol).setValue('sent');
-  return { result: 'success' };
+
+  // Also email the link (best effort: the hub shows it either way).
+  var emailed = false;
+  var studentCol = headerRow.indexOf('student_name');
+  var studentName = studentCol >= 0 ? String(sheet.getRange(rowNum, studentCol + 1).getValue() || '') : '';
+  var to = studentEmailFor(studentName);
+  if (to && /^https?:\/\//i.test(callLink)) {
+    var safeLink = String(callLink).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    sendNotificationEmail(
+      to,
+      'FluentPath: your video call link',
+      '<p>Your teacher sent you a link for your video call.</p>' +
+      '<p><a href="' + safeLink + '">Join the video call</a></p>' +
+      '<p>Tu profesor te envió el enlace para la videollamada.</p>'
+    );
+    emailed = true;
+  }
+  return { result: 'success', emailed: emailed };
 }
 
 /** Update call request status (mark done / dismissed). */

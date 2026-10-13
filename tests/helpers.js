@@ -121,6 +121,7 @@ function makeFakeSheet(name, headers) {
         if (!rows[row - 1]) rows[row - 1] = [];
         rows[row - 1][col - 1] = v;
       },
+      getValue: () => ((rows[row - 1] || [])[col - 1]) ?? '',
       setFontWeight: () => api.getRange(row, col, numRows, numCols),
       createTextFinder: (text) => {
         let matchCaseFlag = true;
@@ -128,6 +129,7 @@ function makeFakeSheet(name, headers) {
         const finder = {
           matchCase: (b) => { matchCaseFlag = b; return finder; },
           matchEntireCell: (b) => { entireCell = b; return finder; },
+          findNext: () => finder.findAll()[0] || null,
           findAll: () => {
             const res = [];
             const target = String(text);
@@ -284,6 +286,9 @@ export function loadAppsScriptAuth(props = {}) {
     findLastByStudent: globalThis.findLastByStudent,
     registerStudentRow: globalThis.registerStudentRow,
     handleGetStudents: globalThis.handleGetStudents,
+    studentEmailFor: globalThis.studentEmailFor,
+    handleSendCallLink: globalThis.handleSendCallLink,
+    handleRequestVideoCall: globalThis.handleRequestVideoCall,
     bytesToHex: globalThis.bytesToHex,
     studentBaseUrl: globalThis.studentBaseUrl,
     teacherBaseUrl: globalThis.teacherBaseUrl,

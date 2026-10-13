@@ -285,6 +285,41 @@ describe('talking to the teacher', () => {
   });
 });
 
+describe('call request feedback', () => {
+  it('shows "Sending request" at once and three quick taps send one request and show one message', async () => {
+    let calls = 0;
+    const { page, ctx } = await open({
+      handlers: { request_video_call: () => { calls++; return { result: 'success' }; } },
+    });
+    await start(page);
+    await page.waitForSelector('#testHelp #fp-call-btn');
+    await page.evaluate(() => {
+      const b = document.getElementById('fp-call-btn');
+      b.click(); b.click(); b.click();
+    });
+    expect(await page.textContent('#fp-call-btn')).toContain('Sending request');
+    await page.waitForSelector('#fp-call-wrap.is-pending');
+    expect(calls).toBe(1);
+    expect(await page.locator('.fp-toast').count()).toBe(1);
+    await ctx.close();
+  });
+});
+
+describe('interrupted recording', () => {
+  it('a recording running when the page is hidden is stopped with a message', async () => {
+    const { page, ctx } = await open();
+    await start(page);
+    await page.evaluate(() => {
+      speakingRecorders.q21 = { recording: true, recorder: null, recognition: null, chunks: [], transcript: '' };
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(await page.evaluate(() => speakingRecorders.q21.recording)).toBe(false);
+    expect(await page.textContent('#rec-status-q21')).toContain('stopped because you left');
+    await ctx.close();
+  });
+});
+
 describe('resume dialog', () => {
   it('the placement test offers the same bilingual modal after a reload, and Resume puts the student back', async () => {
     const { page, ctx, errors } = await open();

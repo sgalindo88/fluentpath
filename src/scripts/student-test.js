@@ -131,6 +131,7 @@ function saveTestCheckpoint() {
     submissionId: state.submissionId || null,
     listeningPlays: state.listeningPlays,
     dictationPlays: state.dictationPlays,
+    recordedQs: Object.keys(speakingAudio), // the audio itself cannot be saved; only that it existed
   });
 }
 
@@ -189,6 +190,10 @@ function tryResumeTest() {
       if (dPlays <= 0) document.getElementById('dictPlayBtn').disabled = true;
       showScreen(data.screen);
       startTestAutoSave();
+      // Recordings live only in memory: say which ones are gone.
+      (data.recordedQs || []).forEach(function (q) {
+        setRecStatus(q, MSG_RECORDING_LOST(), 'error');
+      });
     },
     onStartOver: function () {
       clearTestCheckpoint();
@@ -531,6 +536,17 @@ const MSG_NO_MIC = () =>
   bi(
     'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap the microphone again.',
     'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca el micrófono de nuevo.'
+  );
+
+const MSG_RECORDING_LOST = () =>
+  bi(
+    'Your earlier recording was lost when the page reloaded. Please record your answer again.',
+    'Tu grabación anterior se perdió al recargar la página. Por favor, graba tu respuesta de nuevo.'
+  );
+const MSG_RECORDING_INTERRUPTED = () =>
+  bi(
+    'The recording stopped because you left this page. Tap the microphone to record again.',
+    'La grabación se detuvo porque saliste de esta página. Toca el micrófono para grabar de nuevo.'
   );
 
 /** Show a message in a question's status line. kind: 'error' or '' (plain). `html` is escaped markup. */
@@ -1012,11 +1028,11 @@ async function submitResults() {
     start_time: state.startTime ? state.startTime.toLocaleTimeString() : '',
     end_time: state.endTime ? state.endTime.toLocaleTimeString() : '',
     duration: duration,
-    reading_score: `${readingScore} / 20`,
-    listening_score: `${listeningScore} / 15`,
-    auto_total: `${readingScore + listeningScore} / 30`,
-    writing_score: 'Pending examiner review (/ 25)',
-    speaking_score: 'Pending examiner review (/ 20)',
+    reading_score: readingScore,
+    listening_score: listeningScore,
+    auto_total: readingScore + listeningScore,
+    writing_score: 'Pending',
+    speaking_score: 'Pending',
     mcq_answers: mcqDetail + '\n' + q19detail,
     q11_passive_voice: state.textAnswers['q11'] || '(blank)',
     q12_combined_sentence: state.textAnswers['q12'] || '(blank)',
@@ -1353,4 +1369,16 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   initCallRequest();
   nameField.addEventListener('blur', initCallRequest);
+});
+
+// A call, the Home button or a locked screen can freeze a recording that never ends.
+// Stop it cleanly (the part already captured is kept) and say what happened.
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) return;
+  Object.keys(speakingRecorders).forEach(function (q) {
+    var rec = speakingRecorders[q];
+    if (!rec || !rec.recording) return;
+    stopSpeakingRec(q);
+    setRecStatus(q, MSG_RECORDING_INTERRUPTED(), 'error');
+  });
 });

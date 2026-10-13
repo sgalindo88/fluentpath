@@ -149,6 +149,12 @@
   transform: scale(0.98);
 }
 
+/* Playing (for example "Hear the model"): navy fill while the audio runs. */
+.fp-btn--secondary.is-playing {
+  background: var(--fp-navy-950);
+  color: var(--fp-coral-500);
+}
+
 .fp-btn:disabled,
 .fp-btn[aria-disabled='true'] {
   background: var(--surface-disabled);

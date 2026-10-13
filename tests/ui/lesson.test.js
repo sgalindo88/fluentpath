@@ -364,6 +364,20 @@ describe('finishing', () => {
     await next(page); // Finish
   }
 
+  it('will not finish without a face rating (the note stays optional); picking a face clears the message', async () => {
+    const { handlers, saved } = makeHandlers();
+    const { page, ctx } = await open({ handlers });
+    await begin(page);
+    for (let i = 0; i < 6; i++) await next(page);
+    await next(page); // Finish with no rating
+    expect(await page.isVisible('#confError')).toBe(true);
+    expect(await page.isVisible('#screen-complete')).toBe(false);
+    expect(saved.length).toBe(0);
+    await page.locator('.conf-btn').nth(1).click();
+    expect(await page.isVisible('#confError')).toBe(false);
+    await ctx.close();
+  });
+
   it('saves with a plain-word rating, verifies, and says so in both languages; View progress appears', async () => {
     const { handlers, saved } = makeHandlers();
     const { page, ctx, errors, dialogs } = await open({ handlers });
@@ -391,6 +405,7 @@ describe('finishing', () => {
     const { page, ctx } = await open({ handlers });
     await begin(page);
     for (let i = 0; i < 6; i++) await next(page);
+    await page.locator('.conf-btn').nth(2).click();
     await next(page);
     await page.waitForSelector('#retryLessonBtn', { timeout: 20000 });
     expect(await page.getAttribute('#saveStatus', 'class')).toContain('warn');

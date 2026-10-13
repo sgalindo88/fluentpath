@@ -229,4 +229,21 @@ d('teacher dashboard', () => {
     expect(out[0]).toContain('<svg');
     await ctx.close();
   });
+  it('the profile email fills from the registration email, is required, and the graded badge flips after a save', async () => {
+    const h = { ...handlers, get_student_contact: () => ({ email: 'maria@x.com' }) };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#app', { state: 'visible' });
+    await t.page.waitForFunction(() => document.getElementById('prof-email').value === 'maria@x.com');
+    await t.page.evaluate(() => showPanel('profile'));
+    await t.page.fill('#prof-email', '');
+    await t.page.evaluate(() => saveProfile());
+    expect(await t.page.textContent('#profile-save-status')).toContain('email is required');
+    await t.page.evaluate(() => { setGradedBadge(false); });
+    expect(await t.page.textContent('#graded-badge')).toBe('UNGRADED');
+    await t.page.evaluate(() => { setGradedBadge(true); });
+    expect(await t.page.textContent('#graded-badge')).toBe('GRADED');
+    await t.ctx.close();
+  });
 });
