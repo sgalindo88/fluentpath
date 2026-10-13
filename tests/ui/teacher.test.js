@@ -151,6 +151,35 @@ d('teacher portal: loop and way back', () => {
 });
 
 d('teacher portal: create account', () => {
+  it('the password is optional: with none typed it posts none, and the message says the student was emailed', async () => {
+    const posted = [];
+    const t = await newPage(browser, { handlers: { get_students: () => ({ students: [] }), create_account: (p) => { posted.push(p); return { ok: true, emailed: true }; } } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    expect(await t.page.textContent('label[for="caPassword"]')).toContain('optional');
+    await t.page.fill('#caName', 'Ana Ruiz');
+    await t.page.fill('#caEmail', 'ana@example.com');
+    await t.page.click('#caBtn');
+    await t.page.waitForSelector('#caStatus.ok');
+    const text = await t.page.textContent('#caStatus');
+    expect(text).toContain('We emailed ana@example.com a link to choose their own password');
+    expect(posted[0].password).toBe('');
+    await t.ctx.close();
+  });
+
+  it('if the email could not be sent it says how to get the student in', async () => {
+    const t = await newPage(browser, { handlers: { get_students: () => ({ students: [] }), create_account: () => ({ ok: true, emailed: false }) } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    await t.page.fill('#caName', 'Ana Ruiz');
+    await t.page.fill('#caEmail', 'ana@example.com');
+    await t.page.click('#caBtn');
+    await t.page.waitForSelector('#caStatus.ok');
+    expect(await t.page.textContent('#caStatus')).toContain('could not be sent');
+    expect(await t.page.textContent('#caStatus')).toContain('Forgot password?');
+    await t.ctx.close();
+  });
+
   it('creating a student says what happens next, links to the dashboard, and refreshes the list', async () => {
     let students = [];
     const t = await newPage(browser, { handlers: { get_students: () => ({ students }), create_account: (p) => { students = [{ name: p.student_name }]; return { ok: true }; } } });

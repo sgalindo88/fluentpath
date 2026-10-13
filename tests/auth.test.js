@@ -147,6 +147,7 @@ describe('create_account + login handlers', () => {
     fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria Lopez', password: 'pw123', role: 'student' }, {});
     expect(fp.studentEmailFor('maria lopez')).toBe('maria@x.com');
     expect(fp.studentEmailFor('Nobody')).toBe('');
+    fp._mail.length = 0; // the welcome email
     fp.handleRequestVideoCall('Maria Lopez', 'hub', '');
     const id = fp._ss.getSheetByName('Video Call Requests').getRange(2, 1).getValue();
     const res = fp.handleSendCallLink(id, 'https://meet.google.com/abc?x=1&y="2"');
@@ -189,6 +190,7 @@ describe('create_account + login handlers', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw123', role: 'student' }, {});
     const session = fp.validateSession(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw123' }, {})._json.session);
+    fp._mail.length = 0; // the welcome email
     expect(fp.POST_HANDLERS.request_my_reset({}, {}, session)._json.ok).toBe(true);
     expect(fp._mail.length).toBe(1);
     expect(fp._mail[0].to).toBe('maria@x.com');
@@ -231,6 +233,7 @@ describe('create_account + login handlers', () => {
       const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
       fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teach', password: 'pw1234', role: 'teacher' }, {});
       fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+      fp._mail.length = 0; // the welcome email
       return fp;
     };
 
@@ -346,6 +349,7 @@ describe('create_account + login handlers', () => {
       const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
       fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teach', password: 'pw1234', role: 'teacher' }, {});
       fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+      fp._mail.length = 0; // the welcome email
       return fp;
     };
     const student = { role: 'student', student_name: 'Maria' };
@@ -378,6 +382,64 @@ describe('create_account + login handlers', () => {
       const fp = setup();
       for (let i = 0; i < 8; i++) fp.handleSubmitFeedback(student, { type: 'bug', message: 'Something broke ' + i });
       expect(() => fp.handleSubmitFeedback(student, { type: 'bug', message: 'Something broke again' })).toThrow(/Too many/);
+    });
+  });
+
+  describe('welcome email for a new student', () => {
+    const setup = () => {
+      const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+      fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Sebastian Galindo', password: 'pw1234', role: 'teacher' }, {});
+      fp._mail.length = 0;
+      return fp;
+    };
+
+    it('a new student is emailed (English and Spanish) a link to choose their own password, and the answer says so', () => {
+      const fp = setup();
+      const res = fp.POST_HANDLERS.create_account({ email: 'Maria@x.com', student_name: 'Maria <b>L</b>', password: 'pw1234', role: 'student' }, {})._json;
+      expect(res).toMatchObject({ ok: true, role: 'student', emailed: true });
+      expect(fp._mail.length).toBe(1);
+      const m = fp._mail[0];
+      expect(m.to).toBe('maria@x.com');
+      expect(m.subject).toBe('Your FluentPath account is ready / Tu cuenta de FluentPath está lista');
+      expect(m.htmlBody).toContain('Set my password');
+      expect(m.htmlBody).toContain('Crear mi contraseña');
+      expect(m.htmlBody).toContain('Sebastian Galindo');
+      expect(m.htmlBody).not.toContain('<b>L</b>'); // names are escaped
+      expect(m.htmlBody).not.toContain('pw1234'); // the typed password never goes by email
+      expect(m.htmlBody).toMatch(/app\.html\?reset=/);
+    });
+
+    it('the emailed link really sets the password, works for days, and is single-use', () => {
+      const fp = setup();
+      fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {});
+      const token = decodeURIComponent(fp._mail[0].htmlBody.match(/reset=([^"]+)"/)[1]);
+      const ok = fp.POST_HANDLERS.reset_password({ reset_token: token, password: 'mine-now' }, {})._json;
+      expect(ok.ok).toBe(true);
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'mine-now' }, {})._json.ok).toBe(true);
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(false);
+      expect(fp.POST_HANDLERS.reset_password({ reset_token: token, password: 'again-123' }, {})._json.error).toMatch(/already been used/);
+    });
+
+    it('the password is optional for a student (a random one is set) but still required for a teacher; teachers get no welcome email', () => {
+      const fp = setup();
+      const res = fp.POST_HANDLERS.create_account({ email: 'ana@x.com', student_name: 'Ana', role: 'student' }, {})._json;
+      expect(res.ok).toBe(true);
+      expect(fp.POST_HANDLERS.login({ email: 'ana@x.com', password: '' }, {})._json.ok).toBe(false);
+      expect(() => fp.POST_HANDLERS.create_account({ email: 't2@x.com', student_name: 'T2', role: 'teacher' }, {})).toThrow(/required/);
+      fp._mail.length = 0;
+      fp.POST_HANDLERS.create_account({ email: 't3@x.com', student_name: 'T3', password: 'pw1234', role: 'teacher' }, {});
+      expect(fp._mail.length).toBe(0);
+    });
+
+    it('if the email cannot be sent the account is still created and the answer says emailed: false', () => {
+      const fp = setup();
+      const orig = globalThis.MailApp.sendEmail;
+      globalThis.MailApp.sendEmail = () => { throw new Error('mail quota'); };
+      try {
+        const res = fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria', password: 'pw1234', role: 'student' }, {})._json;
+        expect(res).toMatchObject({ ok: true, emailed: false });
+      } finally { globalThis.MailApp.sendEmail = orig; }
+      expect(fp.POST_HANDLERS.login({ email: 'maria@x.com', password: 'pw1234' }, {})._json.ok).toBe(true);
     });
   });
 

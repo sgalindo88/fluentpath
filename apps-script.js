@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.55.0';
+var BACKEND_VERSION = '0.56.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -310,7 +310,7 @@ function validateTeacherToken(params) {
  *   request_video_call     student session
  *   update_call_status     student or teacher session
  *   submit_test            student session   (placement test; SEC-7 removed the no-action default)
- *   create_account         TEACHER session
+ *   create_account         TEACHER session (a new student is emailed a link to choose their own password)
  *   save_marks             TEACHER session
  *   save_attendance        TEACHER session
  *   update_settings        TEACHER session
@@ -559,6 +559,7 @@ function cacheKeyForSession(storedToken) { return 'session_' + storedToken; }
 // token to the password at issue time: using it changes pw_hash, which makes
 // the token (and any other outstanding ones) no longer match → implicitly single-use.
 var RESET_TTL_MS = 24 * 60 * 60 * 1000; // reset link valid 24 hours
+var WELCOME_TTL_MS = 7 * 24 * 60 * 60 * 1000; // a new student's 'set your password' link: 7 days
 
 function resetSign(payloadB64) {
   return bytesToHex(Utilities.computeHmacSha256Signature(payloadB64, pwPepper()));
@@ -574,10 +575,10 @@ function pwFingerprint(account) {
 }
 
 /** Create a signed reset token for an account; returns the RAW token (to email). */
-function createResetToken(account) {
+function createResetToken(account, ttlMs) {
   var payload = [
     String(account.email).toLowerCase().trim(),
-    new Date().getTime() + RESET_TTL_MS,
+    new Date().getTime() + (ttlMs || RESET_TTL_MS),
     pwFingerprint(account)
   ].join('|');
   var b64 = Utilities.base64EncodeWebSafe(payload);
@@ -995,6 +996,37 @@ function sendPasswordResetEmail(email, role, token) {
   );
 }
 
+/**
+ * A new student's account is ready: tell them (English, then Spanish) and give a link to choose their own
+ * password. Returns true when the email was handed to the mail service; never throws (account creation
+ * must not fail because mail did).
+ */
+function sendWelcomeEmail(account) {
+  try {
+    var link = studentBaseUrl().replace(/\/+$/, '') + '/app.html?reset=' + encodeURIComponent(createResetToken(account, WELCOME_TTL_MS));
+    var name = escapeHtmlServer(account.student_name);
+    var teacher = escapeHtmlServer(teacherContact().name || 'Your teacher');
+    return sendNotificationEmail(
+      account.email,
+      'Your FluentPath account is ready / Tu cuenta de FluentPath está lista',
+      '<p>Hello ' + name + ',</p>' +
+      '<p>Your FluentPath account is ready. Please choose your own password to start:</p>' +
+      '<p><a href="' + link + '">Set my password</a></p>' +
+      '<p>This link works for 7 days. After that, open the log in page and tap "Forgot password?".</p>' +
+      '<p>' + teacher + '</p>' +
+      '<hr>' +
+      '<p>Hola ' + name + ',</p>' +
+      '<p>Tu cuenta de FluentPath está lista. Elige tu propia contraseña para empezar:</p>' +
+      '<p><a href="' + link + '">Crear mi contraseña</a></p>' +
+      '<p>Este enlace funciona durante 7 días. Después, abre la página de inicio de sesión y toca "¿Olvidaste tu contraseña?".</p>' +
+      '<p>' + teacher + '</p>'
+    );
+  } catch (err) {
+    try { logError('welcome_email', account.student_name, err.message, {}); } catch (e2) { /* best effort */ }
+    return false;
+  }
+}
+
 /** Parse a JSON POST body, or null. Handlers may receive creds via body. */
 function jsonBody(e) {
   if (e && e.postData && e.postData.contents) {
@@ -1137,11 +1169,13 @@ function getNotificationSettings(studentName) {
  * the email is empty — notifications are best-effort, never blocking.
  */
 function sendNotificationEmail(to, subject, htmlBody) {
-  if (!to) return;
+  if (!to) return false;
   try {
     MailApp.sendEmail({ to: to, subject: subject, htmlBody: htmlBody });
+    return true;
   } catch (e) {
     logError('notification', to, 'Email send failed: ' + e.message, { subject: subject });
+    return false;
   }
 }
 
@@ -3401,14 +3435,13 @@ function handleSendCallLink(requestId, callLink) {
   var to = studentEmailFor(studentName);
   if (to && /^https?:\/\//i.test(callLink)) {
     var safeLink = String(callLink).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-    sendNotificationEmail(
+    emailed = sendNotificationEmail(
       to,
       'FluentPath: your video call link',
       '<p>Your teacher sent you a link for your video call.</p>' +
       '<p><a href="' + safeLink + '">Join the video call</a></p>' +
       '<p>Tu profesor te envió el enlace para la videollamada.</p>'
     );
-    emailed = true;
   }
   return { result: 'success', emailed: emailed };
 }
@@ -3858,10 +3891,13 @@ var POST_HANDLERS = {
     var studentName = String(paramOrBody(params, body, 'student_name')).trim();
     var password = String(paramOrBody(params, body, 'password'));
     var role = String(paramOrBody(params, body, 'role') || 'student').trim().toLowerCase();
+    if (role !== 'student' && role !== 'teacher') throw new Error('Invalid role: ' + role);
+    // A student can be created without a password: they get an email to choose their own.
+    // A teacher account has no such email, so it still needs one.
+    if (!password && role === 'student') password = Utilities.getUuid() + Utilities.getUuid();
     if (!email || !studentName || !password) {
       throw new Error('email, student_name and password are required');
     }
-    if (role !== 'student' && role !== 'teacher') throw new Error('Invalid role: ' + role);
     if (findAccountByEmail(email)) throw new Error('An account with that email already exists');
 
     var actor = resolveSession(params);
@@ -3884,8 +3920,13 @@ var POST_HANDLERS = {
     }
     // The teacher's student list reads the Students tab, which used to fill only when the student
     // first logged in, so a brand-new account looked like it had not been created. Add it now.
-    if (role === 'student') { registerStudentRow(studentName); closeAccountRequestsFor(email); }
-    return { _json: { ok: true, email: email, student_name: studentName, role: role } };
+    var emailed = false;
+    if (role === 'student') {
+      registerStudentRow(studentName);
+      closeAccountRequestsFor(email);
+      emailed = sendWelcomeEmail(account);
+    }
+    return { _json: { ok: true, email: email, student_name: studentName, role: role, emailed: emailed } };
   },
 
   save_audio: function(params, e, session) {

@@ -9,6 +9,7 @@ import { loadAppsScriptAuth } from './helpers.js';
 function makeStudent(fp, email = 'maria@x.com', pw = 'origpass') {
   fp.POST_HANDLERS.create_account(
     { email, student_name: 'Maria', password: pw, role: 'student' }, {});
+  fp._mail.length = 0; // creating a student sends a welcome email; these tests count reset emails only
   return email;
 }
 
