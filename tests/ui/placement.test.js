@@ -126,29 +126,31 @@ describe('multiple choice', () => {
     await ctx.close();
   });
 
-  it('a wrong answer says so in words and icon, shows the right one, and explains in both languages', async () => {
-    const { page, ctx } = await open();
-    await start(page);
-    await page.evaluate(() => showScreen('screen-reading'));
-    await page.evaluate(() => document.querySelector('#q1-card .option-btn').click()); // A is wrong, B is right
-    const card = page.locator('#q1-card');
-    expect(await card.locator('.option-btn.wrong .fp-answer__verdict').textContent()).toContain('Not quite');
-    expect(await card.locator('.option-btn.correct .fp-answer__verdict').textContent()).toContain('Correct');
-    expect(await card.locator('.option-btn.wrong svg.fp-icon').count()).toBeGreaterThan(0);
-    const fb = await card.locator('#q1-fb').textContent();
-    expect(fb).toContain('The correct answer is B.');
-    expect(fb).toContain('La respuesta correcta es B.');
-    await ctx.close();
+  it('never reveals whether an answer was right: only "Answer saved" in both languages', async () => {
+    for (const idx of [0, 1]) {
+      // A is wrong, B is right: the screen must look the same for both
+      const { page, ctx } = await open();
+      await start(page);
+      await page.evaluate(() => showScreen('screen-reading'));
+      await page.evaluate((i) => document.querySelectorAll('#q1-card .option-btn')[i].click(), idx);
+      const card = page.locator('#q1-card');
+      expect(await card.locator('.option-btn.correct, .option-btn.wrong').count()).toBe(0);
+      expect(await card.locator('.option-btn.selected .fp-answer__verdict').textContent()).toContain('Saved');
+      const fb = await card.locator('#q1-fb').textContent();
+      expect(fb).toContain('Answer saved.');
+      expect(fb).toContain('Respuesta guardada.');
+      expect(fb).not.toMatch(/correct|Not quite|marks/i);
+      await ctx.close();
+    }
   });
 
-  it('a right answer scores and confirms bilingually', async () => {
+  it('a right answer is still scored, silently', async () => {
     const { page, ctx } = await open();
     await start(page);
     await page.evaluate(() => showScreen('screen-reading'));
     await page.evaluate(() => document.querySelectorAll('#q1-card .option-btn')[1].click());
-    expect(await page.textContent('#q1-fb')).toContain('Correct! +2 marks');
-    expect(await page.textContent('#q1-fb')).toContain('¡Correcto! +2 puntos');
     expect(await page.evaluate(() => state.answers.q1.correct)).toBe(true);
+    expect(await page.evaluate(() => getMCQScore())).toBe(2);
     await ctx.close();
   });
 
@@ -160,8 +162,25 @@ describe('multiple choice', () => {
     await page.evaluate(() => toggleMulti('q19', 'B'));
     expect(await page.getAttribute('#q19-B', 'aria-pressed')).toBe('true');
     await page.evaluate(() => toggleMulti('q19', 'C'));
-    expect(await page.textContent('#q19-fb')).toContain('Both answers found');
+    expect(await page.textContent('#q19-fb')).toContain('Answers saved.');
+    expect(await page.locator('#q19-options .correct, #q19-options .wrong').count()).toBe(0);
     expect(await page.evaluate(() => state.answers.q19.marks)).toBe(2);
+    await ctx.close();
+  });
+});
+
+describe('task instructions are translated', () => {
+  it('writing, speaking and the grammar/vocabulary stems have Spanish under the English', async () => {
+    const { page, ctx } = await open();
+    await start(page);
+    const missing = await page.evaluate(() => {
+      const sel = ['#q3-card','#q5-card','#q6-card','#q7-card','#q8-card','#q9-card','#q10-card']
+        .map((id) => document.querySelector(id + ' .q-prompt'))
+        .concat([...document.querySelectorAll('#screen-writing .q-prompt')])
+        .concat([...document.querySelectorAll('.tch-label, .tch-desc, .sc-label, .sc-prompt, .sc-note')]);
+      return sel.filter((el) => !el || !el.querySelector('.fp-bi__es')).length;
+    });
+    expect(missing).toBe(0);
     await ctx.close();
   });
 });

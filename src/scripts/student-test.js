@@ -307,12 +307,12 @@ function startTest() {
 }
 
 // ── MCQ ──
-function verdictHtml(ok) {
+// The test never tells the student whether an answer was right (so a retake
+// cannot be gamed); it only confirms the answer was saved. Scoring still uses
+// state.answers[qId].correct.
+function savedHtml() {
   return (
-    '<span class="fp-answer__verdict">' +
-    FP.icon(ok ? 'check_small' : 'close_small', { size: 'sm' }) +
-    (ok ? bi('Correct', 'Correcto') : bi('Not quite', 'No exactamente')) +
-    '</span>'
+    '<span class="fp-answer__verdict">' + FP.icon('check_small', { size: 'sm' }) + bi('Saved', 'Guardada') + '</span>'
   );
 }
 
@@ -324,35 +324,18 @@ function selectMCQ(qId, letter, isCorrect) {
   btns.forEach((btn) => {
     btn.disabled = true;
     const btnLetter = btn.querySelector('.opt-letter').textContent.trim();
-    const correctLetter = CORRECT_ANSWERS[qId];
     btn.setAttribute('aria-checked', btnLetter === letter ? 'true' : 'false');
-    if (btnLetter === correctLetter) {
-      btn.classList.add('correct');
-      btn.insertAdjacentHTML('beforeend', verdictHtml(true));
-    } else if (btnLetter === letter && !isCorrect) {
-      btn.classList.add('wrong');
-      btn.insertAdjacentHTML('beforeend', verdictHtml(false));
+    if (btnLetter === letter) {
+      btn.classList.add('selected');
+      btn.insertAdjacentHTML('beforeend', savedHtml());
     }
   });
 
   const fb = document.getElementById(qId + '-fb');
   if (fb) {
     fb.setAttribute('aria-live', 'polite');
-    fb.classList.add('show');
-    if (isCorrect) {
-      const m = MCQ_MARKS[qId] || 2;
-      fb.classList.add('correct-fb');
-      fb.innerHTML = iconMsg('check_small', bi('Correct! +' + m + ' marks', '¡Correcto! +' + m + ' puntos'));
-    } else {
-      fb.classList.add('wrong-fb');
-      fb.innerHTML = iconMsg(
-        'close_small',
-        bi(
-          'Not quite. The correct answer is ' + CORRECT_ANSWERS[qId] + '.',
-          'No exactamente. La respuesta correcta es ' + CORRECT_ANSWERS[qId] + '.'
-        )
-      );
-    }
+    fb.classList.add('show', 'info-fb');
+    fb.innerHTML = iconMsg('check_small', bi('Answer saved.', 'Respuesta guardada.'));
   }
   updateScoreDisplay();
 }
@@ -384,47 +367,15 @@ function submitQ19() {
     if (!btn.classList.contains('q-feedback') && btn.tagName === 'BUTTON') {
       btn.disabled = true;
       const letter = btn.id.replace('q19-', '');
-      if (Q19_CORRECT.has(letter)) {
-        btn.classList.add('correct');
-        btn.insertAdjacentHTML('beforeend', verdictHtml(true));
-      } else if (state.q19selected.has(letter)) {
-        btn.classList.add('wrong');
-        btn.insertAdjacentHTML('beforeend', verdictHtml(false));
-      }
+      if (state.q19selected.has(letter)) btn.insertAdjacentHTML('beforeend', savedHtml());
     }
   });
 
   const fb = document.getElementById('q19-fb');
   fb.setAttribute('aria-live', 'polite');
-  fb.classList.add('show');
-  if (correct) {
-    fb.classList.add('correct-fb');
-    fb.innerHTML = iconMsg(
-      'check_small',
-      bi('Correct! Both answers found. +2 marks', '¡Correcto! Encontraste las dos respuestas. +2 puntos')
-    );
-    state.answers['q19'] = { correct: true, marks: 2 };
-  } else if (partialCorrect > 0) {
-    fb.classList.add('info-fb');
-    fb.innerHTML = iconMsg(
-      'lightbulb',
-      bi(
-        `Partly correct. ${partialCorrect} of 2 correct answers selected. +${partialCorrect} mark${partialCorrect > 1 ? 's' : ''}.`,
-        `Parcialmente correcto. Elegiste ${partialCorrect} de 2 respuestas correctas. +${partialCorrect} punto${partialCorrect > 1 ? 's' : ''}.`
-      )
-    );
-    state.answers['q19'] = { correct: false, marks: partialCorrect };
-  } else {
-    fb.classList.add('wrong-fb');
-    fb.innerHTML = iconMsg(
-      'close_small',
-      bi(
-        'Not quite. Neither answer was correct. The correct answers are: At reception and On the website.',
-        'No exactamente. Ninguna respuesta fue correcta. Las respuestas correctas son: At reception y On the website.'
-      )
-    );
-    state.answers['q19'] = { correct: false, marks: partialCorrect };
-  }
+  fb.classList.add('show', 'info-fb');
+  fb.innerHTML = iconMsg('check_small', bi('Answers saved.', 'Respuestas guardadas.'));
+  state.answers['q19'] = { correct, marks: partialCorrect };
   updateScoreDisplay();
 }
 
