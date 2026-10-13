@@ -337,6 +337,61 @@ describe('offline lesson notice', () => {
   });
 });
 
+describe('when no personalised lesson comes back (AI-1f part 2, N-22)', () => {
+  const topicOf = (page) => page.textContent('#activityWrap .ac-heading');
+
+  it('an A1 student gets the A1 beginner lesson (with Spanish), not the level-agnostic one', async () => {
+    const { handlers } = makeHandlers({ generate_lesson: () => ({ error: 'Lesson generation failed: overloaded', error_code: 'ai_unavailable' }) }, 'A1');
+    const { page, ctx } = await open({ level: 'A1', handlers });
+    await begin(page);
+    expect(await topicOf(page)).toContain('Hello! My Name Is');
+    expect(await topicOf(page)).toContain('¡Hola! Me llamo');
+    expect(await page.textContent('#lessonNotice')).toContain('Offline lesson');
+    await ctx.close();
+  });
+
+  it('an A2 student gets an A2 lesson and a B1 student the built-in one', async () => {
+    for (const [level, expected] of [['A2', /Asking for Directions/], ['B1', /Making an Appointment|Shopping and Prices|At the Workplace|At the Doctor|Family and Neighbours/]]) {
+      const { handlers } = makeHandlers({ generate_lesson: () => ({ found: false }) }, level);
+      const { page, ctx } = await open({ level, handlers });
+      await begin(page);
+      expect(await topicOf(page)).toMatch(expected);
+      await ctx.close();
+    }
+  });
+
+  it('a stand-by lesson from the library is shown with its own notice and is NOT cached', async () => {
+    const { handlers } = makeHandlers({ generate_lesson: () => ({ found: true, lesson: LESSON, source: 'library-fallback', fallback: true, fallback_reason: 'ai_unavailable' }) });
+    const { page, ctx } = await open({ handlers });
+    await begin(page);
+    const note = await page.textContent('#lessonNotice');
+    expect(note).toContain('practice lesson for your level');
+    expect(note).toContain('lección de práctica para tu nivel');
+    expect(await topicOf(page)).toContain('At the Clinic');
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('fp_lesson_')))).toEqual([]);
+    await ctx.close();
+  });
+
+  it('a rate-limit reply says so (it is not "the generator is down")', async () => {
+    const { handlers } = makeHandlers({ generate_lesson: () => ({ error: 'Rate limit exceeded: too many lesson requests', error_code: 'rate_limited' }) });
+    const { page, ctx } = await open({ handlers });
+    await begin(page);
+    const note = await page.textContent('#lessonNotice');
+    expect(note).toContain('asked for many lessons in the last hour');
+    expect(note).toContain('Pediste muchas lecciones');
+    expect(note).not.toContain('generator is unavailable');
+    await ctx.close();
+  });
+
+  it('a normal fresh lesson is cached and shows no notice', async () => {
+    const { page, ctx } = await open();
+    await begin(page);
+    expect(await page.locator('#lessonNotice .fp-banner').count()).toBe(0);
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('fp_lesson_')).length)).toBe(1);
+    await ctx.close();
+  });
+});
+
 describe('pause', () => {
   it('pausing opens a dialog with focus on Resume; resuming closes it and returns focus', async () => {
     const { page, ctx } = await open();

@@ -99,6 +99,7 @@ fluentpath/
 │   │   ├── password-reset.js       # Forgot / set / change password dialogs (shared with teacher)
 │   │   ├── student-test.js         # Placement test logic and recording
 │   │   ├── student-lesson.js       # Lesson logic: timer, pause, recording, save and verify
+│   │   ├── lesson-fallbacks.js     # Bilingual A1 and A2 stand-by lessons (used when the generator is down)
 │   │   └── checkpoint.js           # Autosave and the resume dialog
 │   ├── styles/                     # tokens, theme, components, hub, student-test, student-lesson, brochure, mobile
 │   ├── fonts/                      # Self-hosted Montserrat (WOFF2 + licence)
@@ -136,7 +137,7 @@ Spanish appears under the English for A1 to B1 and for students without a level;
 
 ### `src/student-course.html`: daily lesson
 
-Seven steps with a timer, pause dialog and resume after a reload: warm-up, vocabulary (word cards with speech), listening (3 plays), speaking (pronunciation drills and free speaking, both recorded), practice, writing, review with a face rating (required). The server chooses level, course, day and topic. Lessons come from the shared **Lesson Library** when a matching entry exists, otherwise from the AI provider (and are added to the library). Lessons shaped by a teacher's custom instructions or a student's approved topics are never recycled. If the AI is unavailable a level-agnostic offline lesson is shown with a notice. Completion is verified by reading the progress back; a failed save shows a Retry button.
+Seven steps with a timer, pause dialog and resume after a reload: warm-up, vocabulary (word cards with speech), listening (3 plays), speaking (pronunciation drills and free speaking, both recorded), practice, writing, review with a face rating (required). The server chooses level, course, day and topic. Lessons come from the shared **Lesson Library** when a matching entry exists, otherwise from the AI provider (and are added to the library). Lessons shaped by a teacher's custom instructions or a student's approved topics are never recycled. If a fresh lesson cannot be made (the provider is retried once first), the server serves a valid library lesson for the same level, flagged as a stand-by; with an empty library the page shows a built-in lesson for the level (bilingual A1 and A2 lessons, five more for B1 and above). A notice says which of "generator unavailable", "stand-by lesson" or "too many lessons this hour" happened, and the Error Log records the reason. Completion is verified by reading the progress back; a failed save shows a Retry button.
 
 ---
 
@@ -199,7 +200,7 @@ Health check: `…/exec?action=health` returns `status`, the sheet name, which s
 ### Behaviour worth knowing
 
 - **Email** (MailApp) goes to the one notification address saved in the teacher's Settings: call requests, test and lesson submissions, account requests, topic requests, feedback. Students get call links and the welcome email. Welcome and reset links are signed tokens (7 days and 24 hours), single-use.
-- **AI lessons:** a provider-adapter layer; Gemini thinking is pinned off and the token limit is 8192 so lessons are not truncated; the server rate-limits generation per student.
+- **AI lessons:** a provider-adapter layer; Gemini thinking is pinned off and the token limit is 8192 so lessons are not truncated; the status is checked before parsing, transient failures are retried once, the JSON is found by brace matching, and a failure falls back to a library lesson for the level (see the lesson section); the server rate-limits generation per student (10 an hour).
 - **Recordings** are stored under `FluentPath Audios/<student>/<Lesson n or Placement Test>` and are readable only through the teacher-only `get_audio`.
 - **Delete a student** removes their rows from every tab and moves their Drive folder to the Drive trash (about 30 days there); the daily spreadsheet backups (7 kept) keep a copy until they rotate out.
 - **Topic requests** are suggestions: approved topics reach the lesson prompt as a preference, never as an instruction.

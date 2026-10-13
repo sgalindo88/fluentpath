@@ -50,7 +50,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.57.0';
+var BACKEND_VERSION = '0.58.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -124,8 +124,11 @@ var AI_PROVIDERS = {
     },
     extractText: function(body) {
       aiCheckFinishReason('anthropic', body && body.stop_reason, body && body.usage);
-      var c = body && body.content && body.content[0];
-      return c && c.type === 'text' && c.text;
+      // BE-6: a reply can be several content blocks (text, thinking, tool use). Join the text ones.
+      var blocks = (body && Array.isArray(body.content)) ? body.content : [];
+      var text = blocks.filter(function(b) { return b && b.type === 'text' && typeof b.text === 'string'; })
+                       .map(function(b) { return b.text; }).join('');
+      return text || null;
     },
     extractError: function(body, code) {
       return (body && body.error && body.error.message) || ('HTTP ' + code);
@@ -177,11 +180,11 @@ function aiCheckFinishReason(provider, reason, usage) {
   var detail = ' (' + provider + ', finish=' + reason +
     (usage ? ', usage=' + JSON.stringify(usage) : '') + ')';
   if (AI_TRUNCATED_REASONS[reason]) {
-    throw new Error('AI response hit the output token limit before finishing' + detail +
+    throw aiError('ai_truncated', 'AI response hit the output token limit before finishing' + detail +
       '. Raise AI_MAX_TOKENS (currently ' + AI_MAX_TOKENS + ') or lower AI_THINKING_BUDGET.');
   }
   if (AI_BLOCKED_REASONS[reason]) {
-    throw new Error('AI refused to complete the response' + detail + '.');
+    throw aiError('ai_blocked', 'AI refused to complete the response' + detail + '.');
   }
 }
 
@@ -203,20 +206,90 @@ function aiGenerate(prompt, wantJson) {
   var model = props.getProperty('AI_MODEL') || AI_DEFAULT_MODEL;
   var req   = adapter.buildRequest(apiKey, model, prompt, AI_MAX_TOKENS, wantJson);
 
-  var resp = UrlFetchApp.fetch(req.url, req.options);
-  var code = resp.getResponseCode();
-  var body = JSON.parse(resp.getContentText());
+  var reply = aiFetch(req, provider);
+  var code = reply.code;
+  // BE-6: look at the status BEFORE parsing. An error page (HTML from a gateway, an empty
+  // body) used to die in JSON.parse with "Unexpected token <" and hide the real problem.
+  var body = null;
+  try { body = JSON.parse(reply.text); } catch (parseErr) { body = null; }
 
-  if (code >= 400) throw new Error('AI API error (' + provider + '): ' + adapter.extractError(body, code));
+  if (code >= 400) {
+    var why = body ? adapter.extractError(body, code)
+                   : 'HTTP ' + code + ' (not JSON: ' + String(reply.text).replace(/\s+/g, ' ').slice(0, 120) + ')';
+    throw aiError(code === 429 ? 'ai_rate_limited' : 'ai_unavailable', 'AI API error (' + provider + '): ' + why);
+  }
+  if (!body) {
+    throw aiError('ai_unavailable', 'AI API returned something that is not JSON (' + provider + ', HTTP ' + code + '): ' +
+      String(reply.text).replace(/\s+/g, ' ').slice(0, 120));
+  }
 
   var text = adapter.extractText(body);
-  if (!text) throw new Error('AI API returned no text content (' + provider + ')');
+  if (!text) throw aiError('ai_invalid', 'AI API returned no text content (' + provider + ')');
   return text;
+}
+
+/** An Error with a short machine code the lesson endpoint passes to the student page. */
+function aiError(code, message) {
+  var e = new Error(message);
+  e.code = code;
+  return e;
+}
+
+// BE-6: providers answer 429 and 5xx now and then, and a lesson is something a student is
+// waiting for. Retry ONCE, after a short pause, on those and on a network failure; never on a
+// 4xx that retrying cannot fix (bad key, bad request).
+var AI_TRANSIENT_CODES = { 408: true, 429: true, 500: true, 502: true, 503: true, 504: true };
+var AI_RETRY_DELAY_MS = 1500;
+
+function aiFetch(req, provider) {
+  var attempt = 0;
+  while (true) {
+    attempt++;
+    var resp;
+    try {
+      resp = UrlFetchApp.fetch(req.url, req.options);
+    } catch (netErr) {
+      if (attempt < 2) { Utilities.sleep(AI_RETRY_DELAY_MS); continue; }
+      throw aiError('ai_unavailable', 'AI API unreachable (' + provider + '): ' + netErr.message);
+    }
+    var code = resp.getResponseCode();
+    if (AI_TRANSIENT_CODES[code] && attempt < 2) { Utilities.sleep(AI_RETRY_DELAY_MS); continue; }
+    return { code: code, text: resp.getContentText() };
+  }
 }
 
 // Strip a leading/trailing markdown code fence the model may have added around JSON.
 function stripJsonFences(text) {
   return String(text).replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+}
+
+/**
+ * BE-6: parse the JSON object in a model reply. Tries the whole text first; if the model wrapped
+ * the JSON in chatter ("Here is your lesson: {...} Hope this helps!") it finds the first complete
+ * top-level object by matching braces (aware of strings and escapes) and parses that.
+ */
+function extractJsonObject(text) {
+  var t = stripJsonFences(text);
+  try { return JSON.parse(t); } catch (firstErr) { /* look for an object inside */ }
+  var start = t.indexOf('{');
+  if (start < 0) throw new Error('no JSON object found in the reply');
+  var depth = 0, inStr = false, esc = false;
+  for (var i = start; i < t.length; i++) {
+    var ch = t.charAt(i);
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return JSON.parse(t.slice(start, i + 1));
+    }
+  }
+  throw new Error('the JSON object in the reply is not closed (truncated?)');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1643,7 +1716,13 @@ var GET_HANDLERS = {
     enforceCourseAccess(session, p.student);
     // N-9: level, day and topic are decided here, never taken from the client.
     var req = validateCourseRequest(session, p.student, p.level, p.day);
-    enforceAiRateLimit('lesson', rateLimitSubject(session, p.student), AI_LESSON_MAX_PER_HOUR);
+    try {
+      enforceAiRateLimit('lesson', rateLimitSubject(session, p.student), AI_LESSON_MAX_PER_HOUR);
+    } catch (limitErr) {
+      // The page shows its own message for this (it is not "the generator is down").
+      logError('generate_lesson', p.student, limitErr.message, { level: req.level, day: req.day });
+      return { error: limitErr.message, error_code: 'rate_limited' };
+    }
     var spanish = (req.level === 'A1' || req.level === 'A2'); // also derived: the flag changes what is stored in the shared library
     return handleGenerateLesson(req.level, req.day, topicForDay(req.level, req.day), spanish, p.student);
   },
@@ -2734,7 +2813,8 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
   }
 
   if (!PropertiesService.getScriptProperties().getProperty('AI_API_KEY')) {
-    return { error: 'AI_API_KEY not set in Script Properties' };
+    logError('generate_lesson', studentName || '', 'AI_API_KEY not set in Script Properties', { level: level, day: day });
+    return lessonFallbackOrError(level, day, { code: 'ai_unavailable', error: 'AI_API_KEY not set in Script Properties' });
   }
 
   // Load teacher's difficulty profile for this student (if any)
@@ -2794,45 +2874,99 @@ function handleGenerateLesson(level, day, topic, allowSpanish, studentName) {
 
   // ── Fresh generation ────────────────────────────────
   var prompt = buildLessonPrompt(level, day, topic, allowSpanish, difficulty, studentName);
+  var failure = null; // { code, error }: why a fresh lesson could not be served
 
   try {
-    // Strip markdown code fences if the model wrapped the JSON despite instructions
-    var text = stripJsonFences(aiGenerate(prompt, true));
+    // BE-6: extractJsonObject strips code fences AND finds the object if the model added chatter.
+    var text = aiGenerate(prompt, true);
 
-    var lesson;
-    try { lesson = JSON.parse(text); }
+    var lesson = null;
+    try { lesson = extractJsonObject(text); }
     catch (parseErr) {
       // AI-1f: the student only ever saw "tell your teacher the lesson
       // generator is unavailable". Put it somewhere the teacher actually looks.
       logError('generate_lesson', studentName || '',
         'Could not parse lesson JSON: ' + parseErr.message,
         { level: level, day: day, chars: text.length, tail: text.slice(-120) });
-      return { error: 'Could not parse lesson JSON: ' + parseErr.message };
+      failure = { code: 'ai_invalid', error: 'Could not parse lesson JSON: ' + parseErr.message };
     }
 
-    // N-9: an incomplete lesson is neither served nor cached. The student gets
-    // the offline fallback and the teacher sees why in the Error Log.
-    if (!isValidLesson(lesson)) {
+    // N-9: an incomplete lesson is neither served nor cached. The teacher sees why in the Error Log.
+    if (lesson && !isValidLesson(lesson)) {
       logError('generate_lesson', studentName || '', 'Generated lesson failed validation (missing or malformed section)',
         { level: level, day: day, keys: Object.keys(lesson || {}).join(',') });
-      return { error: 'Generated lesson was incomplete' };
+      failure = { code: 'ai_invalid', error: 'Generated lesson was incomplete' };
+      lesson = null;
     }
 
-    // Decision 6: custom-instructed lessons never enter the library
-    if (!hasCustomInstructions) {
-      try { addToLibrary(level, day, lesson, difficulty || {}, studentName); } catch (e) {
-        console.warn('Library write failed (non-fatal): ' + e.message);
+    if (lesson) {
+      // Decision 6: custom-instructed lessons never enter the library
+      if (!hasCustomInstructions) {
+        try { addToLibrary(level, day, lesson, difficulty || {}, studentName); } catch (e) {
+          console.warn('Library write failed (non-fatal): ' + e.message);
+        }
       }
+      return { found: true, lesson: lesson, source: 'fresh' };
     }
-
-    return { found: true, lesson: lesson, source: 'fresh' };
   } catch (err) {
     // AI-1f: includes the finish-reason detail from aiCheckFinishReason, so a
     // budget problem is legible in the Error Log without re-running a probe.
     logError('generate_lesson', studentName || '', 'Lesson generation failed: ' + err.message,
-      { level: level, day: day, spanish: !!allowSpanish });
-    return { error: 'Lesson generation failed: ' + err.message };
+      { level: level, day: day, spanish: !!allowSpanish, code: err.code || '' });
+    failure = { code: err.code || 'ai_unavailable', error: 'Lesson generation failed: ' + err.message };
   }
+
+  return lessonFallbackOrError(level, day, failure);
+}
+
+/**
+ * AI-1f part 2: when a fresh lesson cannot be made, serve a real lesson from the shared library
+ * for the SAME level (nearest day first) instead of making the student's page fall back to a
+ * level-agnostic built-in. Flagged `fallback: true` so the page can say so and the teacher is told.
+ * With nothing in the library the caller gets the error and its code, and the page shows its own
+ * built-in lesson for the level. A fallback is never written back to the library.
+ */
+function lessonFallbackOrError(level, day, failure) {
+  try {
+    var fb = libraryFallbackLesson(level, day);
+    if (fb) {
+      return { found: true, lesson: fb.lesson, source: 'library-fallback', fallback: true,
+               fallback_reason: failure.code, fallback_day: fb.day };
+    }
+  } catch (fbErr) {
+    console.warn('Library fallback failed (non-fatal): ' + fbErr.message);
+  }
+  return { error: failure.error, error_code: failure.code };
+}
+
+/** The active, valid library lesson for `level` whose day is closest to `day` (ties: least served). */
+function libraryFallbackLesson(level, day) {
+  var sheet = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
+  if (sheet.getLastRow() < 2) return null;
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  var col = {};
+  ['level', 'day', 'is_active', 'times_served', 'lesson_json'].forEach(function(c) { col[c] = headerRow.indexOf(c); });
+  if (col.level < 0 || col.day < 0 || col.lesson_json < 0) return null;
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, headerRow.length).getValues();
+  var targetLevel = String(level).trim();
+  var targetDay = parseInt(day, 10) || 1;
+  var best = null;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r[col.level]).trim() !== targetLevel) continue;
+    if (col.is_active >= 0 && String(r[col.is_active]).trim() === 'false') continue;
+    var d = parseInt(r[col.day], 10);
+    if (!d) continue;
+    var dist = Math.abs(d - targetDay);
+    var served = col.times_served >= 0 ? (parseInt(r[col.times_served], 10) || 0) : 0;
+    if (best && (dist > best.dist || (dist === best.dist && served >= best.served))) continue;
+    var lesson;
+    try { lesson = JSON.parse(String(r[col.lesson_json])); } catch (e) { continue; }
+    if (!isValidLesson(lesson)) continue;
+    best = { dist: dist, served: served, day: d, lesson: lesson };
+  }
+  return best;
 }
 
 /** Build the lesson prompt sent to the AI provider. Mirrors the structure expected by student-course.html. */
@@ -3338,7 +3472,7 @@ function rewriteLessonForDifficulty(sourceLesson, targetDifficulty, level, day) 
     (guidance ? 'TARGET DIFFICULTY:\n' + guidance + '\n\n' : '') +
     'LEVEL: ' + level + '  DAY: ' + day;
 
-  return JSON.parse(stripJsonFences(aiGenerate(prompt, true)));
+  return extractJsonObject(aiGenerate(prompt, true));
 }
 
 

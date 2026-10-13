@@ -4,6 +4,14 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.58.0] - 2026-10-13
+
+### Fixed — Lessons when the AI misbehaves (Phase E batch A: BE-6, N-22, AI-1f part 2; backend 0.58.0)
+- **Provider hardening (BE-6):** the HTTP status is read before the body is parsed, so a gateway error page now reports "HTTP 502" instead of "Unexpected token <"; one retry after 1.5 s on a network failure, 408, 429 or 5xx (never on a 4xx that retrying cannot fix); an Anthropic reply of several content blocks is joined; the lesson JSON is found by matching braces when the model adds chatter around it (`extractJsonObject`); failures carry a code (`ai_unavailable`, `ai_rate_limited`, `ai_truncated`, `ai_blocked`, `ai_invalid`).
+- **Level-aware fallback (AI-1f part 2):** if a fresh lesson cannot be made, `generate_lesson` serves a valid lesson from the shared library for the SAME level (nearest day, least served on a tie), flagged `fallback: true` with the reason; it is never written back to the library and never cached on the device. With an empty library the page shows a built-in lesson for the level: new bilingual A1 and A2 lessons (`src/scripts/lesson-fallbacks.js`, two each), the existing five for B1 and above.
+- **Honest notices (N-22):** the lesson page distinguishes "generator unavailable" (built-in lesson), "stand-by lesson for your level" (library fallback) and "too many lessons in the last hour" (the rate limit now returns `error_code: rate_limited` instead of an error that looked like an outage); all bilingual. The "taking longer than expected" message appears after 25 s and the request gives up after 75 s (it was 45 s and 60 s, which could contradict each other).
+- A missing `AI_API_KEY` is now written to the Error Log and also falls back.
+
 ## [0.57.0] - 2026-10-13
 
 ### Added — Archive and permanently delete a student (backend 0.57.0 = Apps Script v65)

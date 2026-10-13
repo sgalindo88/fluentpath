@@ -1,153 +1,263 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>FluentPath · Daily lesson</title>
-<link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#1E2A38">
-<link rel="apple-touch-icon" href="../apple-touch-icon.png">
-<link rel="manifest" href="../manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FluentPath">
-<link rel="stylesheet" href="styles/tokens.css">
-<link rel="stylesheet" href="styles/theme.css">
-<link rel="stylesheet" href="styles/components.css">
-<link rel="stylesheet" href="styles/student-lesson.css">
-<link rel="stylesheet" href="styles/mobile.css">
-<script src="scripts/config.js"></script>
-<script src="scripts/icons.js"></script>
-<script src="scripts/api.js"></script>
-<script src="scripts/utils.js"></script>
-<script src="scripts/ui.js"></script>
-<script src="scripts/checkpoint.js"></script>
-</head>
-<body>
-
-<header class="fp-header lesson-header">
-  <a class="lesson-home" href="../app.html" aria-label="FluentPath">
-    <img class="fp-logo" src="img/logo-primary-horizontal.svg" alt="FluentPath">
-  </a>
-  <div class="lesson-header__meta">
-    <span class="fp-badge nav-day-badge fp-hidden" id="navDay"></span>
-    <span class="nav-timer fp-hidden" id="navTimer" role="timer" aria-live="off" aria-label="Time left" data-label-es="Tiempo restante">1:30:00</span>
-    <button class="fp-btn fp-btn--secondary nav-pause fp-hidden" id="navPause" type="button" onclick="togglePause()" aria-label="Pause lesson" data-label-es="Pausar la lección"><i data-icon="pause"></i></button>
-  </div>
-</header>
-
-<main class="main" id="main">
-
-<!-- ══════════════════ SCREEN: LANDING ══════════════════ -->
-<div class="screen active" id="screen-landing">
-  <div class="landing">
-    <p class="eyebrow">Daily lesson<span class="fp-bi__es" lang="es">Lección diaria</span></p>
-    <h1>Your path to better English<span class="fp-bi__es" lang="es">Tu camino hacia un mejor inglés</span></h1>
-    <p class="landing-sub">Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation and speaking, at your pace.<span class="fp-bi__es" lang="es">Lecciones diarias paso a paso para adultos ocupados. Vocabulario, pronunciación y conversación, a tu ritmo.</span></p>
-
-    <div class="student-form">
-      <div class="fp-field">
-        <label class="fp-label" for="studentName">Your name<span class="fp-bi__es" lang="es">Tu nombre</span></label>
-        <input class="fp-input" type="text" id="studentName" readonly>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FluentPath · Daily lesson</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1E2A38" />
+    <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+    <link rel="manifest" href="../manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FluentPath" />
+    <link rel="stylesheet" href="styles/tokens.css" />
+    <link rel="stylesheet" href="styles/theme.css" />
+    <link rel="stylesheet" href="styles/components.css" />
+    <link rel="stylesheet" href="styles/student-lesson.css" />
+    <link rel="stylesheet" href="styles/mobile.css" />
+    <script src="scripts/config.js"></script>
+    <script src="scripts/icons.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/checkpoint.js"></script>
+  </head>
+  <body>
+    <header class="fp-header lesson-header">
+      <a class="lesson-home" href="../app.html" aria-label="FluentPath">
+        <img class="fp-logo" src="img/logo-primary-horizontal.svg" alt="FluentPath" />
+      </a>
+      <div class="lesson-header__meta">
+        <span class="fp-badge nav-day-badge fp-hidden" id="navDay"></span>
+        <span
+          class="nav-timer fp-hidden"
+          id="navTimer"
+          role="timer"
+          aria-live="off"
+          aria-label="Time left"
+          data-label-es="Tiempo restante"
+          >1:30:00</span
+        >
+        <button
+          class="fp-btn fp-btn--secondary nav-pause fp-hidden"
+          id="navPause"
+          type="button"
+          onclick="togglePause()"
+          aria-label="Pause lesson"
+          data-label-es="Pausar la lección"
+        >
+          <i data-icon="pause"></i>
+        </button>
       </div>
-      <div class="fp-field">
-        <label class="fp-label" for="lessonDate">Today's date<span class="fp-bi__es" lang="es">Fecha de hoy</span></label>
-        <input class="fp-input" type="date" id="lessonDate" readonly>
+    </header>
+
+    <main class="main" id="main">
+      <!-- ══════════════════ SCREEN: LANDING ══════════════════ -->
+      <div class="screen active" id="screen-landing">
+        <div class="landing">
+          <p class="eyebrow">Daily lesson<span class="fp-bi__es" lang="es">Lección diaria</span></p>
+          <h1>Your path to better English<span class="fp-bi__es" lang="es">Tu camino hacia un mejor inglés</span></h1>
+          <p class="landing-sub">
+            Step-by-step daily lessons built for busy adults. Vocabulary, pronunciation and speaking, at your pace.<span
+              class="fp-bi__es"
+              lang="es"
+              >Lecciones diarias paso a paso para adultos ocupados. Vocabulario, pronunciación y conversación, a tu
+              ritmo.</span
+            >
+          </p>
+
+          <div class="student-form">
+            <div class="fp-field">
+              <label class="fp-label" for="studentName"
+                >Your name<span class="fp-bi__es" lang="es">Tu nombre</span></label
+              >
+              <input class="fp-input" type="text" id="studentName" readonly />
+            </div>
+            <div class="fp-field">
+              <label class="fp-label" for="lessonDate"
+                >Today's date<span class="fp-bi__es" lang="es">Fecha de hoy</span></label
+              >
+              <input class="fp-input" type="date" id="lessonDate" readonly />
+            </div>
+          </div>
+
+          <div id="levelInstruction" class="fp-banner fp-banner--info level-instruction" role="status">
+            <i data-icon="lightbulb" data-icon-class="fp-banner__icon"></i>
+            <div class="fp-banner__body">
+              Your level is set by your teacher.<span class="fp-bi__es" lang="es">Tu profesor define tu nivel.</span>
+            </div>
+          </div>
+
+          <ul class="level-grid" aria-label="Levels" data-label-es="Niveles">
+            <li class="fp-tile is-locked level-card" data-level="A1" aria-disabled="true">
+              <div class="lc-badge">A1</div>
+              <div class="lc-name">Beginner<span class="fp-bi__es" lang="es">Principiante</span></div>
+              <div class="lc-theme">Everyday Survival<span class="fp-bi__es" lang="es">Vida diaria</span></div>
+            </li>
+            <li class="fp-tile is-locked level-card" data-level="A2" aria-disabled="true">
+              <div class="lc-badge">A2</div>
+              <div class="lc-name">Elementary<span class="fp-bi__es" lang="es">Elemental</span></div>
+              <div class="lc-theme">Community &amp; Life<span class="fp-bi__es" lang="es">Comunidad y vida</span></div>
+            </li>
+            <li class="fp-tile is-locked level-card" data-level="B1" aria-disabled="true">
+              <div class="lc-badge">B1</div>
+              <div class="lc-name">Intermediate<span class="fp-bi__es" lang="es">Intermedio</span></div>
+              <div class="lc-theme">The Workplace<span class="fp-bi__es" lang="es">El trabajo</span></div>
+            </li>
+            <li class="fp-tile is-locked level-card" data-level="B2" aria-disabled="true">
+              <div class="lc-badge">B2</div>
+              <div class="lc-name">Upper-Intermediate<span class="fp-bi__es" lang="es">Intermedio alto</span></div>
+              <div class="lc-theme">
+                Career &amp; Society<span class="fp-bi__es" lang="es">Carrera y sociedad</span>
+              </div>
+            </li>
+            <li class="fp-tile is-locked level-card" data-level="C1" aria-disabled="true">
+              <div class="lc-badge">C1</div>
+              <div class="lc-name">Advanced<span class="fp-bi__es" lang="es">Avanzado</span></div>
+              <div class="lc-theme">
+                Professional Mastery<span class="fp-bi__es" lang="es">Dominio profesional</span>
+              </div>
+            </li>
+            <li class="fp-tile is-locked level-card" data-level="C2" aria-disabled="true">
+              <div class="lc-badge">C2</div>
+              <div class="lc-name">Proficiency<span class="fp-bi__es" lang="es">Dominio total</span></div>
+              <div class="lc-theme">Full Fluency<span class="fp-bi__es" lang="es">Fluidez total</span></div>
+            </li>
+          </ul>
+
+          <button
+            class="fp-btn fp-btn--primary fp-btn--block lesson-begin"
+            id="btnBeginLesson"
+            type="button"
+            onclick="startCourse()"
+          >
+            <span class="fp-bi"
+              >Begin today's lesson<span class="fp-bi__es" lang="es">Comenzar la lección de hoy</span></span
+            ><i data-icon="arrow_right_alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ══════════════════ SCREEN: LESSON ══════════════════ -->
+      <div class="screen" id="screen-lesson">
+        <div class="lesson-head">
+          <div class="lesson-head-row">
+            <div class="lesson-label" id="lessonLabel"></div>
+            <div class="step-count" id="stepCountLabel" aria-live="polite"></div>
+          </div>
+          <div
+            class="fp-steps"
+            id="stepDots"
+            role="progressbar"
+            aria-valuemin="1"
+            aria-valuemax="7"
+            aria-valuenow="1"
+            aria-label="Lesson progress"
+            data-label-es="Progreso de la lección"
+          ></div>
+        </div>
+
+        <div id="lessonNotice" class="lesson-notice"></div>
+
+        <div class="step-header" id="stepHeader">
+          <div class="step-number" id="stepNumBadge">1</div>
+          <div class="step-info">
+            <div class="step-type" id="stepTypeLabel"></div>
+            <h2 class="step-title" id="stepTitleLabel"></h2>
+          </div>
+        </div>
+
+        <div class="activity-wrap" id="activityWrap">
+          <div class="lesson-wait"><span class="fp-spinner" aria-hidden="true"></span></div>
+        </div>
+
+        <aside class="fp-card lesson-help" aria-labelledby="helpTitle">
+          <div class="lesson-help__text">
+            <h3 class="lesson-help__title" id="helpTitle">
+              Stuck on something?<span class="fp-bi__es" lang="es">¿Necesitas ayuda?</span>
+            </h3>
+            <p>
+              Ask your teacher for a video call.<span class="fp-bi__es" lang="es"
+                >Pide una videollamada a tu profesor.</span
+              >
+            </p>
+          </div>
+          <div id="callSlot"></div>
+        </aside>
+
+        <div class="lesson-nav fp-hidden" id="lessonNav">
+          <button
+            class="fp-btn fp-btn--primary fp-btn--block btn-next"
+            type="button"
+            onclick="nextStep()"
+            id="btnNext"
+          ></button>
+        </div>
+      </div>
+
+      <!-- ══════════════════ SCREEN: COMPLETE ══════════════════ -->
+      <div class="screen" id="screen-complete">
+        <div class="lesson-complete">
+          <div class="lc-star"><i data-icon="celebration" data-icon-size="lg"></i></div>
+          <h1 class="lc-title">Lesson complete!<span class="fp-bi__es" lang="es">¡Lección completada!</span></h1>
+          <p class="lc-sub" id="completeMsg">
+            Great work today. You finished all the activities.<span class="fp-bi__es" lang="es"
+              >Excelente trabajo hoy. Terminaste todas las actividades.</span
+            >
+          </p>
+          <div class="lc-stats">
+            <div class="lc-stat">
+              <div class="lc-stat-val" id="stat-time">—</div>
+              <div class="lc-stat-lbl">Time spent<span class="fp-bi__es" lang="es">Tiempo</span></div>
+            </div>
+            <div class="lc-stat">
+              <div class="lc-stat-val" id="stat-steps">—</div>
+              <div class="lc-stat-lbl">Activities done<span class="fp-bi__es" lang="es">Actividades</span></div>
+            </div>
+            <div class="lc-stat">
+              <div class="lc-stat-val" id="stat-day">—</div>
+              <div class="lc-stat-lbl">Course day<span class="fp-bi__es" lang="es">Día del curso</span></div>
+            </div>
+          </div>
+          <div class="save-status" id="saveStatus" role="status" aria-live="polite"></div>
+          <a
+            href="../app.html"
+            class="fp-btn fp-btn--primary fp-btn--block btn-view-progress fp-hidden"
+            id="btnViewProgress"
+            ><span class="fp-bi"
+              >View progress and next lesson<span class="fp-bi__es" lang="es"
+                >Ver tu progreso y la próxima lección</span
+              ></span
+            ><i data-icon="arrow_right_alt"></i
+          ></a>
+        </div>
+      </div>
+    </main>
+
+    <!-- Pause dialog -->
+    <div class="fp-scrim" id="fp-pause-overlay">
+      <div class="fp-modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+        <h2 class="fp-modal__title" id="pauseTitle">Paused<span class="fp-bi__es" lang="es">En pausa</span></h2>
+        <p class="pause-sub">
+          Your timer is paused. Tap Resume when you are ready.<span class="fp-bi__es" lang="es"
+            >Tu temporizador está en pausa. Toca Continuar cuando estés listo.</span
+          >
+        </p>
+        <button
+          class="fp-btn fp-btn--primary fp-btn--block pause-resume"
+          id="pauseResume"
+          type="button"
+          onclick="togglePause()"
+        >
+          <i data-icon="play_arrow"></i
+          ><span class="fp-bi">Resume<span class="fp-bi__es" lang="es">Continuar</span></span>
+        </button>
       </div>
     </div>
 
-    <div id="levelInstruction" class="fp-banner fp-banner--info level-instruction" role="status">
-      <i data-icon="lightbulb" data-icon-class="fp-banner__icon"></i>
-      <div class="fp-banner__body">Your level is set by your teacher.<span class="fp-bi__es" lang="es">Tu profesor define tu nivel.</span></div>
-    </div>
-
-    <ul class="level-grid" aria-label="Levels" data-label-es="Niveles">
-      <li class="fp-tile is-locked level-card" data-level="A1" aria-disabled="true"><div class="lc-badge">A1</div><div class="lc-name">Beginner<span class="fp-bi__es" lang="es">Principiante</span></div><div class="lc-theme">Everyday Survival<span class="fp-bi__es" lang="es">Vida diaria</span></div></li>
-      <li class="fp-tile is-locked level-card" data-level="A2" aria-disabled="true"><div class="lc-badge">A2</div><div class="lc-name">Elementary<span class="fp-bi__es" lang="es">Elemental</span></div><div class="lc-theme">Community &amp; Life<span class="fp-bi__es" lang="es">Comunidad y vida</span></div></li>
-      <li class="fp-tile is-locked level-card" data-level="B1" aria-disabled="true"><div class="lc-badge">B1</div><div class="lc-name">Intermediate<span class="fp-bi__es" lang="es">Intermedio</span></div><div class="lc-theme">The Workplace<span class="fp-bi__es" lang="es">El trabajo</span></div></li>
-      <li class="fp-tile is-locked level-card" data-level="B2" aria-disabled="true"><div class="lc-badge">B2</div><div class="lc-name">Upper-Intermediate<span class="fp-bi__es" lang="es">Intermedio alto</span></div><div class="lc-theme">Career &amp; Society<span class="fp-bi__es" lang="es">Carrera y sociedad</span></div></li>
-      <li class="fp-tile is-locked level-card" data-level="C1" aria-disabled="true"><div class="lc-badge">C1</div><div class="lc-name">Advanced<span class="fp-bi__es" lang="es">Avanzado</span></div><div class="lc-theme">Professional Mastery<span class="fp-bi__es" lang="es">Dominio profesional</span></div></li>
-      <li class="fp-tile is-locked level-card" data-level="C2" aria-disabled="true"><div class="lc-badge">C2</div><div class="lc-name">Proficiency<span class="fp-bi__es" lang="es">Dominio total</span></div><div class="lc-theme">Full Fluency<span class="fp-bi__es" lang="es">Fluidez total</span></div></li>
-    </ul>
-
-    <button class="fp-btn fp-btn--primary fp-btn--block lesson-begin" id="btnBeginLesson" type="button" onclick="startCourse()"><span class="fp-bi">Begin today's lesson<span class="fp-bi__es" lang="es">Comenzar la lección de hoy</span></span><i data-icon="arrow_right_alt"></i></button>
-  </div>
-</div>
-
-<!-- ══════════════════ SCREEN: LESSON ══════════════════ -->
-<div class="screen" id="screen-lesson">
-  <div class="lesson-head">
-    <div class="lesson-head-row">
-      <div class="lesson-label" id="lessonLabel"></div>
-      <div class="step-count" id="stepCountLabel" aria-live="polite"></div>
-    </div>
-    <div class="fp-steps" id="stepDots" role="progressbar" aria-valuemin="1" aria-valuemax="7" aria-valuenow="1" aria-label="Lesson progress" data-label-es="Progreso de la lección"></div>
-  </div>
-
-  <div id="lessonNotice" class="lesson-notice"></div>
-
-  <div class="step-header" id="stepHeader">
-    <div class="step-number" id="stepNumBadge">1</div>
-    <div class="step-info">
-      <div class="step-type" id="stepTypeLabel"></div>
-      <h2 class="step-title" id="stepTitleLabel"></h2>
-    </div>
-  </div>
-
-  <div class="activity-wrap" id="activityWrap">
-    <div class="lesson-wait"><span class="fp-spinner" aria-hidden="true"></span></div>
-  </div>
-
-  <aside class="fp-card lesson-help" aria-labelledby="helpTitle">
-    <div class="lesson-help__text">
-      <h3 class="lesson-help__title" id="helpTitle">Stuck on something?<span class="fp-bi__es" lang="es">¿Necesitas ayuda?</span></h3>
-      <p>Ask your teacher for a video call.<span class="fp-bi__es" lang="es">Pide una videollamada a tu profesor.</span></p>
-    </div>
-    <div id="callSlot"></div>
-  </aside>
-
-  <div class="lesson-nav fp-hidden" id="lessonNav">
-    <button class="fp-btn fp-btn--primary fp-btn--block btn-next" type="button" onclick="nextStep()" id="btnNext"></button>
-  </div>
-</div>
-
-<!-- ══════════════════ SCREEN: COMPLETE ══════════════════ -->
-<div class="screen" id="screen-complete">
-  <div class="lesson-complete">
-    <div class="lc-star"><i data-icon="celebration" data-icon-size="lg"></i></div>
-    <h1 class="lc-title">Lesson complete!<span class="fp-bi__es" lang="es">¡Lección completada!</span></h1>
-    <p class="lc-sub" id="completeMsg">Great work today. You finished all the activities.<span class="fp-bi__es" lang="es">Excelente trabajo hoy. Terminaste todas las actividades.</span></p>
-    <div class="lc-stats">
-      <div class="lc-stat">
-        <div class="lc-stat-val" id="stat-time">—</div>
-        <div class="lc-stat-lbl">Time spent<span class="fp-bi__es" lang="es">Tiempo</span></div>
-      </div>
-      <div class="lc-stat">
-        <div class="lc-stat-val" id="stat-steps">—</div>
-        <div class="lc-stat-lbl">Activities done<span class="fp-bi__es" lang="es">Actividades</span></div>
-      </div>
-      <div class="lc-stat">
-        <div class="lc-stat-val" id="stat-day">—</div>
-        <div class="lc-stat-lbl">Course day<span class="fp-bi__es" lang="es">Día del curso</span></div>
-      </div>
-    </div>
-    <div class="save-status" id="saveStatus" role="status" aria-live="polite"></div>
-    <a href="../app.html" class="fp-btn fp-btn--primary fp-btn--block btn-view-progress fp-hidden" id="btnViewProgress"><span class="fp-bi">View progress and next lesson<span class="fp-bi__es" lang="es">Ver tu progreso y la próxima lección</span></span><i data-icon="arrow_right_alt"></i></a>
-  </div>
-</div>
-
-</main>
-
-<!-- Pause dialog -->
-<div class="fp-scrim" id="fp-pause-overlay">
-  <div class="fp-modal" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
-    <h2 class="fp-modal__title" id="pauseTitle">Paused<span class="fp-bi__es" lang="es">En pausa</span></h2>
-    <p class="pause-sub">Your timer is paused. Tap Resume when you are ready.<span class="fp-bi__es" lang="es">Tu temporizador está en pausa. Toca Continuar cuando estés listo.</span></p>
-    <button class="fp-btn fp-btn--primary fp-btn--block pause-resume" id="pauseResume" type="button" onclick="togglePause()"><i data-icon="play_arrow"></i><span class="fp-bi">Resume<span class="fp-bi__es" lang="es">Continuar</span></span></button>
-  </div>
-</div>
-
-<script src="scripts/student-lesson.js"></script>
-<script src="scripts/call-request.js"></script>
-</body>
+    <script src="scripts/lesson-fallbacks.js"></script>
+    <script src="scripts/student-lesson.js"></script>
+    <script src="scripts/call-request.js"></script>
+  </body>
 </html>

@@ -375,7 +375,8 @@ async function beginLesson() {
   startTimer();
   showLessonChrome();
 
-  // Fetch AI lesson content with a 45-second safety timeout
+  // Fetch AI lesson content. The server may retry the provider once, so a slow lesson can take a
+  // while: say so after 25 s, and give up (built-in lesson) only after 75 s.
   $('activityWrap').innerHTML = waitMessage('Loading your personalised lesson…', 'Cargando tu lección personalizada…');
 
   var lessonTimeout = setTimeout(function () {
@@ -383,7 +384,7 @@ async function beginLesson() {
       'This is taking longer than expected. Please keep this page open.',
       'Esto está tardando más de lo esperado. Mantén esta página abierta.'
     );
-  }, 45000);
+  }, 25000);
 
   const lessonData = await generateLesson();
   clearTimeout(lessonTimeout);
@@ -428,6 +429,8 @@ async function generateLesson() {
     /* ignore parse errors */
   }
 
+  let fallbackKind = 'offline'; // which notice to show if no lesson comes back
+
   // 2. Call Apps Script → AI provider
   // Passing the student name lets apps-script fold the teacher's
   // difficulty profile, focus areas, and AI instructions into the prompt.
@@ -443,9 +446,15 @@ async function generateLesson() {
         'student=' + encodeURIComponent(state.studentName || ''),
       ].join('&');
 
-    const data = await FP.api.get(url, { timeout: 60000 });
+    const data = await FP.api.get(url, { timeout: 75000 });
 
     if (data && data.found && data.lesson && data.lesson.topic) {
+      if (data.fallback) {
+        // A stand-by lesson from the library for this level: shown, but never cached, so a later
+        // visit tries the generator again; the teacher is told through the notice and the Error Log.
+        showFallbackBanner('standby');
+        return data.lesson;
+      }
       try {
         localStorage.setItem(cacheKey, JSON.stringify(data.lesson));
       } catch (_) {}
@@ -454,6 +463,7 @@ async function generateLesson() {
 
     if (data && data.error) {
       console.warn('[FluentPath] Lesson generation error:', data.error);
+      if (data.error_code === 'rate_limited') fallbackKind = 'rate';
     } else {
       console.warn('[FluentPath] Lesson generation returned no lesson');
     }
@@ -461,22 +471,32 @@ async function generateLesson() {
     console.warn('[FluentPath] Lesson generation request failed:', e.message);
   }
 
-  // 3. Fallback — varied library, with a banner so the teacher notices AI is offline
-  showFallbackBanner();
+  // 3. Fallback — a built-in lesson for the level, with a notice so the teacher hears about it
+  showFallbackBanner(fallbackKind);
   return getFallbackLesson(state.level, state.dayNumber);
 }
 
-/** Tell the student (and, through them, the teacher) that the lesson generator is offline. In the page flow, under the step bar. */
-function showFallbackBanner() {
+/** Tell the student (and, through them, the teacher) why this is not their personalised lesson. In the page flow, under the step bar. */
+const FALLBACK_NOTICES = {
+  offline: [
+    'Offline lesson. Please tell your teacher the lesson generator is unavailable.',
+    'Lección sin conexión. Avisa a tu profesor que el generador de lecciones no está disponible.',
+  ],
+  standby: [
+    'This is a practice lesson for your level, because your personalised lesson could not be made. Please tell your teacher.',
+    'Esta es una lección de práctica para tu nivel, porque no se pudo crear tu lección personalizada. Avisa a tu profesor.',
+  ],
+  rate: [
+    'You asked for many lessons in the last hour, so this is a practice lesson for now. Come back later for your personalised lesson.',
+    'Pediste muchas lecciones en la última hora, así que esta es una lección de práctica por ahora. Vuelve más tarde para tu lección personalizada.',
+  ],
+};
+
+function showFallbackBanner(kind) {
   var box = $('lessonNotice');
   if (!box || box.firstChild) return;
-  box.innerHTML = bannerHtml(
-    'warning',
-    bi(
-      'Offline lesson. Please tell your teacher the lesson generator is unavailable.',
-      'Lección sin conexión. Avisa a tu profesor que el generador de lecciones no está disponible.'
-    )
-  );
+  var n = FALLBACK_NOTICES[kind] || FALLBACK_NOTICES.offline;
+  box.innerHTML = bannerHtml('warning', bi(n[0], n[1]));
 }
 
 // Five hand-curated fallback lessons that cycle by (day - 1) % 5.
@@ -1123,9 +1143,12 @@ const FALLBACK_LESSONS = [
 
 function getFallbackLesson(level, day) {
   const dayNum = parseInt(day, 10) || 1;
-  const idx = (dayNum - 1) % FALLBACK_LESSONS.length;
+  // A1 and A2 have their own bilingual beginner lessons (lesson-fallbacks.js); the rest use the five above.
+  const beginner = FP.fallbackLessons && FP.fallbackLessons[level];
+  const set = beginner && beginner.length ? beginner : FALLBACK_LESSONS;
+  const idx = (dayNum - 1) % set.length;
   // Return a deep clone so render code can't mutate the shared template across days
-  return JSON.parse(JSON.stringify(FALLBACK_LESSONS[idx]));
+  return JSON.parse(JSON.stringify(set[idx]));
 }
 
 // ══════════════════════════════════════════════════════

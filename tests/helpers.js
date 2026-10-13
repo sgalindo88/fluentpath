@@ -201,6 +201,7 @@ export function loadAppsScriptAuth(props = {}) {
   const cache = new Map();
   const ss = makeFakeSpreadsheet();
   let uuidN = 0;
+  const sleeps = []; // pauses Utilities.sleep was asked for (the AI retry delay)
 
   globalThis.SpreadsheetApp = { getActiveSpreadsheet: () => ss };
   globalThis.PropertiesService = {
@@ -239,6 +240,7 @@ export function loadAppsScriptAuth(props = {}) {
   globalThis.MailApp = { sendEmail: (opts) => { mail.push(opts); } };
   globalThis.Utilities = {
     getUuid: () => `uuid-${++uuidN}`,
+    sleep: (ms) => { sleeps.push(ms); },
     base64Encode: () => '',
     base64EncodeWebSafe: (s) => Buffer.from(String(s), 'utf8').toString('base64url'),
     base64DecodeWebSafe: (s) => [...Buffer.from(String(s), 'base64url')],
@@ -351,5 +353,9 @@ export function loadAppsScriptAuth(props = {}) {
     _lockLog: lockLog,
     _setFetch: (fn) => { fetchHandler = fn; },
     _mail: mail,
+    _sleeps: sleeps,
+    extractJsonObject: globalThis.extractJsonObject,
+    isValidLesson: globalThis.isValidLesson,
+    libraryFallbackLesson: globalThis.libraryFallbackLesson,
   };
 }

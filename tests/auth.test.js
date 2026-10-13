@@ -748,7 +748,11 @@ describe('SEC-2 — AI proxy rate limiting', () => {
     const session = { role: 'student', student_name: 'Maria' };
     // Burn the hourly allowance without invoking the (unmocked) AI provider.
     for (let i = 0; i < 10; i++) fp.enforceAiRateLimit('lesson', 's:maria', 10);
-    expect(() => fp.GET_HANDLERS.generate_lesson(params, session)).toThrow(/Rate limit exceeded/);
+    // not a throw any more: the lesson page gets a coded answer so it can say "too many requests" instead of "generator offline"
+    const out = fp.GET_HANDLERS.generate_lesson(params, session);
+    expect(out.error_code).toBe('rate_limited');
+    expect(out.error).toMatch(/Rate limit exceeded/);
+    expect(out.lesson).toBeUndefined();
   });
 
   it('the course-access check runs BEFORE the rate limit is spent', () => {
