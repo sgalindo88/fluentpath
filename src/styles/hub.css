@@ -507,3 +507,79 @@ a {
 .achieve-badge .fp-bi__es {
   font-weight: var(--font-weight-regular);
 }
+
+/* ── Header actions (Settings + Log out) ───────────────────── */
+.hub-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+@media (max-width: 479px) {
+  /* icon only on small phones; the button keeps its aria-label */
+  .hub-header-actions__label {
+    display: none;
+  }
+  .hub-header-actions .fp-btn {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+}
+
+/* ── Settings screen ───────────────────────────────────────── */
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.settings-card.hub-call {
+  flex-direction: column;
+}
+@media (min-width: 768px) {
+  .settings-card.hub-call {
+    flex-direction: row;
+  }
+}
+.focus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.focus-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1.5px solid var(--border-accessible);
+  border-radius: var(--radius-full);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.focus-chip .fp-bi {
+  display: flex;
+  flex-direction: column;
+}
+@media (hover: hover) {
+  .focus-chip:hover {
+    border-color: var(--fp-navy-900);
+  }
+}
+.focus-chip.is-selected {
+  border: 2px solid var(--fp-navy-900);
+  background: var(--surface-secondary);
+}
+.focus-chip:focus-visible {
+  outline: 3px solid var(--fp-coral-500);
+  outline-offset: 2px;
+}
+.focus-count {
+  align-self: flex-end;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

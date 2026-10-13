@@ -24,21 +24,65 @@ const OUT = resolve(ROOT, 'src/scripts/icons.js');
 // name → default fill. 51 design uses (icons-needed.md); `edit` and `description` are each used twice.
 const ICONS = {
   // Student path
-  mic: 0, stop: 1, pause: 0, volume_up: 0, menu_book: 0, edit: 0, record_voice_over: 0, headphones: 0,
-  light_mode: 0, fitness_center: 0, checklist: 0, check: 0, warning: 1,
+  mic: 0,
+  stop: 1,
+  pause: 0,
+  volume_up: 0,
+  menu_book: 0,
+  edit: 0,
+  record_voice_over: 0,
+  headphones: 0,
+  arrow_back: 0,
+  light_mode: 0,
+  fitness_center: 0,
+  checklist: 0,
+  check: 0,
+  warning: 1,
   keep: 0, // "Saved / resume" pin. The spec named push_pin, which is not in the package; `keep` is that pin glyph.
-  sentiment_frustrated: 0, sentiment_neutral: 0, sentiment_satisfied: 0, sentiment_very_satisfied: 0,
+  sentiment_frustrated: 0,
+  sentiment_neutral: 0,
+  sentiment_satisfied: 0,
+  sentiment_very_satisfied: 0,
   // Inline glyphs
-  arrow_right_alt: 0, arrow_left_alt: 0, check_small: 0, close_small: 0,
+  arrow_right_alt: 0,
+  arrow_left_alt: 0,
+  check_small: 0,
+  close_small: 0,
   // Student extras
-  videocam: 0, hourglass_top: 0, lightbulb: 0, target: 1, bar_chart: 1, description: 1,
-  local_fire_department: 1, star: 1, school: 1, order_approve: 1,
+  videocam: 0,
+  hourglass_top: 0,
+  lightbulb: 0,
+  target: 1,
+  bar_chart: 1,
+  description: 1,
+  local_fire_department: 1,
+  star: 1,
+  school: 1,
+  order_approve: 1,
   // Teacher
-  group: 0, monitoring: 0, calendar_month: 0, assignment: 0, tune: 0, trending_up: 0, auto_stories: 0,
-  person: 0, settings: 0, check_circle: 1, cancel: 1, mail: 0, save: 0, wand_stars: 0, recycling: 0,
-  download_2: 0, upload_2: 0,
+  group: 0,
+  monitoring: 0,
+  calendar_month: 0,
+  assignment: 0,
+  tune: 0,
+  trending_up: 0,
+  auto_stories: 0,
+  person: 0,
+  settings: 0,
+  check_circle: 1,
+  cancel: 1,
+  mail: 0,
+  save: 0,
+  wand_stars: 0,
+  recycling: 0,
+  download_2: 0,
+  upload_2: 0,
   // Lesson
-  play_arrow: 1, celebration: 1, lock: 0, replay: 0, menu: 0,
+  play_arrow: 1,
+  celebration: 1,
+  lock: 0,
+  replay: 0,
+  menu: 0,
 };
 
 function pathOf(file) {
@@ -53,7 +97,8 @@ function build() {
   for (const [name, filled] of Object.entries(ICONS)) {
     const o = resolve(PKG, 'rounded', name + '.svg');
     const f = resolve(PKG, 'rounded', name + '-fill.svg');
-    if (!existsSync(o) || !existsSync(f)) throw new Error(`Material Symbol "${name}" (outline + fill) not found in ${PKG}`);
+    if (!existsSync(o) || !existsSync(f))
+      throw new Error(`Material Symbol "${name}" (outline + fill) not found in ${PKG}`);
     entries.push(`  ${name}: [${filled}, '${pathOf(o)}', '${pathOf(f)}']`);
   }
   return `/* ═══════════════════════════════════════════════════════════════
@@ -131,5 +176,11 @@ if (check) {
   writeFileSync(OUT, next);
   mkdirSync(resolve(ROOT, 'src/icons'), { recursive: true });
   copyFileSync(resolve(PKG, 'LICENSE'), license);
-  console.log('[build-icons] wrote src/scripts/icons.js (' + Object.keys(ICONS).length + ' icons, ' + Math.round(next.length / 1024) + ' KB) and src/icons/LICENSE');
+  console.log(
+    '[build-icons] wrote src/scripts/icons.js (' +
+      Object.keys(ICONS).length +
+      ' icons, ' +
+      Math.round(next.length / 1024) +
+      ' KB) and src/icons/LICENSE'
+  );
 }

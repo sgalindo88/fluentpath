@@ -151,9 +151,17 @@
         <a class="hub-home" href="app.html" aria-label="FluentPath">
           <img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath" />
         </a>
-        <button type="button" class="fp-btn fp-btn--secondary" id="logoutBtn" onclick="logout()">
-          <span class="fp-bi">Log out<span class="fp-bi__es" lang="es">Cerrar sesión</span></span>
-        </button>
+        <div class="hub-header-actions">
+          <button type="button" class="fp-btn fp-btn--secondary" id="settingsBtn" aria-label="Settings / Ajustes">
+            <i data-icon="settings"></i
+            ><span class="hub-header-actions__label"
+              ><span class="fp-bi">Settings<span class="fp-bi__es" lang="es">Ajustes</span></span></span
+            >
+          </button>
+          <button type="button" class="fp-btn fp-btn--secondary" id="logoutBtn" onclick="logout()">
+            <span class="fp-bi">Log out<span class="fp-bi__es" lang="es">Cerrar sesión</span></span>
+          </button>
+        </div>
       </header>
 
       <main class="hub">
@@ -228,9 +236,61 @@
         </article>
 
         <section id="achievementsSection" style="display: none"></section>
+      </main>
+    </div>
 
-        <!-- Account: the student sets or resets their own password -->
-        <section class="fp-card hub-call" aria-labelledby="accountTitle">
+    <!-- ═══════════════════════════════════════════════════════════
+     SCREEN 4: Settings (what to practise, password)
+     ═══════════════════════════════════════════════════════════ -->
+    <div id="screen-settings" class="screen">
+      <header class="fp-header">
+        <a class="hub-home" href="app.html" aria-label="FluentPath">
+          <img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath" />
+        </a>
+        <button type="button" class="fp-btn fp-btn--secondary" id="settingsBackBtn">
+          <i data-icon="arrow_back"></i><span class="fp-bi">Back<span class="fp-bi__es" lang="es">Volver</span></span>
+        </button>
+      </header>
+
+      <main class="hub">
+        <section class="hub-hero">
+          <h1 class="hub-name">Settings <span class="fp-bi__es" lang="es">Ajustes</span></h1>
+        </section>
+
+        <section class="fp-card settings-card" aria-labelledby="focusTitle">
+          <h2 class="hub-card-title" id="focusTitle">
+            What do you want to practise? <span class="fp-bi__es" lang="es">¿Qué quieres practicar?</span>
+          </h2>
+          <p class="hub-desc">
+            Pick up to 5 topics. Your teacher will look at your request. If they say yes, your next lessons will use
+            these topics. They are suggestions only.
+            <span class="fp-bi__es" lang="es"
+              >Elige hasta 5 temas. Tu profesor revisará tu solicitud. Si la aprueba, tus próximas lecciones usarán
+              estos temas. Son solo sugerencias.</span
+            >
+          </p>
+          <div id="focusStatus" aria-live="polite"></div>
+          <div class="focus-chips" id="focusChips" role="group" aria-labelledby="focusTitle"></div>
+          <div class="fp-field">
+            <label class="fp-label" for="focusNote"
+              >Anything else? (optional)<span class="fp-bi__es" lang="es">¿Algo más? (opcional)</span></label
+            >
+            <textarea
+              class="fp-textarea"
+              id="focusNote"
+              rows="3"
+              maxlength="200"
+              placeholder="For example: I work in a kitchen / Por ejemplo: trabajo en una cocina"
+            ></textarea>
+            <div class="focus-count" id="focusCount" aria-hidden="true">0 / 200</div>
+          </div>
+          <div id="focusMsg" class="fp-hidden" role="alert"></div>
+          <button type="button" class="fp-btn fp-btn--primary" id="focusSend">
+            <span class="fp-bi">Send to my teacher<span class="fp-bi__es" lang="es">Enviar a mi profesor</span></span>
+          </button>
+        </section>
+
+        <section class="fp-card hub-call settings-card" aria-labelledby="accountTitle">
           <div>
             <h2 class="hub-card-title" id="accountTitle">
               Your password <span class="fp-bi__es" lang="es">Tu contraseña</span>
@@ -255,6 +315,7 @@
     <script src="src/scripts/utils.js"></script>
     <script src="src/scripts/ui.js"></script>
     <script src="src/scripts/hub.js"></script>
+    <script src="src/scripts/hub-settings.js"></script>
     <script src="src/scripts/call-request.js"></script>
     <script src="src/scripts/password-reset.js"></script>
   </body>

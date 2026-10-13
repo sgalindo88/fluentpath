@@ -10,7 +10,7 @@
      - Google Fonts: cache-first (long-lived)
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v19'; // bumped: Phase B foundation (tokens, Montserrat, components, icons, brand assets, network-first shell)
+var CACHE_VERSION = 'fp-v20'; // bumped: Phase B foundation (tokens, Montserrat, components, icons, brand assets, network-first shell)
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 // STUDENT-scoped: only the student site's files. The teacher dashboard lives in
@@ -39,6 +39,7 @@ var APP_SHELL = [
   './src/scripts/utils.js',
   './src/scripts/checkpoint.js',
   './src/scripts/hub.js',
+  './src/scripts/hub-settings.js',
   './src/scripts/student-test.js',
   './src/scripts/student-lesson.js',
   './src/scripts/call-request.js',
@@ -86,8 +87,12 @@ self.addEventListener('activate', function (event) {
     caches.keys().then(function (keys) {
       return Promise.all(
         keys
-          .filter(function (k) { return k !== CACHE_VERSION && k !== API_CACHE; })
-          .map(function (k) { return caches.delete(k); })
+          .filter(function (k) {
+            return k !== CACHE_VERSION && k !== API_CACHE;
+          })
+          .map(function (k) {
+            return caches.delete(k);
+          })
       );
     })
   );
@@ -145,7 +150,9 @@ var SHELL_NETWORK_TIMEOUT_MS = 4000;
 
 /** HTML, CSS and JS of the app itself (everything the page and its code are made of). */
 function isShellRequest(request, url) {
-  return request.mode === 'navigate' || /\.(html|css|js|webmanifest)$/.test(url.pathname) || url.pathname.slice(-1) === '/';
+  return (
+    request.mode === 'navigate' || /\.(html|css|js|webmanifest)$/.test(url.pathname) || url.pathname.slice(-1) === '/'
+  );
 }
 
 /**
@@ -157,74 +164,111 @@ function networkFirst(request, cacheName, timeoutMs) {
   var network = fetch(request).then(function (response) {
     if (response.ok) {
       var clone = response.clone();
-      caches.open(cacheName).then(function (cache) { cache.put(request, clone); });
+      caches.open(cacheName).then(function (cache) {
+        cache.put(request, clone);
+      });
     }
     return response;
   });
   var fallback = function () {
     return caches.match(request).then(function (cached) {
-      return cached || new Response('Offline — please reconnect and try again.', {
-        status: 503,
-        headers: { 'Content-Type': 'text/plain' },
-      });
+      return (
+        cached ||
+        new Response('Offline — please reconnect and try again.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain' },
+        })
+      );
     });
   };
   if (!timeoutMs) return network.catch(fallback);
   var timer;
   var timeout = new Promise(function (resolve) {
     timer = setTimeout(function () {
-      caches.match(request).then(function (cached) { resolve(cached || null); });
+      caches.match(request).then(function (cached) {
+        resolve(cached || null);
+      });
     }, timeoutMs);
   });
   return Promise.race([
-    network.then(function (r) { clearTimeout(timer); return r; }, function (e) { clearTimeout(timer); throw e; }),
+    network.then(
+      function (r) {
+        clearTimeout(timer);
+        return r;
+      },
+      function (e) {
+        clearTimeout(timer);
+        throw e;
+      }
+    ),
     timeout,
-  ]).then(function (r) { return r || network; }).catch(fallback);
+  ])
+    .then(function (r) {
+      return r || network;
+    })
+    .catch(fallback);
 }
 
 function cacheFirst(request, cacheName) {
-  return caches.match(request).then(function (cached) {
-    if (cached) return cached;
-    return fetch(request).then(function (response) {
-      if (response.ok) {
-        var clone = response.clone();
-        caches.open(cacheName).then(function (cache) { cache.put(request, clone); });
-      }
-      return response;
+  return caches
+    .match(request)
+    .then(function (cached) {
+      if (cached) return cached;
+      return fetch(request).then(function (response) {
+        if (response.ok) {
+          var clone = response.clone();
+          caches.open(cacheName).then(function (cache) {
+            cache.put(request, clone);
+          });
+        }
+        return response;
+      });
+    })
+    .catch(function () {
+      // Offline and not in cache — return a basic fallback
+      return new Response('Offline — please reconnect and try again.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' },
+      });
     });
-  }).catch(function () {
-    // Offline and not in cache — return a basic fallback
-    return new Response('Offline — please reconnect and try again.', {
-      status: 503,
-      headers: { 'Content-Type': 'text/plain' },
-    });
-  });
 }
 
 function staleWhileRevalidate(request) {
   return caches.open(API_CACHE).then(function (cache) {
     return cache.match(request).then(function (cached) {
-      var fetchPromise = fetch(request).then(function (response) {
-        if (response.ok) {
-          // Only cache successful API responses (skip error JSON like { error: "..." })
-          var cacheClone = response.clone();
-          var checkClone = response.clone();
-          checkClone.text().then(function (text) {
-            try {
-              var body = JSON.parse(text);
-              if (body.error) return; // don't cache error responses
-            } catch (e) { /* not JSON — cache it */ }
-            cache.put(request, cacheClone);
-          }).catch(function () { cache.put(request, cacheClone); });
-        }
-        return response;
-      }).catch(function () {
-        // Network failed — return cached or error
-        return cached || new Response(JSON.stringify({ error: 'Offline' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
+      var fetchPromise = fetch(request)
+        .then(function (response) {
+          if (response.ok) {
+            // Only cache successful API responses (skip error JSON like { error: "..." })
+            var cacheClone = response.clone();
+            var checkClone = response.clone();
+            checkClone
+              .text()
+              .then(function (text) {
+                try {
+                  var body = JSON.parse(text);
+                  if (body.error) return; // don't cache error responses
+                } catch (e) {
+                  /* not JSON — cache it */
+                }
+                cache.put(request, cacheClone);
+              })
+              .catch(function () {
+                cache.put(request, cacheClone);
+              });
+          }
+          return response;
+        })
+        .catch(function () {
+          // Network failed — return cached or error
+          return (
+            cached ||
+            new Response(JSON.stringify({ error: 'Offline' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          );
         });
-      });
 
       // Return cached immediately if available, otherwise wait for network
       return cached || fetchPromise;
@@ -243,8 +287,12 @@ function openPostQueue() {
         db.createObjectStore(POST_QUEUE_STORE, { keyPath: 'id', autoIncrement: true });
       }
     };
-    req.onsuccess = function (e) { resolve(e.target.result); };
-    req.onerror = function (e) { reject(e.target.error); };
+    req.onsuccess = function (e) {
+      resolve(e.target.result);
+    };
+    req.onerror = function (e) {
+      reject(e.target.error);
+    };
   });
 }
 
@@ -258,8 +306,12 @@ function queuePost(url, body, contentType) {
         contentType: contentType,
         timestamp: Date.now(),
       });
-      tx.oncomplete = function () { resolve(); };
-      tx.onerror = function (e) { reject(e.target.error); };
+      tx.oncomplete = function () {
+        resolve();
+      };
+      tx.onerror = function (e) {
+        reject(e.target.error);
+      };
     });
   });
 }
@@ -272,9 +324,18 @@ function queuePost(url, body, contentType) {
 // teacher was told "saved offline" about the step that sets a student's level.
 // Offline, the page must see a real network error and say so.
 var NO_QUEUE_ACTIONS = [
-  'login', 'logout', 'request_reset', 'reset_password', 'create_account',
-  'save_marks', 'update_settings', 'save_attendance', 'delete_library_entry',
-  'promote_student', 'send_call_link', 'ai_summary'
+  'login',
+  'logout',
+  'request_reset',
+  'reset_password',
+  'create_account',
+  'save_marks',
+  'update_settings',
+  'save_attendance',
+  'delete_library_entry',
+  'promote_student',
+  'send_call_link',
+  'ai_summary',
 ];
 var MAX_REPLAY_ATTEMPTS = 5;
 
@@ -282,10 +343,20 @@ var MAX_REPLAY_ATTEMPTS = 5;
 function isQueueable(url, body) {
   var text = String(body || '');
   var action = '';
-  try { action = new URL(url).searchParams.get('action') || ''; } catch (e) { /* ignore */ }
+  try {
+    action = new URL(url).searchParams.get('action') || '';
+  } catch (e) {
+    /* ignore */
+  }
   if (!action) {
     var m = /(?:^|&)action=([^&]*)/.exec(text);
-    if (m) { try { action = decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { action = m[1]; } }
+    if (m) {
+      try {
+        action = decodeURIComponent(m[1].replace(/\+/g, ' '));
+      } catch (e) {
+        action = m[1];
+      }
+    }
   }
   if (!action) {
     var j = /"action"\s*:\s*"([^"]*)"/.exec(text);
@@ -304,8 +375,12 @@ function readQueue() {
   return openPostQueue().then(function (db) {
     return new Promise(function (resolve, reject) {
       var req = db.transaction(POST_QUEUE_STORE, 'readonly').objectStore(POST_QUEUE_STORE).getAll();
-      req.onsuccess = function () { resolve(req.result || []); };
-      req.onerror = function (e) { reject(e.target.error); };
+      req.onsuccess = function () {
+        resolve(req.result || []);
+      };
+      req.onerror = function (e) {
+        reject(e.target.error);
+      };
     });
   });
 }
@@ -317,8 +392,12 @@ function writeQueue(mutate) {
     return new Promise(function (resolve, reject) {
       var tx = db.transaction(POST_QUEUE_STORE, 'readwrite');
       mutate(tx.objectStore(POST_QUEUE_STORE));
-      tx.oncomplete = function () { resolve(); };
-      tx.onerror = function (e) { reject(e.target.error); };
+      tx.oncomplete = function () {
+        resolve();
+      };
+      tx.onerror = function (e) {
+        reject(e.target.error);
+      };
     });
   });
 }
@@ -338,7 +417,11 @@ function classifyReplay(resp) {
   }
   return resp.text().then(function (text) {
     var body = null;
-    try { body = JSON.parse(text); } catch (e) { return 'done'; }
+    try {
+      body = JSON.parse(text);
+    } catch (e) {
+      return 'done';
+    }
     if (body && (body.error === 'Unauthorized' || body.message === 'Unauthorized')) return 'drop';
     if (body && (body.error || body.result === 'error')) return 'fail';
     return 'done';
@@ -351,52 +434,70 @@ var replayInFlight = null;
  *  events used to re-POST every item concurrently). Resolves { replayed, dropped }. */
 function replayQueue() {
   if (replayInFlight) return replayInFlight;
-  replayInFlight = doReplay().then(function (r) {
-    replayInFlight = null;
-    return r;
-  }, function (err) {
-    replayInFlight = null;
-    throw err;
-  });
+  replayInFlight = doReplay().then(
+    function (r) {
+      replayInFlight = null;
+      return r;
+    },
+    function (err) {
+      replayInFlight = null;
+      throw err;
+    }
+  );
   return replayInFlight;
 }
 
 function doReplay() {
   var result = { replayed: 0, dropped: 0 };
-  return readQueue().then(function (items) {
-    var chain = Promise.resolve();
-    items.forEach(function (item) {
-      chain = chain.then(function () {
-        return fetch(item.url, {
-          method: 'POST',
-          headers: { 'Content-Type': item.contentType },
-          body: item.body,
-        }).then(classifyReplay).then(function (outcome) {
-          if (outcome === 'done') {
-            result.replayed++;
-            return writeQueue(function (store) { store.delete(item.id); });
-          }
-          if (outcome === 'drop') {
-            result.dropped++;
-            return writeQueue(function (store) { store.delete(item.id); });
-          }
-          if (outcome === 'fail') {
-            var attempts = (item.attempts || 0) + 1;
-            if (attempts >= MAX_REPLAY_ATTEMPTS) {
-              result.dropped++;
-              return writeQueue(function (store) { store.delete(item.id); });
-            }
-            item.attempts = attempts;
-            return writeQueue(function (store) { store.put(item); });
-          }
-          // 'retry': leave it in the queue
-        }).catch(function () {
-          // Network error — still offline; leave in queue
+  return readQueue()
+    .then(function (items) {
+      var chain = Promise.resolve();
+      items.forEach(function (item) {
+        chain = chain.then(function () {
+          return fetch(item.url, {
+            method: 'POST',
+            headers: { 'Content-Type': item.contentType },
+            body: item.body,
+          })
+            .then(classifyReplay)
+            .then(function (outcome) {
+              if (outcome === 'done') {
+                result.replayed++;
+                return writeQueue(function (store) {
+                  store.delete(item.id);
+                });
+              }
+              if (outcome === 'drop') {
+                result.dropped++;
+                return writeQueue(function (store) {
+                  store.delete(item.id);
+                });
+              }
+              if (outcome === 'fail') {
+                var attempts = (item.attempts || 0) + 1;
+                if (attempts >= MAX_REPLAY_ATTEMPTS) {
+                  result.dropped++;
+                  return writeQueue(function (store) {
+                    store.delete(item.id);
+                  });
+                }
+                item.attempts = attempts;
+                return writeQueue(function (store) {
+                  store.put(item);
+                });
+              }
+              // 'retry': leave it in the queue
+            })
+            .catch(function () {
+              // Network error — still offline; leave in queue
+            });
         });
       });
+      return chain;
+    })
+    .then(function () {
+      return result;
     });
-    return chain;
-  }).then(function () { return result; });
 }
 
 function handlePost(request) {
@@ -410,10 +511,13 @@ function handlePost(request) {
         body,
         clonedRequest.headers.get('Content-Type') || 'application/x-www-form-urlencoded'
       ).then(function () {
-        return new Response(JSON.stringify({ result: 'queued', message: 'Saved offline — will sync when connection returns.' }), {
-          status: 202,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return new Response(
+          JSON.stringify({ result: 'queued', message: 'Saved offline — will sync when connection returns.' }),
+          {
+            status: 202,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
       });
     });
   });

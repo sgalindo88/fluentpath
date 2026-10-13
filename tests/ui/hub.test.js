@@ -3,6 +3,8 @@
  * emoji, the route and next-step cards, the reset dialog, and phone fit.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { serve, launch, newPage, LEVEL_PROGRESS } from './harness.js';
 
 let srv, browser, base;
@@ -295,6 +297,7 @@ describe('changing your own password from the hub', () => {
     const calls = [];
     const { page, ctx, errors } = await open(states.mid, { handlers: handlers(calls) });
     await page.waitForSelector('#screen-dashboard.active');
+    await page.click('#settingsBtn');
     await page.click('#changePasswordBtn');
     await page.waitForSelector('#fp-change-cur');
     expect(await page.textContent('#fp-view-change')).toContain('Contraseña actual');
@@ -324,10 +327,87 @@ describe('changing your own password from the hub', () => {
     const calls = [];
     const { page, ctx } = await open(states.mid, { handlers: handlers(calls) });
     await page.waitForSelector('#screen-dashboard.active');
+    await page.click('#settingsBtn');
     await page.click('#changePasswordBtn');
     await page.click('#fp-change-mail');
     await page.waitForFunction(() => document.getElementById('fp-change-msg')?.textContent.includes('on its way'));
     expect(calls).toEqual([{ reset: true }]);
+    await ctx.close();
+  });
+});
+
+describe('student settings: what to practise', () => {
+  const FOCUS = (calls, current) => ({
+    get_progress: () => states.mid,
+    get_settings: () => ({ found: true }),
+    get_my_focus: () => current || { found: false },
+    request_focus: (p) => { calls.push(p); return { result: 'success', status: 'pending' }; },
+  });
+
+  it('a Settings button opens the screen (password card inside, none left on the hub) and Back returns', async () => {
+    const { page, ctx, errors } = await open(states.mid, { handlers: FOCUS([]) });
+    await page.waitForSelector('#screen-dashboard.active');
+    expect(await page.locator('#screen-dashboard #changePasswordBtn').count()).toBe(0);
+    expect((await page.textContent('#settingsBtn')).replace(/\s+/g, ' ')).toContain('Settings');
+    expect(await page.getAttribute('#settingsBtn', 'aria-label')).toBe('Settings / Ajustes');
+    await page.click('#settingsBtn');
+    await page.waitForSelector('#screen-settings.active');
+    expect(await page.isVisible('#screen-settings #changePasswordBtn')).toBe(true);
+    expect(await page.textContent('#screen-settings')).toContain('¿Qué quieres practicar?');
+    await page.click('#settingsBackBtn');
+    await page.waitForSelector('#screen-dashboard.active');
+    expect(errors).toEqual([]);
+    await ctx.close();
+  });
+
+  it('topics are toggle buttons (up to 5), the note counts characters, and sending posts the ids and shows "sent"', async () => {
+    const calls = [];
+    const { page, ctx } = await open(states.mid, { handlers: FOCUS(calls) });
+    await page.click('#settingsBtn');
+    await page.waitForSelector('.focus-chip');
+    expect(await page.locator('.focus-chip').count()).toBe(12);
+    await page.click('#focusSend');
+    expect(await page.textContent('#focusMsg')).toContain('Choose a topic');
+    for (const id of ['work', 'health', 'phone', 'grammar', 'housing']) await page.click('[data-topic="' + id + '"]');
+    expect(await page.getAttribute('[data-topic="work"]', 'aria-pressed')).toBe('true');
+    await page.click('[data-topic="school"]');
+    expect(await page.textContent('#focusMsg')).toContain('up to 5');
+    expect(await page.locator('.focus-chip.is-selected').count()).toBe(5);
+    await page.click('[data-topic="housing"]'); // deselect
+    await page.fill('#focusNote', 'I cook');
+    expect(await page.textContent('#focusCount')).toBe('6 / 200');
+    await page.click('#focusSend');
+    await page.waitForFunction(() => document.getElementById('focusStatus').textContent.includes('Sent'));
+    expect(calls.length).toBe(1);
+    expect(JSON.parse(calls[0].topics).sort()).toEqual(['grammar', 'health', 'phone', 'work']);
+    expect(calls[0].note).toBe('I cook');
+    expect(await page.textContent('#focusStatus')).toContain('Enviado');
+    await ctx.close();
+  });
+
+  it('shows the last request and what the teacher decided', async () => {
+    for (const [status, text] of [['approved', 'said yes'], ['declined', 'not using this request'], ['pending', 'not looked at it yet']]) {
+      const { page, ctx } = await open(states.mid, { handlers: FOCUS([], { found: true, status, topics: ['work', 'phone'], note: 'kitchen' }) });
+      await page.click('#settingsBtn');
+      await page.waitForFunction((t) => document.getElementById('focusStatus').textContent.includes(t), text);
+      expect(await page.getAttribute('[data-topic="work"]', 'aria-pressed')).toBe('true');
+      expect(await page.inputValue('#focusNote')).toBe('kitchen');
+      await ctx.close();
+    }
+  });
+
+  it('the chip ids are exactly the topics the backend accepts, and the page fits a phone with 44px targets', async () => {
+    const src = readFileSync(resolve(import.meta.dirname, '../../apps-script.js'), 'utf8');
+    const block = src.slice(src.indexOf('var FOCUS_TOPICS = {'), src.indexOf('};', src.indexOf('var FOCUS_TOPICS = {')));
+    const backendIds = [...block.matchAll(/^\s+([a-z]+):/gm)].map((m) => m[1]);
+    const { page, ctx } = await open(states.mid, { handlers: FOCUS([]), viewport: { width: 390, height: 844 } });
+    await page.click('#settingsBtn');
+    await page.waitForSelector('.focus-chip');
+    const ids = await page.$$eval('.focus-chip', (els) => els.map((e) => e.dataset.topic));
+    expect(ids.sort()).toEqual(backendIds.sort());
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    const small = await page.$$eval('#screen-settings button', (bs) => bs.filter((b) => b.offsetParent && b.getBoundingClientRect().height < 44).map((b) => b.id || b.className));
+    expect(small).toEqual([]);
     await ctx.close();
   });
 });

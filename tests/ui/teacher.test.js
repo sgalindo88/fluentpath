@@ -302,4 +302,30 @@ d('teacher dashboard', () => {
     expect(await t.page.textContent('#graded-badge')).toBe('GRADED');
     await t.ctx.close();
   });
+  it('topic requests: a dashboard notice links to Adjust Difficulty, where the teacher approves or declines', async () => {
+    let status = 'pending';
+    const req = () => ({ id: 'f1', student_name: 'Maria Lopez', requested_at: '2026-10-13T10:00:00Z', status, topics: ['health'], topics_en: ['Health and doctor visits'], note: 'kitchen work' });
+    const reviews = [];
+    const h = {
+      ...handlers,
+      get_focus_requests: (p) => ({ requests: p.student ? [req()] : status === 'pending' ? [req()] : [] }),
+      review_focus: (p) => { reviews.push(p); status = p.decision === 'approve' ? 'approved' : 'declined'; return { result: 'success' }; },
+    };
+    const t = await newPage(browser, { handlers: h, viewport: { width: 1280, height: 900 } });
+    await t.page.addInitScript(() => { localStorage.setItem('fp_role', 'teacher'); });
+    await t.page.goto(base + '/src/examiner-panel.html?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#dash-focus-requests a.link');
+    expect(await t.page.textContent('#dash-focus-requests')).toContain('Health and doctor visits');
+    expect(await t.page.getAttribute('#dash-focus-requests a.link', 'href')).toContain('panel=difficulty');
+    await t.page.click('#dash-focus-requests a.link');
+    await t.page.waitForSelector('#panel-difficulty.active');
+    const card = t.page.locator('#focus-request-content');
+    expect(await card.textContent()).toContain('kitchen work');
+    await card.locator('text=Approve').click();
+    await t.page.waitForFunction(() => document.getElementById('focus-request-content').textContent.includes('Approved.'));
+    expect(reviews.length).toBe(1);
+    expect(reviews[0].decision).toBe('approve');
+    await t.page.waitForSelector('#dash-focus-requests', { state: 'hidden' });
+    await t.ctx.close();
+  });
 });
