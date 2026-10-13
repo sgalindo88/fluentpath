@@ -282,6 +282,8 @@ export function loadAppsScriptAuth(props = {}) {
     fulfillCheckout: globalThis.fulfillCheckout,
     handleStripeWebhook: globalThis.handleStripeWebhook,
     findLastByStudent: globalThis.findLastByStudent,
+    registerStudentRow: globalThis.registerStudentRow,
+    handleGetStudents: globalThis.handleGetStudents,
     bytesToHex: globalThis.bytesToHex,
     studentBaseUrl: globalThis.studentBaseUrl,
     teacherBaseUrl: globalThis.teacherBaseUrl,

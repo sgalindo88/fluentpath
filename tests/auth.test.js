@@ -134,6 +134,20 @@ describe('create_account + login handlers', () => {
     expect(typeof ok._json.session).toBe('string');
   });
 
+  it('a new student account also appears in the teacher\'s student list (Students tab), once', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 'maria@x.com', student_name: 'Maria Lopez', password: 'pw123', role: 'student' }, {});
+    expect(fp.handleGetStudents().students.map((s) => s.name)).toEqual(['Maria Lopez']);
+    fp.registerStudentRow('maria lopez '); // repeated or differently typed: no second row
+    expect(fp.handleGetStudents().students.length).toBe(1);
+  });
+
+  it('a teacher account does not appear in the student list', () => {
+    const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
+    fp.POST_HANDLERS.create_account({ email: 't@x.com', student_name: 'Teacher T', password: 'pw123', role: 'teacher' }, {});
+    expect(fp.handleGetStudents().students).toEqual([]);
+  });
+
   it('rejects a wrong password with a generic message', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep' });
     fp.POST_HANDLERS.create_account(

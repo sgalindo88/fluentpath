@@ -85,6 +85,39 @@ d('teacher portal: loop and way back', () => {
   });
 });
 
+d('teacher portal: create account', () => {
+  it('creating a student says what happens next, links to the dashboard, and refreshes the list', async () => {
+    let students = [];
+    const t = await newPage(browser, { handlers: { get_students: () => ({ students }), create_account: (p) => { students = [{ name: p.student_name }]; return { ok: true }; } } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    await t.page.fill('#caName', 'Test Dress Rehearsal');
+    await t.page.fill('#caEmail', 'dress@example.com');
+    await t.page.fill('#caPassword', 'secret1');
+    await t.page.click('#caBtn');
+    await t.page.waitForSelector('#caStatus.ok');
+    const text = await t.page.textContent('#caStatus');
+    expect(text).toContain('Account created for Test Dress Rehearsal');
+    expect(text).toContain('free course access');
+    expect(await t.page.getAttribute('#caStatus a', 'href')).toContain('examiner-panel.html?student=Test%20Dress%20Rehearsal');
+    await t.page.waitForSelector('.student-card');
+    expect(await t.page.textContent('.student-name')).toBe('Test Dress Rehearsal');
+    expect(await t.page.inputValue('#caName')).toBe('');
+    await t.ctx.close();
+  });
+
+  it('an error warns that the account may exist, and shows the server message', async () => {
+    const t = await newPage(browser, { handlers: { get_students: () => ({ students: [] }), create_account: () => ({ ok: false, error: 'Server busy' }) } });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/', { waitUntil: 'load' });
+    await t.page.fill('#caName', 'X'); await t.page.fill('#caEmail', 'x@example.com'); await t.page.fill('#caPassword', 'secret1');
+    await t.page.click('#caBtn');
+    await t.page.waitForSelector('#caStatus.err');
+    expect(await t.page.textContent('#caStatus')).toContain('Server busy');
+    await t.ctx.close();
+  });
+});
+
 d('teacher dashboard', () => {
   it('desktop: navy rail with icon links as buttons; no emoji on any panel', async () => {
     const { page, ctx, errors } = await openPanel();

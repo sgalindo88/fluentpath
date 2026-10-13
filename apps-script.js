@@ -43,7 +43,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.49.0';
+var BACKEND_VERSION = '0.50.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -1750,6 +1750,19 @@ function handleGetProgress(studentName, courseId) {
 }
 
 
+/** Make sure the Students tab has a row for this student (idempotent; safe inside a lock). */
+function registerStudentRow(studentName) {
+  var target = String(studentName).toLowerCase().trim();
+  var sheet = getOrCreateSheet('Students', HEADERS['Students']);
+  withScriptLock(function () {
+    var existing = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues() : [];
+    for (var r = 0; r < existing.length; r++) {
+      if (String(existing[r][0]).toLowerCase().trim() === target) return;
+    }
+    sheet.appendRow([sheetSafe(studentName), new Date().toISOString().split('T')[0]]);
+  });
+}
+
 // ── GET: get_students ─────────────────────────────────
 // Returns list of all registered students
 function handleGetStudents() {
@@ -3374,6 +3387,9 @@ var POST_HANDLERS = {
         course_id: '1', updated_at: new Date().toLocaleString()
       });
     }
+    // The teacher's student list reads the Students tab, which used to fill only when the student
+    // first logged in, so a brand-new account looked like it had not been created. Add it now.
+    if (role === 'student') registerStudentRow(studentName);
     return { _json: { ok: true, email: email, student_name: studentName, role: role } };
   },
 
