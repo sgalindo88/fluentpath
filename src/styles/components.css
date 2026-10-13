@@ -265,8 +265,8 @@
   justify-content: space-between;
   gap: var(--space-4);
   min-height: var(--header-height-mobile);
-  padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0
-    max(var(--space-4), env(safe-area-inset-left));
+  padding: calc(env(safe-area-inset-top) + var(--space-2)) max(var(--space-4), env(safe-area-inset-right))
+    var(--space-2) max(var(--space-4), env(safe-area-inset-left));
   background: rgba(247, 245, 240, 0.92);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -288,8 +288,12 @@
   height: 104px;
   margin: 0 auto;
 }
+/* Header buttons are often bilingual (two lines): keep them compact so they sit inside the header
+   with breathing room above and below instead of filling it edge to edge. */
 .fp-header .fp-btn {
   min-height: 44px;
+  padding: 6px var(--space-4);
+  font-size: var(--font-size-sm);
 }
 .fp-header .fp-bi {
   text-align: right;

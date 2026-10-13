@@ -163,8 +163,11 @@ d('teacher dashboard: archive and delete a student', () => {
 
   it('Archive asks first, posts archive_student and returns to the student list', async () => {
     const posts = [];
-    const t = await open({ archive_student: (p) => { posts.push(p); return { result: 'success', archived: true }; } });
+    const t = await open({ archive_student: async (p) => { posts.push(p); await new Promise((r) => setTimeout(r, 700)); return { result: 'success', archived: true }; } });
     expect(await t.page.isVisible('#archive-btn')).toBe(true);
+    // the card sits clear of the Save / Download row above it
+    const gap = await t.page.evaluate(() => document.getElementById('danger-zone').getBoundingClientRect().top - document.querySelector('#panel-profile [onclick="saveProfile()"]').getBoundingClientRect().bottom);
+    expect(gap).toBeGreaterThanOrEqual(24);
     expect(await t.page.isVisible('#restore-btn')).toBe(false);
     await t.page.click('#archive-btn');
     expect(await t.page.textContent('.fp-modal__title')).toBe('Archive Maria Lopez?');
@@ -172,6 +175,12 @@ d('teacher dashboard: archive and delete a student', () => {
     expect(posts.length).toBe(0);
     await t.page.click('#archive-btn');
     await t.page.click('#cdOk');
+    // while the server works: the dialog is gone, every button is off, the pressed one says what it does, a status line says so
+    expect(await t.page.textContent('#archive-btn')).toBe('Archiving…');
+    for (const id of ['archive-btn', 'restore-btn', 'delete-btn']) expect(await t.page.isDisabled('#' + id)).toBe(true);
+    expect(await t.page.textContent('#danger-status')).toContain('Archiving Maria Lopez');
+    expect(await t.page.locator('#danger-status .fp-spinner').count()).toBe(1);
+    await t.page.waitForFunction(() => document.getElementById('danger-status').textContent.includes('Archived.'));
     await t.page.waitForURL(/\/$/);
     expect(posts).toEqual([expect.objectContaining({ action: 'archive_student', student_name: 'Maria Lopez' })]);
     await t.ctx.close();
@@ -179,7 +188,7 @@ d('teacher dashboard: archive and delete a student', () => {
 
   it('Delete is disabled until the student\'s name is typed, then posts delete_student with that name', async () => {
     const posts = [];
-    const t = await open({ delete_student: (p) => { posts.push(p); return { result: 'success', recordings_trashed: 1, deleted: {} }; } });
+    const t = await open({ delete_student: async (p) => { posts.push(p); await new Promise((r) => setTimeout(r, 700)); return { result: 'success', recordings_trashed: 1, deleted: {} }; } });
     await t.page.click('#delete-btn');
     expect(await t.page.isDisabled('#cdOk')).toBe(true);
     await t.page.fill('#cdType', 'Maria');
@@ -187,6 +196,11 @@ d('teacher dashboard: archive and delete a student', () => {
     await t.page.fill('#cdType', 'maria lopez');
     expect(await t.page.isDisabled('#cdOk')).toBe(false);
     await t.page.click('#cdOk');
+    expect(await t.page.textContent('#delete-btn')).toBe('Deleting…');
+    expect(await t.page.isDisabled('#archive-btn')).toBe(true);
+    expect(await t.page.textContent('#danger-status')).toContain('Deleting Maria Lopez');
+    expect(await t.page.textContent('#danger-status')).toContain('stay on this page');
+    await t.page.waitForFunction(() => document.getElementById('danger-status').textContent.includes('Deleted Maria Lopez'));
     await t.page.waitForURL(/\/$/);
     expect(posts).toEqual([expect.objectContaining({ action: 'delete_student', student_name: 'Maria Lopez', confirm_name: 'Maria Lopez' })]);
     await t.ctx.close();
@@ -205,13 +219,18 @@ d('teacher dashboard: archive and delete a student', () => {
 
   it('an archived student shows the note and Restore instead of Archive', async () => {
     const posts = [];
-    const t = await open({ get_student_profile: () => ({ found: true, cefr_level: 'A2', archived: true }), restore_student: (p) => { posts.push(p); return { result: 'success', archived: false }; } });
+    const t = await open({ get_student_profile: () => ({ found: true, cefr_level: 'A2', archived: true }), restore_student: async (p) => { posts.push(p); await new Promise((r) => setTimeout(r, 700)); return { result: 'success', archived: false }; } });
     await t.page.waitForFunction(() => document.getElementById('restore-btn').style.display !== 'none');
     expect(await t.page.isVisible('#archive-btn')).toBe(false);
     expect(await t.page.isVisible('#danger-archived-note')).toBe(true);
     await t.page.click('#restore-btn');
+    expect(await t.page.textContent('#restore-btn')).toBe('Restoring…');
+    expect(await t.page.isDisabled('#restore-btn')).toBe(true);
+    expect(await t.page.textContent('#danger-status')).toContain('Restoring Maria Lopez');
     await t.page.waitForFunction(() => document.getElementById('archive-btn').style.display !== 'none');
     expect(posts.length).toBe(1);
+    expect(await t.page.textContent('#danger-status')).toContain('Restored');
+    expect(await t.page.isDisabled('#archive-btn')).toBe(false); // buttons are back
     await t.ctx.close();
   });
 });
@@ -222,7 +241,7 @@ d('teacher portal: archived students', () => {
     const restores = [];
     const t = await newPage(browser, { handlers: { ...handlers,
       get_archived_students: () => ({ students: archived }),
-      restore_student: (p) => { restores.push(p); archived = []; return { result: 'success' }; } }, viewport: { width: 390, height: 844 } });
+      restore_student: async (p) => { restores.push(p); await new Promise((r) => setTimeout(r, 600)); archived = []; return { result: 'success' }; } }, viewport: { width: 390, height: 844 } });
     await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
     await t.page.goto(base + '/', { waitUntil: 'load' });
     await t.page.waitForSelector('#archivedBox:not(.fp-hidden)');
@@ -230,6 +249,8 @@ d('teacher portal: archived students', () => {
     await t.page.click('#archivedSummary');
     expect(await t.page.getAttribute('#archivedList a', 'href')).toContain('student=Carlos%20Ruiz');
     await t.page.click('#archivedList [data-act="restore"]');
+    expect(await t.page.textContent('#archivedList [data-act="restore"]')).toBe('Restoring…');
+    expect(await t.page.isDisabled('#archivedList [data-act="restore"]')).toBe(true);
     await t.page.waitForSelector('#archivedBox', { state: 'hidden' });
     expect(restores).toEqual([expect.objectContaining({ student_name: 'Carlos Ruiz' })]);
     expect(await t.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);

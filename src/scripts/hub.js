@@ -69,6 +69,16 @@ function storeSession(res) {
   }
 }
 
+/** The log in button is left disabled ("Logging in…") after a successful log in; put it back
+ *  whenever the log in screen is shown again without a page reload (log out, expired session). */
+function resetLoginButton() {
+  var btn = document.getElementById('btnEnter');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = bi('Log In', 'Iniciar sesión');
+  }
+}
+
 async function enterHub() {
   var btn = document.getElementById('btnEnter');
   if (btn && btn.disabled) return; // guard against double-submit (Enter + click)
@@ -628,8 +638,15 @@ function renderDashboard() {
   }
 
   renderAchievements(d);
+  // The call button is set up at page load only when a session already exists. After a fresh log in
+  // (no reload) it must be set up here, once per student.
+  if (typeof CallRequest !== 'undefined' && callInitFor !== studentName) {
+    callInitFor = studentName;
+    CallRequest.init({ page: 'hub', mount: '#callSlot' });
+  }
   showScreen('screen-dashboard');
 }
+var callInitFor = '';
 
 /* ─────────────────────────────────────────────────────────────
    Refresh progress (re-fetch from sheet)
@@ -653,6 +670,7 @@ function logout() {
     }
   }
   if (FP.clearSession) FP.clearSession();
+  callInitFor = ''; // the next log in sets the call button up again
   // DATA-1: purge EVERY fp_* key, not just the name. Anything left behind is
   // inherited by the next student to log in on this device.
   if (FP.purgeStudentState) {
@@ -674,6 +692,7 @@ function logout() {
   var pwEl = document.getElementById('loginPassword');
   if (pwEl) pwEl.value = '';
   loginError('');
+  resetLoginButton();
   showScreen('screen-welcome');
 }
 
@@ -844,6 +863,7 @@ function hideOfflineBanner() {
 // An 'Unauthorized' reply while we are on this page means: show the login screen (not reload).
 FP.isLoginPage = true;
 FP.onLoginRequired = function () {
+  resetLoginButton();
   showScreen('screen-welcome');
 };
 

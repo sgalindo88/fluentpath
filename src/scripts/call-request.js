@@ -237,13 +237,18 @@ var CallRequest = (function () {
     state.compact = !!(opts && opts.compact);
     if (!getStudentName()) return; // no name yet — don't show button
     if (!(FP.getSession && FP.getSession())) return; // not logged in: nothing to ask the server
+    // init can run again after a log in (the page does not reload then) and for another student:
+    // forget the previous student's request, and add the tab-focus listener only once.
+    state.currentRequest = null;
     ensureButton();
     renderButton();
     refresh();
-    // Check again when tab becomes visible
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) refresh();
-    });
+    if (!state.listening) {
+      state.listening = true;
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && FP.getSession && FP.getSession()) refresh();
+      });
+    }
   }
 
   return { init: init, refresh: refresh, dismiss: dismiss };

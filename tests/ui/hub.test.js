@@ -66,6 +66,37 @@ describe('log in screen', () => {
   });
 });
 
+describe('the video call button after a fresh log in', () => {
+  it('is on the hub right after logging in by the form (no page reload), and again for the next student', async () => {
+    const t = await newPage(browser, { session: false, handlers: {
+      login: () => ({ ok: true, session: 'abc', role: 'student', student_name: 'Ana Ruiz', expires_at: '2099-01-01T00:00:00Z' }),
+      get_progress: () => states.fresh || { found: false },
+      get_settings: () => ({ found: true }),
+      get_active_call_request: () => ({ found: false }),
+    } });
+    await t.page.goto(base + '/app.html', { waitUntil: 'load' });
+    expect(await t.page.locator('#callSlot #fp-call-btn').count()).toBe(0); // nobody logged in yet
+    await t.page.fill('#loginEmail', 'ana@example.com');
+    await t.page.fill('#loginPassword', 'her-own-password');
+    await t.page.click('#btnEnter');
+    await t.page.waitForSelector('#screen-dashboard.active');
+    await t.page.waitForSelector('#callSlot #fp-call-btn', { state: 'visible' });
+    expect(await t.page.textContent('#fp-call-btn')).toContain('Request a video call');
+    expect(await t.page.locator('#fp-call-btn').count()).toBe(1);
+    await t.page.click('#logoutBtn');
+    await t.page.waitForSelector('#screen-welcome.active');
+    expect(await t.page.isDisabled('#btnEnter')).toBe(false); // the button is usable again after a log out
+    expect(await t.page.textContent('#btnEnter')).toContain('Iniciar sesión');
+    await t.page.fill('#loginEmail', 'ana@example.com');
+    await t.page.fill('#loginPassword', 'her-own-password');
+    await t.page.click('#btnEnter');
+    await t.page.waitForSelector('#screen-dashboard.active');
+    expect(await t.page.locator('#callSlot #fp-call-btn').count()).toBe(1); // not duplicated
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+});
+
 describe('forgot-password dialog', () => {
   it('opens bilingual with focus in the email field; Escape closes and returns focus to the link', async () => {
     const { page, ctx } = await open(states.mid, { session: false });
@@ -350,6 +381,12 @@ describe('student settings: what to practise', () => {
     expect(await page.locator('#screen-dashboard #changePasswordBtn').count()).toBe(0);
     expect((await page.textContent('#settingsBtn')).replace(/\s+/g, ' ')).toContain('Settings');
     expect(await page.getAttribute('#settingsBtn', 'aria-label')).toBe('Settings / Ajustes');
+    // the header buttons sit inside the header with room above and below, not edge to edge
+    const room = await page.evaluate(() => {
+      const h = document.querySelector('#screen-dashboard .fp-header').getBoundingClientRect();
+      return ['settingsBtn', 'logoutBtn'].map((id) => { const b = document.getElementById(id).getBoundingClientRect(); return [Math.round(b.top - h.top), Math.round(h.bottom - b.bottom)]; });
+    });
+    for (const [above, below] of room) { expect(above).toBeGreaterThanOrEqual(6); expect(below).toBeGreaterThanOrEqual(6); }
     await page.click('#settingsBtn');
     await page.waitForSelector('#screen-settings.active');
     expect(await page.isVisible('#screen-settings #changePasswordBtn')).toBe(true);
