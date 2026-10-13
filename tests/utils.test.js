@@ -254,13 +254,3 @@ describe('compactAnswersJson', () => {
     expect(u.compactAnswersJson(null, 5000)).toBe('{}');
   });
 });
-
-describe('i18n inline-text selector (Phase B landmine)', () => {
-  it('translates elements marked .i18n-text, not only ones matched by inline style text', async () => {
-    const { readFileSync } = await import('fs');
-    const { resolve } = await import('path');
-    const src = readFileSync(resolve(import.meta.dirname, '..', 'src/scripts/i18n.js'), 'utf-8');
-    const line = src.split('\n').find((l) => l.includes('querySelectorAll') && l.includes('[style*="italic"]'));
-    expect(line).toContain('.i18n-text');
-  });
-});

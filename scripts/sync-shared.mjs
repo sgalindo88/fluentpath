@@ -5,7 +5,7 @@
  *
  * Why this repo is canonical: it already owns the backend source of truth
  * (apps-script.js + tests/), so the shared frontend files (config/api/utils/
- * i18n/call-request + theme/mobile CSS) live here too and every HTML page
+ * call-request + theme/mobile CSS) live here too and every HTML page
  * references them at their normal src/ paths. The teacher repo holds only its
  * teacher-specific pages/scripts plus generated artifacts kept in lockstep by
  * this script (run locally via `npm run sync`, or in CI on push to master).
@@ -34,7 +34,6 @@ const SHARED_FILES = [
   'src/scripts/config.js',
   'src/scripts/api.js',
   'src/scripts/utils.js',
-  'src/scripts/i18n.js',
   'src/scripts/call-request.js',
   'src/scripts/password-reset.js',
   'src/styles/tokens.css',
@@ -88,7 +87,6 @@ const TEACHER_APP_SHELL = [
   './src/scripts/teacher-portal.js',
   './src/scripts/examiner-panel.js',
   './src/scripts/call-request.js',
-  './src/scripts/i18n.js',
   './src/scripts/password-reset.js',
   './src/styles/tokens.css',
   './src/styles/theme.css',

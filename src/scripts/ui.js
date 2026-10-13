@@ -116,7 +116,9 @@ FP.ui = (function () {
      (.fp-bi__es, .fp-es) with CSS, so the same markup serves both. */
   function showSpanishFor(level) { return !/^(B2|C1|C2)/i.test(String(level || '')); }
   function setLevel(level) {
-    document.documentElement.classList.toggle('fp-no-es', !showSpanishFor(level));
+    // Teacher pages are English only whatever level is stored: <html data-english-only>
+    var englishOnly = document.documentElement.hasAttribute('data-english-only');
+    document.documentElement.classList.toggle('fp-no-es', englishOnly || !showSpanishFor(level));
     localizeAttrs();
   }
   function spanishOn() { return !document.documentElement.classList.contains('fp-no-es'); }
