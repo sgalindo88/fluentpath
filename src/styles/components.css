@@ -355,6 +355,12 @@
 .fp-reset__sub { color: var(--text-muted); font-size: var(--font-size-sm); }
 .fp-modal .fp-field-error, .fp-modal .fp-banner { text-align: left; }
 .fp-modal .fp-btn--text { align-self: center; }
+/* Resume dialog (checkpoint.js): icon, message, saved time, one primary action */
+.fp-ckpt__icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; margin-bottom: var(--space-3); border-radius: 50%; background: var(--fp-ice-100); color: var(--fp-navy-900); }
+.fp-ckpt__msg { font-size: var(--font-size-body); line-height: 1.6; }
+.fp-ckpt__time { margin-top: var(--space-2); font-size: var(--font-size-sm); color: var(--text-muted); }
+.fp-ckpt .fp-bi__es { font-size: 0.9em; }
+.fp-ckpt__actions { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-6); }
 /* "Please wait" overlay used while a save is in flight. */
 .fp-wait { max-width: 360px; }
 .fp-wait .fp-spinner { width: 36px; height: 36px; border-width: 3px; color: var(--fp-navy-900); margin-bottom: var(--space-4); }

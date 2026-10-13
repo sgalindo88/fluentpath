@@ -137,225 +137,61 @@ const Checkpoint = (() => {
     return load(key) !== null;
   }
 
-  /* ── Inject modal CSS ───────────────────────────────────── */
-  function injectCSS() {
-    if (document.getElementById('ckpt-styles')) return;
-    const s = document.createElement('style');
-    s.id = 'ckpt-styles';
-    s.textContent = `
-      .ckpt-overlay {
-        position: fixed; inset: 0;
-        background: rgba(26, 18, 8, 0.55);
-        z-index: 10001;
-        display: flex; align-items: center; justify-content: center;
-        padding: 24px;
-        animation: ckptFadeIn 0.25s ease both;
-      }
-      @keyframes ckptFadeIn {
-        from { opacity: 0; }
-        to   { opacity: 1; }
-      }
-      .ckpt-modal {
-        background: var(--paper, #f5f0e8);
-        border: 1px solid var(--rule, #c8bfa8);
-        border-radius: 8px;
-        max-width: 420px;
-        width: 100%;
-        padding: 32px 28px;
-        box-shadow: 0 12px 40px rgba(26, 18, 8, 0.3);
-        text-align: center;
-        animation: ckptSlideUp 0.3s ease both;
-      }
-      @keyframes ckptSlideUp {
-        from { opacity: 0; transform: translateY(16px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
-      .ckpt-icon {
-        font-size: 36px;
-        margin-bottom: 12px;
-      }
-      .ckpt-title {
-        font-family:var(--font-family-primary);
-        font-size: 22px;
-        font-weight: 700;
-        color: var(--ink, #1a1208);
-        margin-bottom: 4px;
-      }
-      .ckpt-title-es {
-        font-family:var(--font-family-primary);
-        font-size: 14px;
-        font-weight:400;
-        font-style: italic;
-        color: var(--muted, #6b5f4e);
-        margin-bottom: 16px;
-      }
-      .ckpt-message {
-        font-family:var(--font-family-primary);
-        font-size: 15px;
-        font-weight:400;
-        color: var(--ink, #1a1208);
-        line-height: 1.6;
-        margin-bottom: 4px;
-      }
-      .ckpt-message-es {
-        font-family:var(--font-family-primary);
-        font-size: 13px;
-        font-weight:400;
-        font-style: italic;
-        color: var(--muted, #6b5f4e);
-        line-height: 1.5;
-        margin-bottom: 8px;
-      }
-      .ckpt-time {
-        font-size: 12px;
-        color: var(--muted, #6b5f4e);
-        margin-bottom: 12px;
-      }
-      .ckpt-countdown {
-        font-size: 12px;
-        color: var(--muted, #6b5f4e);
-        margin-bottom: 20px;
-      }
-      .ckpt-countdown-bar {
-        height: 3px;
-        background: var(--rule, #c8bfa8);
-        border-radius: 2px;
-        margin-top: 8px;
-        overflow: hidden;
-      }
-      .ckpt-countdown-fill {
-        height: 100%;
-        background: var(--ink, #1a1208);
-        border-radius: 2px;
-        transition: width 1s linear;
-      }
-      .ckpt-actions {
-        display: flex;
-        gap: 12px;
-      }
-      .ckpt-btn {
-        flex: 1;
-        padding: 14px 16px;
-        border-radius: 6px;
-        font-family:var(--font-family-primary);
-        font-size: 15px;
-        font-style: italic;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: none;
-        min-height: 48px;
-      }
-      .ckpt-btn-resume {
-        background: var(--ink, #1a1208);
-        color: var(--paper, #f5f0e8);
-      }
-      .ckpt-btn-resume:hover {
-        background: var(--rust, #b8471e);
-      }
-      .ckpt-btn-restart {
-        background: transparent;
-        border: 1.5px solid var(--rule, #c8bfa8);
-        color: var(--ink, #1a1208);
-      }
-      .ckpt-btn-restart:hover {
-        border-color: var(--ink, #1a1208);
-      }
-      .ckpt-btn-sub {
-        display: block;
-        font-size: 0.72em;
-        font-style: italic;
-        opacity: 0.7;
-        margin-top: 2px;
-        font-family:var(--font-family-primary);
-      }
-      @media (max-width: 400px) {
-        .ckpt-actions { flex-direction: column; }
-        .ckpt-modal { padding: 24px 20px; }
-      }
-    `;
-    document.head.appendChild(s);
+  /* ── Recovery modal ─────────────────────────────────────── */
+  // Built from the shared modal component (fp-scrim / fp-modal). It waits for the student's
+  // choice: no countdown, and Escape does not resume or start over by surprise (UX-4).
+
+  /** "5 min ago" / "hace 5 min" as two plain strings. */
+  function agoParts(ts) {
+    var mins = Math.round((Date.now() - ts) / 60000);
+    if (mins < 1) return ['just now', 'justo ahora'];
+    if (mins < 60) return [mins + ' min ago', 'hace ' + mins + ' min'];
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return [hrs + 'h ago', 'hace ' + hrs + 'h'];
+    return ['over a day ago', 'hace más de un día'];
   }
 
-  /* ── Recovery modal ─────────────────────────────────────── */
-  var AUTO_RESUME_SECS = 60;
+  /** English with an optional Spanish line (hidden for B2+ by the fp-no-es rule). */
+  function bi(en, es) {
+    return es ? FP.ui.bi(en, es) : esc(en);
+  }
 
   function showRecoveryModal(opts) {
-    injectCSS();
-
-    const savedAt = opts.savedAt || null;
-
-    const overlay = document.createElement('div');
-    overlay.className = 'ckpt-overlay';
-    overlay.innerHTML = `
-      <div class="ckpt-modal">
-        <div class="ckpt-icon">📌</div>
-        <div class="ckpt-title">${esc(opts.title || 'Resume?')}</div>
-        <div class="ckpt-title-es">${esc(opts.titleEs || '')}</div>
-        <div class="ckpt-message">${esc(opts.message || 'You have unsaved progress.')}</div>
-        <div class="ckpt-message-es">${esc(opts.messageEs || '')}</div>
-        <div class="ckpt-time">${savedAt ? '⏱ Saved ' + timeAgo(savedAt) : ''}</div>
-        <div class="ckpt-countdown">
-          <span class="ckpt-countdown-text"></span>
-          <div class="ckpt-countdown-bar"><div class="ckpt-countdown-fill" style="width:100%"></div></div>
-        </div>
-        <div class="ckpt-actions">
-          <button class="ckpt-btn ckpt-btn-resume" id="ckptResume">
-            Resume
-            <span class="ckpt-btn-sub">Continuar</span>
-          </button>
-          <button class="ckpt-btn ckpt-btn-restart" id="ckptRestart">
-            Start Over
-            <span class="ckpt-btn-sub">Empezar de Nuevo</span>
-          </button>
-        </div>
-      </div>
-    `;
-
+    var overlay = document.createElement('div');
+    overlay.className = 'fp-scrim has-sheet is-open';
+    var ago = opts.savedAt ? agoParts(opts.savedAt) : null;
+    overlay.innerHTML =
+      '<div class="fp-modal fp-ckpt" role="alertdialog" aria-modal="true" aria-labelledby="ckptTitle" aria-describedby="ckptMsg">' +
+        '<div class="fp-ckpt__icon">' + FP.icon('keep', { size: 'lg' }) + '</div>' +
+        '<h2 class="fp-modal__title" id="ckptTitle">' + bi(opts.title || 'Resume?', opts.titleEs) + '</h2>' +
+        '<p class="fp-ckpt__msg" id="ckptMsg">' + bi(opts.message || 'You have unsaved progress.', opts.messageEs) + '</p>' +
+        (ago ? '<p class="fp-ckpt__time">' + bi('Saved ' + ago[0], 'Guardado ' + ago[1]) + '</p>' : '') +
+        '<div class="fp-ckpt__actions">' +
+          '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptResume">' + bi('Resume', 'Continuar') + '</button>' +
+          '<button type="button" class="fp-btn fp-btn--text" id="ckptRestart">' + bi('Start over', 'Empezar de nuevo') + '</button>' +
+        '</div>' +
+      '</div>';
     document.body.appendChild(overlay);
 
-    // ── Countdown auto-resume ──────────────────────────────
-    var remaining = AUTO_RESUME_SECS;
-    var textEl = overlay.querySelector('.ckpt-countdown-text');
-    var fillEl = overlay.querySelector('.ckpt-countdown-fill');
+    var resumeBtn = overlay.querySelector('#ckptResume');
+    var restartBtn = overlay.querySelector('#ckptRestart');
 
-    function updateCountdown() {
-      textEl.textContent = 'Auto-resuming in ' + remaining + 's / Continuación automática en ' + remaining + 's';
-      fillEl.style.width = ((remaining / AUTO_RESUME_SECS) * 100) + '%';
-    }
-    updateCountdown();
-
-    var interval = setInterval(function () {
-      remaining--;
-      if (remaining <= 0) {
-        doResume();
-        return;
-      }
-      updateCountdown();
-    }, 1000);
-
-    // ── ESC key dismisses (resumes) ────────────────────────
+    // Keep Tab inside the dialog; Escape is deliberately not a choice.
     function onKeydown(e) {
-      if (e.key === 'Escape') doResume();
+      if (e.key !== 'Tab') return;
+      var first = resumeBtn, last = restartBtn;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
     document.addEventListener('keydown', onKeydown);
 
-    // ── Cleanup + actions ──────────────────────────────────
     function cleanup() {
-      clearInterval(interval);
       document.removeEventListener('keydown', onKeydown);
       overlay.remove();
     }
-
-    function doResume() {
-      cleanup();
-      if (opts.onResume) opts.onResume();
-    }
-
-    document.getElementById('ckptResume').onclick = doResume;
-    document.getElementById('ckptRestart').onclick = function () {
-      cleanup();
-      if (opts.onStartOver) opts.onStartOver();
-    };
+    resumeBtn.onclick = function () { cleanup(); if (opts.onResume) opts.onResume(); };
+    restartBtn.onclick = function () { cleanup(); if (opts.onStartOver) opts.onStartOver(); };
+    resumeBtn.focus();
   }
 
   function esc(str) {

@@ -5,6 +5,7 @@
  * control, and the full finish/save/verify flow against a stubbed backend.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { readFileSync } from 'fs';
 import { serve, launch, newPage, LEVEL_PROGRESS } from './harness.js';
 
 let srv, browser, base;
@@ -412,6 +413,59 @@ describe('resuming an unfinished lesson', () => {
     await page.waitForSelector('#screen-lesson.active');
     expect(await page.inputValue('#warmup-resp')).toBe('I saw a doctor last week.');
     expect(await page.textContent('#stepCountLabel')).toContain('Step 1 of 7');
+    await ctx.close();
+  });
+});
+
+describe('resume dialog (checkpoint.js)', () => {
+  async function withCheckpoint(level = 'A2') {
+    const t = await open({ level });
+    await begin(t.page);
+    await t.page.evaluate(() => saveLessonCheckpoint());
+    await t.page.reload({ waitUntil: 'load' });
+    await t.page.waitForSelector('#ckptResume');
+    return t;
+  }
+
+  it('is the shared modal: bilingual, icon not emoji, a saved time, one primary action, focus on Resume', async () => {
+    const { page, ctx } = await withCheckpoint();
+    expect(await page.getAttribute('.fp-ckpt', 'role')).toBe('alertdialog');
+    expect(await page.locator('.fp-scrim.is-open .fp-ckpt').count()).toBe(1);
+    const text = await page.innerText('.fp-ckpt');
+    for (const t of ['Resume Your Lesson?', '¿Continuar tu Lección?', 'Continuar', 'Empezar de nuevo', 'Saved', 'Guardado']) expect(text).toContain(t);
+    expect(EMOJI.test(text)).toBe(false);
+    expect(await page.locator('.fp-ckpt svg.fp-icon').count()).toBe(1);
+    expect(await page.locator('.fp-ckpt .fp-btn--primary').count()).toBe(1);
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptResume');
+    await ctx.close();
+  });
+
+  it('waits for a choice: no countdown, Escape does nothing, Tab stays inside', async () => {
+    const { page, ctx } = await withCheckpoint();
+    expect(await page.locator('.ckpt-countdown').count()).toBe(0);
+    await page.keyboard.press('Escape');
+    expect(await page.isVisible('#ckptResume')).toBe(true);
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptRestart');
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptResume');
+    await page.keyboard.press('Shift+Tab');
+    expect(await page.evaluate(() => document.activeElement.id)).toBe('ckptRestart');
+    await ctx.close();
+  });
+
+  it('the source has no auto-resume timer', () => {
+    const src = readFileSync(new URL('../../src/scripts/checkpoint.js', import.meta.url), 'utf-8');
+    expect(src).not.toMatch(/AUTO_RESUME|setInterval|style="width/);
+  });
+
+  it('B2 sees English only; Start over clears the saved lesson', async () => {
+    const { page, ctx } = await withCheckpoint('B2');
+    expect(await page.locator('.fp-ckpt .fp-bi__es:visible').count()).toBe(0);
+    await page.click('#ckptRestart');
+    await page.waitForSelector('#ckptResume', { state: 'detached' });
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('fp_ckpt_')))).toEqual([]);
+    expect(await page.isVisible('#screen-landing.active')).toBe(true);
     await ctx.close();
   });
 });

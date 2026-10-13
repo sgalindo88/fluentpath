@@ -15,7 +15,10 @@ const open = async (opts = {}, level) => {
   const t = await newPage(browser, opts);
   if (level) await t.page.addInitScript((l) => localStorage.setItem('fp_cefr_level', l), level);
   t.dialogs = [];
-  t.page.on('dialog', (d) => { t.dialogs.push(d.message()); d.dismiss(); });
+  t.page.on('dialog', (d) => {
+    if (d.type() === 'beforeunload') return d.accept(); // leaving a test in progress asks first
+    t.dialogs.push(d.message()); d.dismiss();
+  });
   await t.page.goto(base + '/src/student-initial-test.html', { waitUntil: 'load' });
   return t;
 };
@@ -278,6 +281,24 @@ describe('talking to the teacher', () => {
     expect(await page.isVisible('#fp-call-btn .fp-call__label')).toBe(true);
     const box = await page.locator('#fp-call-btn').boundingBox();
     expect(box.height).toBeGreaterThanOrEqual(44);
+    await ctx.close();
+  });
+});
+
+describe('resume dialog', () => {
+  it('the placement test offers the same bilingual modal after a reload, and Resume puts the student back', async () => {
+    const { page, ctx, errors } = await open();
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    await page.waitForSelector('#screen-reading-intro.active');
+    await page.evaluate(() => saveTestCheckpoint());
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('#ckptResume');
+    expect(await page.innerText('.fp-ckpt')).toContain('¿Continuar tu Prueba?');
+    expect(await page.innerText('.fp-ckpt')).not.toMatch(EMOJI);
+    await page.click('#ckptResume');
+    await page.waitForSelector('#screen-reading-intro.active');
+    expect(errors).toEqual([]);
     await ctx.close();
   });
 });
