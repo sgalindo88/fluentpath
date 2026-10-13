@@ -85,11 +85,20 @@ describe('course landing', () => {
     await ctx.close();
   });
 
-  it('the video call control is in the header (compact) and nothing floats', async () => {
+  it('the video call request is a help card above Continue (not in the header) and nothing floats', async () => {
     const { page, ctx } = await open();
-    await page.waitForSelector('#callSlot #fp-call-btn');
-    expect(await page.locator('#callSlot .fp-call--compact').count()).toBe(1);
+    await page.waitForSelector('#callSlot #fp-call-btn', { state: 'attached' });
+    expect(await page.locator('.lesson-header #fp-call-btn').count()).toBe(0);
+    expect(await page.locator('.lesson-help #fp-call-btn').count()).toBe(1);
     expect(await page.locator('.fp-fab').count()).toBe(0);
+    await page.click('#btnBeginLesson');
+    await page.waitForSelector('#activityWrap .activity-card');
+    expect(await page.textContent('.lesson-help')).toContain('¿Necesitas ayuda?');
+    expect(await page.isVisible('.lesson-help #fp-call-btn')).toBe(true);
+    // the Continue button sits after the content, never over it
+    const [pos, helpBottom, navTop] = await page.evaluate(() => [getComputedStyle(document.getElementById('lessonNav')).position, document.querySelector('.lesson-help').getBoundingClientRect().bottom, document.getElementById('lessonNav').getBoundingClientRect().top]);
+    expect(pos).toBe('static');
+    expect(navTop).toBeGreaterThanOrEqual(helpBottom);
     await ctx.close();
   });
 

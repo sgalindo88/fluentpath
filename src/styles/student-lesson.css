@@ -21,7 +21,7 @@ button { font-family: inherit; }
 .nav-timer.warning { color: var(--text-error); }
 .nav-timer.paused { color: var(--text-muted); }
 .nav-pause { padding: 0; width: 44px; min-width: 44px; }
-.lesson-header .fp-call { margin: 0; }
+
 
 /* ── Screens ───────────────────────────────────────────────── */
 .main { max-width: 760px; margin: 0 auto; padding: var(--space-6) var(--space-4) calc(var(--space-16) + env(safe-area-inset-bottom)); padding-left: max(var(--space-4), env(safe-area-inset-left)); padding-right: max(var(--space-4), env(safe-area-inset-right)); }
@@ -205,9 +205,17 @@ button { font-family: inherit; }
 @media (hover: hover) { .conf-btn:hover { border-color: var(--fp-navy-900); } }
 .conf-btn.is-selected { border: 2px solid var(--fp-navy-900); background: var(--fp-ice-100); }
 
-/* ── Bottom navigation (thumb-reachable, clears the home bar) ── */
-.lesson-nav { position: sticky; bottom: 0; z-index: 25; margin: var(--space-6) calc(-1 * var(--space-4)) 0; padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom)); background: var(--surface-primary); border-top: 1px solid var(--border-subtle); box-shadow: 0 -4px 16px rgba(30, 42, 56, 0.08); }
-@media (min-width: 600px) { .lesson-nav { margin-left: calc(-1 * var(--space-6)); margin-right: calc(-1 * var(--space-6)); padding-left: var(--space-6); padding-right: var(--space-6); } }
+/* ── Help card: the call request, quiet, just above Continue ── */
+.lesson-help { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-4); padding: var(--space-4); }
+.lesson-help__text { flex: 1 1 220px; min-width: 0; font-size: var(--font-size-sm); }
+.lesson-help__title { font-size: var(--font-size-body); font-weight: var(--font-weight-bold); }
+.lesson-help__title .fp-bi__es { font-weight: var(--font-weight-regular); font-size: 0.9em; }
+.lesson-help .fp-bi__es { font-size: 1em; }
+.lesson-help .fp-call { margin: 0; }
+@media (max-width: 599px) { .lesson-help .fp-call, .lesson-help .fp-call .fp-btn { width: 100%; } }
+
+/* ── Next button: at the end of the step's content, never over it ── */
+.lesson-nav { margin-top: var(--space-6); }
 .lesson-nav .btn-next { margin: 0 auto; max-width: 480px; }
 
 /* ── Lesson complete ───────────────────────────────────────── */

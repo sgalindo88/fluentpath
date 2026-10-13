@@ -211,10 +211,10 @@ function startCourse() {
   beginLesson();
 }
 
-/** The video-call request lives in the header, like the placement test. */
+/** The video-call request lives in a help card at the end of each step (not in the header). */
 function initCallControl() {
   if (typeof CallRequest !== 'undefined') {
-    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber, mount: '#callSlot', compact: true });
+    CallRequest.init({ page: 'lesson', dayNumber: state.dayNumber, mount: '#callSlot' });
   }
 }
 
@@ -2026,6 +2026,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   tryResumeLesson();
 
-  // Video call request: a compact control in the header (re-initialised with the day once it is known).
+  // Video call request: in the help card (re-initialised with the day once it is known).
   initCallControl();
 });
