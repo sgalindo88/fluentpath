@@ -131,6 +131,7 @@ function saveTestCheckpoint() {
     submissionId: state.submissionId || null,
     listeningPlays: state.listeningPlays,
     dictationPlays: state.dictationPlays,
+    listenedMs: { listening: audioClockTotal('listening'), dictation: audioClockTotal('dictation') }, // DATA-4
     recordedQs: Object.keys(speakingAudio), // the audio itself cannot be saved; only that it existed
   });
 }
@@ -172,6 +173,7 @@ function tryResumeTest() {
       state.submissionId = data.submissionId || newSubmissionId();
       state.listeningPlays = data.listeningPlays || 0;
       state.dictationPlays = data.dictationPlays || 0;
+      restoreAudioClock(data.listenedMs); // DATA-4
       // Restore textarea values
       if (data.textValues) {
         Object.entries(data.textValues).forEach(function (pair) {
@@ -265,9 +267,21 @@ var testInProgress = false;
 function onBeforeUnload(e) {
   if (testInProgress) {
     e.preventDefault();
+    e.returnValue = ''; // UX-1: Chrome ignores preventDefault() alone
+    return '';
   }
 }
 window.addEventListener('beforeunload', onBeforeUnload);
+
+// IOS-3b: the checkpoint is saved every 5 s; when the page is hidden or going away (iPad swipe-away,
+// Home button, a call) save it now so the last answers are not lost.
+function flushTestCheckpoint() {
+  if (testInProgress && ckptInterval) saveTestCheckpoint();
+}
+window.addEventListener('pagehide', flushTestCheckpoint);
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) flushTestCheckpoint();
+});
 
 // ── START ──
 function setFieldError(inputEl, html) {
@@ -683,7 +697,9 @@ async function toggleSpeakingRec(qId) {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
+    var restartGate = makeRestartGate(5, 250); // UX-7
     recognition.onresult = function (event) {
+      restartGate.reset();
       var text = '';
       for (var i = 0; i < event.results.length; i++) text += event.results[i][0].transcript;
       rec.transcript = text;
@@ -702,11 +718,15 @@ async function toggleSpeakingRec(qId) {
       }
     };
     recognition.onend = function () {
-      if (rec.recording) {
+      if (!rec.recording) return;
+      // UX-7: restart with a growing delay and give up after 5 tries in a row; the recording carries on.
+      var restarting = restartGate.schedule(function () {
+        if (!rec.recording) return;
         try {
           recognition.start();
         } catch (e) {}
-      }
+      });
+      if (!restarting) rec.recognition = null;
     };
     rec.recognition = recognition;
     try {
@@ -778,6 +798,25 @@ const AUDIO_UI = {
   },
 };
 const audioClock = { listening: { start: null, total: 0 }, dictation: { start: null, total: 0 } };
+
+/** DATA-4: time listened so far, including a play that is still running. */
+function audioClockTotal(kind) {
+  const c = audioClock[kind];
+  return c.total + (c.start ? Date.now() - c.start : 0);
+}
+
+/** DATA-4: put the saved totals back after a recovery resume and show them. */
+function restoreAudioClock(saved) {
+  ['listening', 'dictation'].forEach((kind) => {
+    const ms = saved && Number(saved[kind]);
+    if (!ms || ms < 0) return;
+    audioClock[kind] = { start: null, total: ms };
+    const t = document.getElementById(AUDIO_UI[kind].time);
+    if (!t) return;
+    t.style.display = 'inline';
+    t.innerHTML = bi('Listened for ' + formatPlayTime(ms), 'Escuchado: ' + formatPlayTime(ms));
+  });
+}
 
 function audioPlayStart(kind, left) {
   const u = AUDIO_UI[kind];

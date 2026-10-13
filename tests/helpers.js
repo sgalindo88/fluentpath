@@ -43,6 +43,7 @@ export function loadUtils() {
     lessonSaveConfirmed: globalThis.lessonSaveConfirmed,
     localDateString: globalThis.localDateString,
     compactAnswersJson: globalThis.compactAnswersJson,
+    makeRestartGate: globalThis.makeRestartGate,
   };
 }
 

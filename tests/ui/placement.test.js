@@ -392,3 +392,86 @@ describe('quality gates', () => {
     await ctx.close();
   });
 });
+
+const FAKE_SR = `(() => {
+  class FakeSR {
+    constructor() { window.__sr = window.__sr || { starts: 0, stops: 0 }; }
+    start() { window.__sr.starts++; setTimeout(() => this.onend && this.onend(), 0); } // ends at once: the failing recogniser
+    stop() { window.__sr.stops++; }
+  }
+  window.SpeechRecognition = FakeSR;
+})();`;
+
+describe('batch F: leaving, flushing, listen time, recogniser restarts', () => {
+  it('UX-1: the leave warning sets returnValue (Chrome), only while a test is in progress', async () => {
+    const { page, ctx } = await open();
+    const idle = await page.evaluate(() => { const e = { preventDefault() { this.p = true; }, returnValue: 'x' }; const r = onBeforeUnload(e); return { p: !!e.p, rv: e.returnValue, r }; });
+    expect(idle).toEqual({ p: false, rv: 'x', r: undefined });
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    const busy = await page.evaluate(() => { const e = { preventDefault() { this.p = true; }, returnValue: 'x' }; const r = onBeforeUnload(e); return { p: !!e.p, rv: e.returnValue, r }; });
+    expect(busy).toEqual({ p: true, rv: '', r: '' });
+    await ctx.close();
+  });
+
+  it('IOS-3b: pagehide saves the checkpoint at once (no waiting for the 5 s timer)', async () => {
+    const { page, ctx } = await open();
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    await page.evaluate(() => { showScreen('screen-writing'); document.getElementById('q11').value = 'The cake was eaten by me.'; });
+    await page.waitForTimeout(20); // checkpoint slots are told apart by millisecond
+    await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY).textValues.q11)).toBe('The cake was eaten by me.');
+    await ctx.close();
+  });
+
+  it('IOS-3b: hiding the tab flushes too, and a test that is not in progress saves nothing', async () => {
+    const { page, ctx } = await open();
+    await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); });
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY))).toBeNull();
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    await page.evaluate(() => { showScreen('screen-writing'); document.getElementById('q12').value = 'Because it rained.'; });
+    await page.waitForTimeout(20);
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY).textValues.q12)).toBe('Because it rained.');
+    await ctx.close();
+  });
+
+  it('DATA-4: the time listened survives a recovery resume and shows again', async () => {
+    const { page, ctx } = await open();
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    await page.evaluate(() => { showScreen('screen-listening'); audioClock.listening.total = 12000; audioClock.dictation.total = 7000; saveTestCheckpoint(); });
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('#ckptResume');
+    await page.click('#ckptResume');
+    expect(await page.evaluate(() => [audioClock.listening.total, audioClock.dictation.total])).toEqual([12000, 7000]);
+    expect(await page.textContent('#audioPlayTime')).toContain('12s');
+    await ctx.close();
+  });
+
+  it('DATA-4: a new attempt starts again at zero', async () => {
+    const { page, ctx } = await open();
+    await page.fill('#candidateName', 'Maria');
+    await start(page);
+    await page.evaluate(() => { audioClock.listening.total = 12000; restartTest(); });
+    expect(await page.evaluate(() => audioClock.listening.total)).toBe(0);
+    await ctx.close();
+  });
+
+  it('UX-7: a recogniser that ends at once is restarted at most 5 times; the recording goes on', async () => {
+    const t = await newPage(browser, {});
+    await t.page.addInitScript(FAKE_SR);
+    await t.page.clock.install();
+    await t.page.goto(base + '/src/student-initial-test.html', { waitUntil: 'load' });
+    await t.page.fill('#candidateName', 'Maria');
+    await start(t.page);
+    await t.page.evaluate(() => { toggleSpeakingRec('q21'); });
+    await t.page.waitForFunction(() => window.__sr && window.__sr.starts >= 1);
+    await t.page.clock.runFor(60000);
+    expect(await t.page.evaluate(() => window.__sr.starts)).toBe(6); // the first start plus 5 restarts
+    expect(await t.page.evaluate(() => speakingRecorders.q21.recording)).toBe(true);
+    await t.ctx.close();
+  });
+});

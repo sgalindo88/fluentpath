@@ -241,7 +241,7 @@ The teacher dashboard lives in the `fluentpath-teacher` repo (`teacher.fluentpat
 
 ## Offline and the service worker
 
-`sw.js` is network-first for HTML, CSS and JS (a page never mixes two deploys), keeps a shell for offline use, and queues writes in IndexedDB for replay (never auth requests or anything with a password). A page navigation is cached by path only and matched ignoring the query, so `/app?paid=1` works offline from the cached `/app`; a URL carrying `reset`, `token`, `session` or `code` is never cached. Bump `CACHE_VERSION` in `sw.js` on every frontend change that must reach returning visitors; the teacher service worker is **generated** and its version is `TEACHER_CACHE_VERSION` in `scripts/sync-shared.mjs`.
+`sw.js` is network-first for HTML, CSS and JS (a page never mixes two deploys), keeps a shell for offline use, and queues writes in IndexedDB for replay (never auth requests or anything with a password). A page navigation is cached by path only and matched ignoring the query, so `/app?paid=1` works offline from the cached `/app`; a URL carrying `reset`, `token`, `session` or `code` is never cached. Google Fonts are cached in their own `fp-fonts-v1` cache, which a version bump does not clear. The placement test and the lesson save their checkpoint every 5 s and also on `pagehide` and when the tab is hidden; speech recognition that ends by itself is restarted at most 5 times in a row, with a growing delay. Bump `CACHE_VERSION` in `sw.js` on every frontend change that must reach returning visitors; the teacher service worker is **generated** and its version is `TEACHER_CACHE_VERSION` in `scripts/sync-shared.mjs`.
 
 ---
 

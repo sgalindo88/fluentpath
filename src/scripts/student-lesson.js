@@ -360,9 +360,16 @@ var lessonInProgress = false;
 function onBeforeUnload(e) {
   if (lessonInProgress) {
     e.preventDefault();
+    e.returnValue = ''; // UX-1: Chrome ignores preventDefault() alone
+    return '';
   }
 }
 window.addEventListener('beforeunload', onBeforeUnload);
+
+// IOS-3b: the checkpoint is saved every 5 s; when the page goes away (iPad swipe-away, Home button) save it now.
+window.addEventListener('pagehide', function () {
+  if (lessonInProgress && ckptInterval) saveLessonCheckpoint();
+});
 
 function waitMessage(en, es) {
   return (
@@ -2058,7 +2065,9 @@ function startDrill(id, phrase) {
     rec.interimResults = true;
     rec.continuous = true;
 
+    const restartGate = makeRestartGate(5, 250); // UX-7
     rec.onresult = (e) => {
+      restartGate.reset();
       var text = '';
       for (var i = 0; i < e.results.length; i++) {
         text += e.results[i][0].transcript;
@@ -2067,12 +2076,16 @@ function startDrill(id, phrase) {
       tEl.innerHTML = youSaid(fullTranscript);
     };
     rec.onend = () => {
-      // Restart if the user hasn't explicitly stopped
-      if (activeDrills[id] && activeDrills[id].rec) {
+      // Restart if the user hasn't explicitly stopped. UX-7: with a growing delay, and give
+      // up after 5 tries in a row (the recording, if any, carries on without a transcript).
+      if (!(activeDrills[id] && activeDrills[id].rec)) return;
+      const restarting = restartGate.schedule(() => {
+        if (!(activeDrills[id] && activeDrills[id].rec === rec)) return;
         try {
           rec.start();
         } catch (e) {}
-      }
+      });
+      if (!restarting) activeDrills[id].rec = null;
     };
     rec.onerror = (ev) => {
       if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
@@ -2212,6 +2225,17 @@ function toggleConvRecording() {
   const tEl = $('conv-transcript');
 
   if (!convRecording) {
+    // UX-7: nothing from an earlier attempt may still be running when a new one starts.
+    try {
+      recognition?.stop();
+    } catch (e) {}
+    recognition = null;
+    if (convMediaRecorder && convMediaRecorder.state !== 'inactive') {
+      try {
+        convMediaRecorder.stop();
+      } catch (e) {}
+    }
+    convMediaRecorder = null;
     convRecording = true;
     setRecMsg('conv-msg', '');
     setConvUi(canRecordAudio() ? 'requesting' : 'recording');
@@ -2526,6 +2550,7 @@ document.addEventListener('visibilitychange', function () {
     Object.keys(activeDrills).forEach(stopDrill);
     if (convRecording) toggleConvRecording();
     if (!paused) pauseLesson();
+    if (ckptInterval) saveLessonCheckpoint(); // IOS-3b: after the pause, so the saved time is right
   }
 });
 

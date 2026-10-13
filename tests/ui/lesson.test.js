@@ -54,10 +54,11 @@ function makeHandlers(extra = {}, level = 'A2') {
   };
 }
 
-async function open({ level = 'A2', handlers, viewport } = {}) {
+async function open({ level = 'A2', handlers, viewport, init } = {}) {
   const h = handlers || makeHandlers({}, level).handlers;
   const t = await newPage(browser, { handlers: h, viewport });
   await t.page.addInitScript((l) => localStorage.setItem('fp_cefr_level', l), level);
+  if (init) await t.page.addInitScript(init);
   t.dialogs = [];
   t.page.on('dialog', (d) => {
     if (d.type() === 'beforeunload') return d.accept(); // leaving a lesson in progress asks first
@@ -608,5 +609,57 @@ describe('N-23: the call request names the real day', () => {
 
   it('after resuming a saved lesson it sends the resumed lesson\'s day, not the server\'s next day', async () => {
     expect(await requestedDay(7)).toBe('7');
+  });
+});
+
+const FAKE_SR = `(() => {
+  class FakeSR {
+    constructor() { window.__sr = window.__sr || { starts: 0, stops: 0 }; }
+    start() { window.__sr.starts++; setTimeout(() => this.onend && this.onend(), 0); } // ends at once: the failing recogniser
+    stop() { window.__sr.stops++; }
+  }
+  window.SpeechRecognition = FakeSR;
+})();`;
+
+describe('batch F: leaving, flushing, recogniser restarts', () => {
+  it('UX-1: the leave warning sets returnValue (Chrome), only while a lesson is in progress', async () => {
+    const { page, ctx } = await open();
+    const probe = () => page.evaluate(() => { const e = { preventDefault() { this.p = true; }, returnValue: 'x' }; const r = onBeforeUnload(e); return { p: !!e.p, rv: e.returnValue, r }; });
+    expect(await probe()).toEqual({ p: false, rv: 'x', r: undefined });
+    await begin(page);
+    expect(await probe()).toEqual({ p: true, rv: '', r: '' });
+    await ctx.close();
+  });
+
+  it('IOS-3b: pagehide saves what was typed at once; hiding the tab does too', async () => {
+    const { page, ctx } = await open();
+    await begin(page);
+    await page.fill('#warmup-resp', 'I saw a doctor last week.');
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY).answers.warmup)).toBe('I saw a doctor last week.');
+    await page.fill('#warmup-resp', 'I saw a doctor yesterday.');
+    await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY).answers.warmup)).toBe('I saw a doctor yesterday.');
+    await ctx.close();
+  });
+
+  it('IOS-3b: with no lesson in progress, pagehide saves nothing', async () => {
+    const { page, ctx } = await open();
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+    expect(await page.evaluate(() => Checkpoint.load(CKPT_KEY))).toBeNull();
+    await ctx.close();
+  });
+
+  it('UX-7: a drill recogniser that ends at once is restarted at most 5 times', async () => {
+    const { page, ctx } = await open({ init: FAKE_SR });
+    await begin(page);
+    for (let i = 0; i < 3; i++) await next(page); // to the speaking step
+    await page.clock.install();
+    await page.evaluate(() => { startDrill('s1', "I'd like to make an appointment."); });
+    await page.waitForFunction(() => window.__sr && window.__sr.starts >= 1);
+    await page.clock.runFor(60000);
+    expect(await page.evaluate(() => window.__sr.starts)).toBe(6); // the first start plus 5 restarts
+    expect(await page.evaluate(() => !!activeDrills.s1)).toBe(true); // the drill is still recording
+    await ctx.close();
   });
 });

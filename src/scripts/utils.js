@@ -164,6 +164,40 @@ function cleanupLocalStorage() {
   }
 }
 
+/**
+ * UX-7: speech recognition ends by itself (silence, a call, a revoked microphone) and
+ * the pages restart it from `onend`. Without a limit a failing recogniser restarts in a
+ * tight loop. A gate allows `max` restarts in a row, each after a doubling delay
+ * (`baseMs`, 2x, 4x ...); call reset() whenever the recogniser produces a result.
+ * schedule(fn) returns false when the limit is reached (fn is not called).
+ */
+function makeRestartGate(max, baseMs) {
+  var count = 0;
+  var timer = null;
+  return {
+    schedule: function (fn) {
+      if (count >= max) return false;
+      var delay = baseMs * Math.pow(2, count);
+      count++;
+      timer = setTimeout(function () {
+        timer = null;
+        fn();
+      }, delay);
+      return true;
+    },
+    reset: function () {
+      count = 0;
+    },
+    cancel: function () {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    },
+    attempts: function () {
+      return count;
+    },
+  };
+}
+
 /** DATA-2: opaque id for one placement-test submission. Prefixed so Sheets
  *  can never coerce it to a number or date. crypto.randomUUID is missing on
  *  older iOS Safari, so fall back to getRandomValues, then Math.random. */

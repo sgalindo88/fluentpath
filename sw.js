@@ -5,12 +5,12 @@
      - App shell HTML, CSS and JS: network-first (4 s), cache when offline, so a
        page and its scripts/styles always come from the same deploy (SW-1)
      - Fonts, icons, images (immutable assets): cache-first
-     - API GET requests: stale-while-revalidate (serve cache, refresh)
+     - Apps Script requests: not intercepted (POSTs are queued offline)
      - API POST requests: try network, queue in IndexedDB on failure
-     - Google Fonts: cache-first (long-lived)
+     - Google Fonts: cache-first in their own long-lived cache
    ═══════════════════════════════════════════════════════════════ */
 
-var CACHE_VERSION = 'fp-v27'; // bumped: N-26 (no cached token URLs; navigations match without the query)
+var CACHE_VERSION = 'fp-v28'; // bumped: batch F (SW-4: Google Fonts in their own cache; dead API cache removed)
 // App shell paths are relative to the service worker's location (project root).
 // This works on both GitHub Pages (/fluentpath/sw.js) and localhost (/sw.js).
 // STUDENT-scoped: only the student site's files. The teacher dashboard lives in
@@ -67,7 +67,8 @@ var APP_SHELL = [
   './src/styles/student-lesson.css',
 ];
 
-var API_CACHE = 'fp-api-v5';
+// SW-4: Google Fonts live in their own cache, kept across CACHE_VERSION bumps (they never change).
+var FONT_CACHE = 'fp-fonts-v1';
 var POST_QUEUE_DB = 'fp-post-queue';
 var POST_QUEUE_STORE = 'requests';
 
@@ -92,7 +93,7 @@ self.addEventListener('activate', function (event) {
       return Promise.all(
         keys
           .filter(function (k) {
-            return k !== CACHE_VERSION && k !== API_CACHE;
+            return k !== CACHE_VERSION && k !== FONT_CACHE;
           })
           .map(function (k) {
             return caches.delete(k);
@@ -122,7 +123,7 @@ self.addEventListener('fetch', function (event) {
 
   // ── Google Fonts: cache-first (they rarely change) ──
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(cacheFirst(event.request, CACHE_VERSION));
+    event.respondWith(cacheFirst(event.request, FONT_CACHE, true));
     return;
   }
 
@@ -245,13 +246,14 @@ function networkFirst(request, cacheName, timeoutMs) {
     .catch(fallback);
 }
 
-function cacheFirst(request, cacheName) {
+function cacheFirst(request, cacheName, allowOpaque) {
   return caches
     .match(request)
     .then(function (cached) {
       if (cached) return cached;
       return fetch(request).then(function (response) {
-        if (response.ok) {
+        // allowOpaque: a cross-origin font request answers with an opaque response (ok is false but it is usable)
+        if (response.ok || (allowOpaque && response.type === 'opaque')) {
           var clone = response.clone();
           caches.open(cacheName).then(function (cache) {
             cache.put(request, clone);
@@ -267,49 +269,6 @@ function cacheFirst(request, cacheName) {
         headers: { 'Content-Type': 'text/plain' },
       });
     });
-}
-
-function staleWhileRevalidate(request) {
-  return caches.open(API_CACHE).then(function (cache) {
-    return cache.match(request).then(function (cached) {
-      var fetchPromise = fetch(request)
-        .then(function (response) {
-          if (response.ok) {
-            // Only cache successful API responses (skip error JSON like { error: "..." })
-            var cacheClone = response.clone();
-            var checkClone = response.clone();
-            checkClone
-              .text()
-              .then(function (text) {
-                try {
-                  var body = JSON.parse(text);
-                  if (body.error) return; // don't cache error responses
-                } catch (e) {
-                  /* not JSON — cache it */
-                }
-                cache.put(request, cacheClone);
-              })
-              .catch(function () {
-                cache.put(request, cacheClone);
-              });
-          }
-          return response;
-        })
-        .catch(function () {
-          // Network failed — return cached or error
-          return (
-            cached ||
-            new Response(JSON.stringify({ error: 'Offline' }), {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' },
-            })
-          );
-        });
-
-      // Return cached immediately if available, otherwise wait for network
-      return cached || fetchPromise;
-    });
-  });
 }
 
 // ── POST QUEUE (IndexedDB) ──────────────────────────────

@@ -64,7 +64,8 @@ function makeFakeIndexedDB() {
 // Minimal Cache Storage: match() by URL, open().put/addAll
 function makeFakeCaches(store = new Map()) {
   return {
-    keys: async () => [],
+    keys: async () => [...(store._cacheNames || [])],
+    delete: async (name) => { store._deleted = [...(store._deleted || []), name]; return true; },
     match: async (req, opts) => {
       const url = typeof req === 'string' ? req : req.url;
       let r = store.get(url);
@@ -93,7 +94,7 @@ function loadSw({ fetchImpl, cacheStore } = {}) {
     location: { origin: 'https://fluentpath.ca' },
   };
   const api = new Function('self', 'indexedDB', 'fetch', 'caches', `${SW_CODE}
-    return { handlePost, replayQueue, isQueueable, queuePost, networkFirst, isShellRequest };`)(self, idb, fetchMock, makeFakeCaches(cacheStore));
+    return { handlePost, replayQueue, isQueueable, queuePost, networkFirst, isShellRequest, cacheFirst };`)(self, idb, fetchMock, makeFakeCaches(cacheStore));
   return { ...api, idb, fetchMock, self, listeners };
 }
 
@@ -357,5 +358,52 @@ describe('N-26: navigations and secret URLs', () => {
     await sw.networkFirst(new Request('https://fluentpath.ca/src/scripts/hub.js?v=2'), 'c', 4000);
     await tick();
     expect([...store.keys()]).toEqual(['https://fluentpath.ca/src/scripts/hub.js?v=2']);
+  });
+});
+
+describe('SW-4: fonts in their own cache, no dead API cache', () => {
+  const FONT = 'https://fonts.gstatic.com/s/montserrat/v1/x.woff2';
+  const tick = () => new Promise((res) => setTimeout(res, 5));
+
+  it('there is no stale-while-revalidate code or API cache any more', () => {
+    expect(SW_CODE).not.toContain('staleWhileRevalidate');
+    expect(SW_CODE).not.toContain('API_CACHE');
+  });
+
+  it('activate deletes old caches but keeps the current shell cache and the fonts cache', async () => {
+    const store = new Map();
+    store._cacheNames = ['fp-v1', 'fp-api-v5', 'fp-fonts-v1', /fp-v\d+/.exec(SW_CODE)?.[0]].filter(Boolean);
+    const current = /CACHE_VERSION = '([^']+)'/.exec(SW_CODE)[1];
+    store._cacheNames.push(current);
+    const sw = loadSw({ cacheStore: store });
+    let done;
+    sw.listeners.activate({ waitUntil: (p) => { done = p; } });
+    await done;
+    expect(store._deleted).toContain('fp-v1');
+    expect(store._deleted).toContain('fp-api-v5');
+    expect(store._deleted).not.toContain('fp-fonts-v1');
+    expect(store._deleted).not.toContain(current);
+  });
+
+  it('routes Google Fonts to cache-first', async () => {
+    const sw = loadSw({ fetchImpl: async () => new Response('FONT') });
+    let responded;
+    sw.listeners.fetch({ request: new Request(FONT), respondWith: (p) => { responded = p; } });
+    expect(responded).toBeDefined();
+    expect(await (await responded).text()).toBe('FONT');
+  });
+
+  it('keeps an opaque (cross-origin) font response, but not an opaque response elsewhere', async () => {
+    const opaque = () => ({ ok: false, type: 'opaque', status: 0, clone() { return this; } });
+    const store = new Map();
+    const sw = loadSw({ cacheStore: store, fetchImpl: async () => opaque() });
+    await sw.cacheFirst(new Request(FONT), 'fp-fonts-v1', true);
+    await tick();
+    expect([...store.keys()]).toEqual([FONT]);
+    const store2 = new Map();
+    const sw2 = loadSw({ cacheStore: store2, fetchImpl: async () => opaque() });
+    await sw2.cacheFirst(new Request('https://fluentpath.ca/icon.png'), 'fp-v', false);
+    await tick();
+    expect(store2.size).toBe(0);
   });
 });

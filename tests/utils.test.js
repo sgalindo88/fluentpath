@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest';
 import { loadUtils } from './helpers.js';
 
 let u;
@@ -252,5 +252,43 @@ describe('compactAnswersJson', () => {
   it('tolerates empty or missing answers', () => {
     expect(u.compactAnswersJson({}, 5000)).toBe('{}');
     expect(u.compactAnswersJson(null, 5000)).toBe('{}');
+  });
+});
+
+// ── makeRestartGate (UX-7) ──────────────────────────────
+
+describe('makeRestartGate', () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('allows 5 restarts in a row with doubling delays, then refuses', () => {
+    vi.useFakeTimers();
+    const gate = globalThis.makeRestartGate(5, 250);
+    const fn = vi.fn();
+    const delays = [];
+    for (let i = 0; i < 5; i++) {
+      const before = fn.mock.calls.length;
+      expect(gate.schedule(fn)).toBe(true);
+      let waited = 0;
+      while (fn.mock.calls.length === before) { vi.advanceTimersByTime(50); waited += 50; }
+      delays.push(waited);
+    }
+    expect(delays).toEqual([250, 500, 1000, 2000, 4000]);
+    expect(gate.schedule(fn)).toBe(false);
+    vi.advanceTimersByTime(60000);
+    expect(fn).toHaveBeenCalledTimes(5);
+  });
+
+  it('reset() starts the count again; cancel() drops a pending restart', () => {
+    vi.useFakeTimers();
+    const gate = globalThis.makeRestartGate(2, 100);
+    const fn = vi.fn();
+    gate.schedule(fn); gate.schedule(fn);
+    expect(gate.schedule(fn)).toBe(false);
+    gate.reset();
+    expect(gate.schedule(fn)).toBe(true);
+    gate.cancel();
+    vi.advanceTimersByTime(10000);
+    expect(fn).not.toHaveBeenCalledTimes(3);
+    expect(gate.attempts()).toBe(1);
   });
 });

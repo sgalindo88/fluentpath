@@ -4,6 +4,17 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.61.2] - 2026-10-13
+
+### Fixed — Offline and resume robustness (Phase E batch F: UX-1, IOS-3b, DATA-4, UX-7, SW-4; student `fp-v28`, teacher `fp-teacher-v16`; frontend only, the backend stays 0.61.0)
+- **UX-1:** the "leave this test/lesson?" warning now works in Chrome (`returnValue` is set as well as `preventDefault()`); it only fires while a test or lesson is in progress.
+- **IOS-3b:** the placement test and the lesson save their checkpoint on `pagehide` and when the tab is hidden, so an iPad swipe-away, the Home button or a call no longer loses up to 5 seconds of answers (the timer still saves every 5 s). The lesson saves after its auto-pause.
+- **DATA-4:** the "time listened" totals of the placement test are kept in the checkpoint and shown again after a recovery resume (they were already reset for a new attempt, and are display-only; nothing is sent to the teacher).
+- **UX-7:** speech recognition that ends by itself is restarted with a growing delay (0.25 s, 0.5 s, 1 s, 2 s, 4 s) and at most 5 times in a row (`makeRestartGate` in `utils.js`; a result resets the count). After that the transcript stops and the audio recording carries on. A new conversation recording first stops any recogniser or recorder left from before.
+- **SW-4:** removed the dead `staleWhileRevalidate` and the never-written `fp-api-v5` cache (old copies are deleted on activate). Google Fonts now live in their own `fp-fonts-v1` cache, which survives version bumps, and accept opaque cross-origin responses.
+- **UX-3:** no change needed (already covered: the checkpoint is kept until a verified save, a "Retry submission" button, and the service worker queues the POST). UX-2 (payment confirming) moves to the pricing and payments batch.
+- Tests: 4 service worker, 2 `makeRestartGate`, and 9 browser tests (leave warning, flush on `pagehide` and on hiding, listen time across a resume, restart cap in the placement test and in a lesson drill).
+
 ## [0.61.1] - 2026-10-13
 
 ### Fixed — Small frontend and doc items (Phase E batch D: N-23, N-26, N-21; student `fp-v27`, teacher `fp-teacher-v15`; frontend only; the backend stays 0.61.0)

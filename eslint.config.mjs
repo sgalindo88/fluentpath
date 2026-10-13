@@ -64,6 +64,7 @@ export default [
         formatPlayTime: 'readonly',
         timeAgo: 'readonly',
         newSubmissionId: 'readonly',
+        makeRestartGate: 'readonly',
         submissionMatches: 'readonly',
         lessonSaveConfirmed: 'readonly',
         localDateString: 'readonly',
