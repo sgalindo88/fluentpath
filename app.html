@@ -1,183 +1,239 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FluentPath · Your Journey to Fluency</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#1E2A38">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FluentPath">
-<link rel="stylesheet" href="src/styles/tokens.css">
-<link rel="stylesheet" href="src/styles/theme.css">
-<link rel="stylesheet" href="src/styles/components.css">
-<link rel="stylesheet" href="src/styles/hub.css">
-<link rel="stylesheet" href="src/styles/mobile.css">
-</head>
-<body>
-
-<!-- ═══════════════════════════════════════════════════════════
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FluentPath · Your Journey to Fluency</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1E2A38" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FluentPath" />
+    <link rel="stylesheet" href="src/styles/tokens.css" />
+    <link rel="stylesheet" href="src/styles/theme.css" />
+    <link rel="stylesheet" href="src/styles/components.css" />
+    <link rel="stylesheet" href="src/styles/hub.css" />
+    <link rel="stylesheet" href="src/styles/mobile.css" />
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════════════════════════
      SCREEN 1: Welcome / Log in
      ═══════════════════════════════════════════════════════════ -->
-<div id="screen-welcome" class="screen active">
-  <main class="auth">
-    <div class="auth__brand">
-      <img class="fp-logo fp-logo--stacked" src="src/img/logo-stacked.svg" alt="FluentPath">
-      <p class="auth__tagline">Your journey to fluency starts here.
-        <span class="fp-bi__es" lang="es">Tu camino hacia la fluidez empieza aquí.</span></p>
+    <div id="screen-welcome" class="screen active">
+      <main class="auth">
+        <div class="auth__brand">
+          <img class="fp-logo fp-logo--stacked" src="src/img/logo-stacked.svg" alt="FluentPath" />
+          <p class="auth__tagline">
+            Your journey to fluency starts here.
+            <span class="fp-bi__es" lang="es">Tu camino hacia la fluidez empieza aquí.</span>
+          </p>
+        </div>
+
+        <form
+          class="fp-card auth__card"
+          onsubmit="
+            enterHub();
+            return false;
+          "
+          novalidate
+        >
+          <div class="fp-field">
+            <label class="fp-label" for="loginEmail"
+              >Email <span class="fp-bi__es" lang="es">Correo electrónico</span></label
+            >
+            <input
+              class="fp-input"
+              type="email"
+              id="loginEmail"
+              placeholder="you@example.com"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+          </div>
+          <div class="fp-field">
+            <label class="fp-label" for="loginPassword"
+              >Password <span class="fp-bi__es" lang="es">Contraseña</span></label
+            >
+            <input
+              class="fp-input"
+              type="password"
+              id="loginPassword"
+              placeholder="Your password"
+              autocomplete="current-password"
+            />
+          </div>
+          <div class="fp-field-error" id="loginError" role="alert" style="display: none"></div>
+          <p class="auth__hint">
+            Use the email and password your teacher gave you.
+            <span class="fp-bi__es" lang="es">Usa el correo y la contraseña que te dio tu profesor.</span>
+          </p>
+          <button type="submit" class="fp-btn fp-btn--primary fp-btn--block" id="btnEnter">
+            <span class="fp-bi">Log In<span class="fp-bi__es" lang="es">Iniciar sesión</span></span>
+          </button>
+        </form>
+
+        <nav class="auth__links" aria-label="Help">
+          <a
+            href="#"
+            onclick="
+              FP.passwordReset.openForgot();
+              return false;
+            "
+            >Forgot password? <span class="fp-bi__es" lang="es">¿Olvidaste tu contraseña?</span></a
+          >
+          <a href="#" id="teacherLink">For teachers <span class="fp-bi__es" lang="es">Para profesores</span></a>
+        </nav>
+        <p class="auth__footer">fluentpath.ca</p>
+      </main>
     </div>
 
-    <form class="fp-card auth__card" onsubmit="enterHub();return false;" novalidate>
-      <div class="fp-field">
-        <label class="fp-label" for="loginEmail">Email <span class="fp-bi__es" lang="es">Correo electrónico</span></label>
-        <input class="fp-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="username" autocapitalize="none" spellcheck="false">
-      </div>
-      <div class="fp-field">
-        <label class="fp-label" for="loginPassword">Password <span class="fp-bi__es" lang="es">Contraseña</span></label>
-        <input class="fp-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
-      </div>
-      <div class="fp-field-error" id="loginError" role="alert" style="display:none;"></div>
-      <p class="auth__hint">Use the email and password your teacher gave you.
-        <span class="fp-bi__es" lang="es">Usa el correo y la contraseña que te dio tu profesor.</span></p>
-      <button type="submit" class="fp-btn fp-btn--primary fp-btn--block" id="btnEnter">
-        <span class="fp-bi">Log In<span class="fp-bi__es" lang="es">Iniciar sesión</span></span>
-      </button>
-    </form>
-
-    <nav class="auth__links" aria-label="Help">
-      <a href="#" onclick="FP.passwordReset.openForgot();return false;">Forgot password? <span class="fp-bi__es" lang="es">¿Olvidaste tu contraseña?</span></a>
-      <a href="#" id="teacherLink">For teachers <span class="fp-bi__es" lang="es">Para profesores</span></a>
-    </nav>
-    <p class="auth__footer">fluentpath.ca</p>
-  </main>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════════════════════
      SCREEN: Paywall (gated daily course; the placement test stays free)
      ═══════════════════════════════════════════════════════════ -->
-<div id="screen-paywall" class="screen">
-  <main class="auth">
-    <div class="auth__brand">
-      <img class="fp-logo fp-logo--stacked" src="src/img/logo-stacked.svg" alt="FluentPath">
+    <div id="screen-paywall" class="screen">
+      <main class="auth">
+        <div class="auth__brand">
+          <img class="fp-logo fp-logo--stacked" src="src/img/logo-stacked.svg" alt="FluentPath" />
+        </div>
+        <div class="fp-card auth__card">
+          <h1 class="auth__title">Unlock your course <span class="fp-bi__es" lang="es">Desbloquea tu curso</span></h1>
+          <p>
+            Your placement test is free. To begin your daily lessons, a one-time payment unlocks the full course,
+            permanently.
+            <span class="fp-bi__es" lang="es"
+              >Tu prueba de nivel es gratis. Para empezar tus lecciones diarias, un solo pago desbloquea el curso
+              completo para siempre.</span
+            >
+          </p>
+          <div class="fp-field-error" id="paywallError" role="alert" style="display: none"></div>
+          <button class="fp-btn fp-btn--primary fp-btn--block" id="btnPay" onclick="startCheckout()">
+            <span class="fp-bi">Continue to payment<span class="fp-bi__es" lang="es">Continuar al pago</span></span>
+          </button>
+        </div>
+        <nav class="auth__links">
+          <a
+            href="#"
+            onclick="
+              showScreen('screen-dashboard');
+              return false;
+            "
+            ><i data-icon="arrow_left_alt" data-icon-size="sm"></i> Back to my route
+            <span class="fp-bi__es" lang="es">Volver a mi camino</span></a
+          >
+        </nav>
+      </main>
     </div>
-    <div class="fp-card auth__card">
-      <h1 class="auth__title">Unlock your course <span class="fp-bi__es" lang="es">Desbloquea tu curso</span></h1>
-      <p>Your placement test is free. To begin your daily lessons, a one-time payment unlocks the full course, permanently.
-        <span class="fp-bi__es" lang="es">Tu prueba de nivel es gratis. Para empezar tus lecciones diarias, un solo pago desbloquea el curso completo para siempre.</span></p>
-      <div class="fp-field-error" id="paywallError" role="alert" style="display:none;"></div>
-      <button class="fp-btn fp-btn--primary fp-btn--block" id="btnPay" onclick="startCheckout()">
-        <span class="fp-bi">Continue to payment<span class="fp-bi__es" lang="es">Continuar al pago</span></span>
-      </button>
-    </div>
-    <nav class="auth__links">
-      <a href="#" onclick="showScreen('screen-dashboard');return false;"><i data-icon="arrow_left_alt" data-icon-size="sm"></i> Back to my route <span class="fp-bi__es" lang="es">Volver a mi camino</span></a>
-    </nav>
-  </main>
-</div>
 
-<!-- ═══════════════════════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════════════════════
      SCREEN 2: Loading
      ═══════════════════════════════════════════════════════════ -->
-<div id="screen-loading" class="screen">
-  <main class="auth auth--center" role="status" aria-live="polite">
-    <span class="fp-spinner hub-spinner" aria-hidden="true"></span>
-    <p>Looking up your progress…
-      <span class="fp-bi__es" lang="es">Buscando tu progreso…</span></p>
-  </main>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     SCREEN 3: Hub (the route, next step, results, achievements)
-     ═══════════════════════════════════════════════════════════ -->
-<div id="screen-dashboard" class="screen">
-  <header class="fp-header">
-    <a class="hub-home" href="app.html" aria-label="FluentPath">
-      <img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath">
-    </a>
-    <button type="button" class="fp-btn fp-btn--text" onclick="logout()">
-      <span class="fp-bi">Not you? Switch student<span class="fp-bi__es" lang="es">¿No eres tú? Cambiar de estudiante</span></span>
-    </button>
-  </header>
-
-  <main class="hub">
-    <section class="hub-hero">
-      <p class="hub-eyebrow">Welcome back <span class="fp-bi__es" lang="es">Qué bueno verte de nuevo</span></p>
-      <h1 class="hub-name" id="dashName"></h1>
-      <p class="hub-sub" id="dashSubtitle"></p>
-    </section>
-
-    <!-- The route: three waypoints (placement test, level, course) -->
-    <section class="fp-card hub-route" aria-labelledby="routeTitle">
-      <h2 class="hub-card-title" id="routeTitle">Your English route <span class="fp-bi__es" lang="es">Tu ruta de inglés</span></h2>
-      <ol class="route" id="route">
-        <li class="route__step" id="route-test">
-          <span class="fp-waypoint" aria-hidden="true"></span>
-          <span class="route__label">Placement test<span class="fp-bi__es" lang="es">Prueba de nivel</span></span>
-          <span class="route__meta" id="route-test-meta"></span>
-        </li>
-        <li class="route__step" id="route-level">
-          <span class="fp-waypoint" aria-hidden="true"></span>
-          <span class="route__label">Your level<span class="fp-bi__es" lang="es">Tu nivel</span></span>
-          <span class="route__meta" id="route-level-meta"></span>
-        </li>
-        <li class="route__step" id="route-course">
-          <span class="fp-waypoint" aria-hidden="true"></span>
-          <span class="route__label">Your course<span class="fp-bi__es" lang="es">Tu curso</span></span>
-          <span class="route__meta" id="route-course-meta"></span>
-        </li>
-      </ol>
-    </section>
-
-    <!-- What to do next -->
-    <section class="fp-card hub-next" id="ctaSection" aria-live="polite"></section>
-
-    <!-- Talking to the teacher: an in-page card, not a floating button over the content -->
-    <section class="fp-card hub-call" aria-labelledby="callTitle">
-      <div>
-        <h2 class="hub-card-title" id="callTitle">Need to talk to your teacher? <span class="fp-bi__es" lang="es">¿Necesitas hablar con tu profesor?</span></h2>
-        <p class="hub-desc">Ask for a video call and your teacher will send you a link.
-          <span class="fp-bi__es" lang="es">Pide una videollamada y tu profesor te enviará un enlace.</span></p>
-      </div>
-      <div id="callSlot"></div>
-    </section>
-
-    <!-- Details for each waypoint (JS fills the cards) -->
-    <div class="hub-grid">
-      <article class="fp-card hub-detail" id="ms-test">
-        <p class="hub-eyebrow">Phase one <span class="fp-bi__es" lang="es">Fase uno</span></p>
-        <h2 class="hub-card-title">Placement test <span class="fp-bi__es" lang="es">Prueba de nivel</span></h2>
-        <p class="hub-desc" id="ms-test-desc"></p>
-        <div id="ms-test-card" style="display:none;"></div>
-      </article>
-      <article class="fp-card hub-detail" id="ms-level">
-        <p class="hub-eyebrow">Phase one <span class="fp-bi__es" lang="es">Fase uno</span></p>
-        <h2 class="hub-card-title">Your level <span class="fp-bi__es" lang="es">Tu nivel</span></h2>
-        <p class="hub-desc" id="ms-level-desc"></p>
-        <div id="ms-level-card" style="display:none;"></div>
-      </article>
+    <div id="screen-loading" class="screen">
+      <main class="auth auth--center" role="status" aria-live="polite">
+        <span class="fp-spinner hub-spinner" aria-hidden="true"></span>
+        <p>Looking up your progress… <span class="fp-bi__es" lang="es">Buscando tu progreso…</span></p>
+      </main>
     </div>
 
-    <article class="fp-card hub-detail" id="ms-course">
-      <p class="hub-eyebrow">Phase two <span class="fp-bi__es" lang="es">Fase dos</span></p>
-      <h2 class="hub-card-title">Your course <span class="fp-bi__es" lang="es">Tu curso</span></h2>
-      <p class="hub-desc" id="ms-course-desc"></p>
-      <div id="ms-course-card" style="display:none;"></div>
-    </article>
+    <!-- ═══════════════════════════════════════════════════════════
+     SCREEN 3: Hub (the route, next step, results, achievements)
+     ═══════════════════════════════════════════════════════════ -->
+    <div id="screen-dashboard" class="screen">
+      <header class="fp-header">
+        <a class="hub-home" href="app.html" aria-label="FluentPath">
+          <img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath" />
+        </a>
+        <button type="button" class="fp-btn fp-btn--text" onclick="logout()">
+          <span class="fp-bi"
+            >Not you? Switch student<span class="fp-bi__es" lang="es">¿No eres tú? Cambiar de estudiante</span></span
+          >
+        </button>
+      </header>
 
-    <section id="achievementsSection" style="display:none;"></section>
-  </main>
-</div>
+      <main class="hub">
+        <section class="hub-hero">
+          <p class="hub-eyebrow">Welcome back <span class="fp-bi__es" lang="es">Qué bueno verte de nuevo</span></p>
+          <h1 class="hub-name" id="dashName"></h1>
+          <p class="hub-sub" id="dashSubtitle"></p>
+        </section>
 
-<script src="src/scripts/config.js"></script>
-<script src="src/scripts/icons.js"></script>
-<script src="src/scripts/api.js"></script>
-<script src="src/scripts/utils.js"></script>
-<script src="src/scripts/ui.js"></script>
-<script src="src/scripts/hub.js"></script>
-<script src="src/scripts/call-request.js"></script>
-<script src="src/scripts/password-reset.js"></script>
-</body>
+        <!-- The route: three waypoints (placement test, level, course) -->
+        <section class="fp-card hub-route" aria-labelledby="routeTitle">
+          <h2 class="hub-card-title" id="routeTitle">
+            Your English route <span class="fp-bi__es" lang="es">Tu ruta de inglés</span>
+          </h2>
+          <ol class="route" id="route">
+            <li class="route__step" id="route-test">
+              <span class="fp-waypoint" aria-hidden="true"></span>
+              <span class="route__label">Placement test<span class="fp-bi__es" lang="es">Prueba de nivel</span></span>
+              <span class="route__meta" id="route-test-meta"></span>
+            </li>
+            <li class="route__step" id="route-level">
+              <span class="fp-waypoint" aria-hidden="true"></span>
+              <span class="route__label">Your level<span class="fp-bi__es" lang="es">Tu nivel</span></span>
+              <span class="route__meta" id="route-level-meta"></span>
+            </li>
+            <li class="route__step" id="route-course">
+              <span class="fp-waypoint" aria-hidden="true"></span>
+              <span class="route__label">Your course<span class="fp-bi__es" lang="es">Tu curso</span></span>
+              <span class="route__meta" id="route-course-meta"></span>
+            </li>
+          </ol>
+        </section>
+
+        <!-- What to do next -->
+        <section class="fp-card hub-next" id="ctaSection" aria-live="polite"></section>
+
+        <!-- Talking to the teacher: an in-page card, not a floating button over the content -->
+        <section class="fp-card hub-call" aria-labelledby="callTitle">
+          <div>
+            <h2 class="hub-card-title" id="callTitle">
+              Need to talk to your teacher? <span class="fp-bi__es" lang="es">¿Necesitas hablar con tu profesor?</span>
+            </h2>
+            <p class="hub-desc">
+              Ask for a video call and your teacher will send you a link.
+              <span class="fp-bi__es" lang="es">Pide una videollamada y tu profesor te enviará un enlace.</span>
+            </p>
+          </div>
+          <div id="callSlot"></div>
+        </section>
+
+        <!-- Details for each waypoint (JS fills the cards) -->
+        <div class="hub-grid">
+          <article class="fp-card hub-detail" id="ms-test">
+            <p class="hub-eyebrow">Phase one <span class="fp-bi__es" lang="es">Fase uno</span></p>
+            <h2 class="hub-card-title">Placement test <span class="fp-bi__es" lang="es">Prueba de nivel</span></h2>
+            <p class="hub-desc" id="ms-test-desc"></p>
+            <div id="ms-test-card" style="display: none"></div>
+          </article>
+          <article class="fp-card hub-detail" id="ms-level">
+            <p class="hub-eyebrow">Phase one <span class="fp-bi__es" lang="es">Fase uno</span></p>
+            <h2 class="hub-card-title">Your level <span class="fp-bi__es" lang="es">Tu nivel</span></h2>
+            <p class="hub-desc" id="ms-level-desc"></p>
+            <div id="ms-level-card" style="display: none"></div>
+          </article>
+        </div>
+
+        <article class="fp-card hub-detail" id="ms-course">
+          <p class="hub-eyebrow">Phase two <span class="fp-bi__es" lang="es">Fase dos</span></p>
+          <h2 class="hub-card-title">Your course <span class="fp-bi__es" lang="es">Tu curso</span></h2>
+          <p class="hub-desc" id="ms-course-desc"></p>
+          <div id="ms-course-card" style="display: none"></div>
+        </article>
+
+        <section id="achievementsSection" style="display: none"></section>
+      </main>
+    </div>
+
+    <script src="src/scripts/config.js"></script>
+    <script src="src/scripts/icons.js"></script>
+    <script src="src/scripts/api.js"></script>
+    <script src="src/scripts/utils.js"></script>
+    <script src="src/scripts/ui.js"></script>
+    <script src="src/scripts/hub.js"></script>
+    <script src="src/scripts/call-request.js"></script>
+    <script src="src/scripts/password-reset.js"></script>
+  </body>
 </html>

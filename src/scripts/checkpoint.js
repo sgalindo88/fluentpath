@@ -32,11 +32,15 @@ const Checkpoint = (() => {
     try {
       var who = (localStorage.getItem('fp_student_name') || '').toLowerCase().trim();
       return who ? who.replace(/[^a-z0-9]+/g, '-') + '_' : '';
-    } catch (e) { return ''; }
+    } catch (e) {
+      return '';
+    }
   }
 
   /** Fully-qualified base key for the current student. */
-  function baseKey(key) { return PREFIX + scope() + key; }
+  function baseKey(key) {
+    return PREFIX + scope() + key;
+  }
 
   /* ── Core API (double-buffer) ──────────────────────────── */
   // Alternates writes between _a and _b slots. On load, picks the
@@ -51,7 +55,9 @@ const Checkpoint = (() => {
       var slot = writeSlot[key] === 'b' ? 'a' : 'b';
       writeSlot[key] = slot;
       localStorage.setItem(baseKey(key) + '_' + slot, JSON.stringify(data));
-    } catch (e) { /* quota exceeded or unavailable */ }
+    } catch (e) {
+      /* quota exceeded or unavailable */
+    }
   }
 
   /**
@@ -73,14 +79,22 @@ const Checkpoint = (() => {
         var raw = localStorage.getItem(oldKey);
         if (!raw) return;
         var data;
-        try { data = JSON.parse(raw); } catch (e) { return; }
-        var owner = String((data && (data.studentName || data.candidateName)) || '').toLowerCase().trim();
+        try {
+          data = JSON.parse(raw);
+        } catch (e) {
+          return;
+        }
+        var owner = String((data && (data.studentName || data.candidateName)) || '')
+          .toLowerCase()
+          .trim();
         if (!owner || owner !== who) return;
         var newKey = baseKey(key) + suffix;
         if (localStorage.getItem(newKey) === null) localStorage.setItem(newKey, raw);
         localStorage.removeItem(oldKey);
       });
-    } catch (e) { /* storage unavailable */ }
+    } catch (e) {
+      /* storage unavailable */
+    }
   }
 
   function load(key) {
@@ -91,15 +105,21 @@ const Checkpoint = (() => {
     var legacy = _loadLegacy(key);
 
     // Pick the newest valid checkpoint
-    var candidates = [a, b, legacy].filter(function(c) { return c !== null; });
+    var candidates = [a, b, legacy].filter(function (c) {
+      return c !== null;
+    });
     if (candidates.length === 0) return null;
 
     // Filter out incompatible versions
-    candidates = candidates.filter(function(c) { return !c._version || c._version === VERSION; });
+    candidates = candidates.filter(function (c) {
+      return !c._version || c._version === VERSION;
+    });
     if (candidates.length === 0) return null;
 
     // Return the one with the most recent _savedAt
-    candidates.sort(function(x, y) { return (y._savedAt || 0) - (x._savedAt || 0); });
+    candidates.sort(function (x, y) {
+      return (y._savedAt || 0) - (x._savedAt || 0);
+    });
     return candidates[0];
   }
 
@@ -107,14 +127,18 @@ const Checkpoint = (() => {
     try {
       var raw = localStorage.getItem(baseKey(key) + '_' + slot);
       return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
 
   function _loadLegacy(key) {
     try {
       var raw = localStorage.getItem(baseKey(key));
       return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
   }
 
   function clear(key) {
@@ -162,14 +186,24 @@ const Checkpoint = (() => {
     var ago = opts.savedAt ? agoParts(opts.savedAt) : null;
     overlay.innerHTML =
       '<div class="fp-modal fp-ckpt" role="alertdialog" aria-modal="true" aria-labelledby="ckptTitle" aria-describedby="ckptMsg">' +
-        '<div class="fp-ckpt__icon">' + FP.icon('keep', { size: 'lg' }) + '</div>' +
-        '<h2 class="fp-modal__title" id="ckptTitle">' + bi(opts.title || 'Resume?', opts.titleEs) + '</h2>' +
-        '<p class="fp-ckpt__msg" id="ckptMsg">' + bi(opts.message || 'You have unsaved progress.', opts.messageEs) + '</p>' +
-        (ago ? '<p class="fp-ckpt__time">' + bi('Saved ' + ago[0], 'Guardado ' + ago[1]) + '</p>' : '') +
-        '<div class="fp-ckpt__actions">' +
-          '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptResume">' + bi('Resume', 'Continuar') + '</button>' +
-          '<button type="button" class="fp-btn fp-btn--text" id="ckptRestart">' + bi('Start over', 'Empezar de nuevo') + '</button>' +
-        '</div>' +
+      '<div class="fp-ckpt__icon">' +
+      FP.icon('keep', { size: 'lg' }) +
+      '</div>' +
+      '<h2 class="fp-modal__title" id="ckptTitle">' +
+      bi(opts.title || 'Resume?', opts.titleEs) +
+      '</h2>' +
+      '<p class="fp-ckpt__msg" id="ckptMsg">' +
+      bi(opts.message || 'You have unsaved progress.', opts.messageEs) +
+      '</p>' +
+      (ago ? '<p class="fp-ckpt__time">' + bi('Saved ' + ago[0], 'Guardado ' + ago[1]) + '</p>' : '') +
+      '<div class="fp-ckpt__actions">' +
+      '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptResume">' +
+      bi('Resume', 'Continuar') +
+      '</button>' +
+      '<button type="button" class="fp-btn fp-btn--text" id="ckptRestart">' +
+      bi('Start over', 'Empezar de nuevo') +
+      '</button>' +
+      '</div>' +
       '</div>';
     document.body.appendChild(overlay);
 
@@ -180,9 +214,15 @@ const Checkpoint = (() => {
     function onKeydown(e) {
       if (e.key !== 'Tab') return;
       var btns = Array.prototype.slice.call(modal.querySelectorAll('button'));
-      var first = btns[0], last = btns[btns.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      var first = btns[0],
+        last = btns[btns.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener('keydown', onKeydown);
 
@@ -195,7 +235,10 @@ const Checkpoint = (() => {
       modal.innerHTML = mainHtml;
       modal.setAttribute('aria-labelledby', 'ckptTitle');
       modal.setAttribute('aria-describedby', 'ckptMsg');
-      modal.querySelector('#ckptResume').onclick = function () { cleanup(); if (opts.onResume) opts.onResume(); };
+      modal.querySelector('#ckptResume').onclick = function () {
+        cleanup();
+        if (opts.onResume) opts.onResume();
+      };
       modal.querySelector('#ckptRestart').onclick = showConfirm;
       modal.querySelector('#ckptResume').focus();
     }
@@ -203,17 +246,33 @@ const Checkpoint = (() => {
     // "Start over" throws the saved work away, so it asks first. The safe choice is the primary one.
     function showConfirm() {
       modal.innerHTML =
-        '<div class="fp-ckpt__icon">' + FP.icon('warning', { size: 'lg' }) + '</div>' +
-        '<h2 class="fp-modal__title" id="ckptConfirmTitle">' + bi('Start over?', '¿Empezar de nuevo?') + '</h2>' +
-        '<p class="fp-ckpt__msg" id="ckptConfirmMsg">' + bi('Your saved answers will be deleted. This cannot be undone.', 'Tus respuestas guardadas se borrarán. No se puede deshacer.') + '</p>' +
+        '<div class="fp-ckpt__icon">' +
+        FP.icon('warning', { size: 'lg' }) +
+        '</div>' +
+        '<h2 class="fp-modal__title" id="ckptConfirmTitle">' +
+        bi('Start over?', '¿Empezar de nuevo?') +
+        '</h2>' +
+        '<p class="fp-ckpt__msg" id="ckptConfirmMsg">' +
+        bi(
+          'Your saved answers will be deleted. This cannot be undone.',
+          'Tus respuestas guardadas se borrarán. No se puede deshacer.'
+        ) +
+        '</p>' +
         '<div class="fp-ckpt__actions">' +
-          '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptKeep">' + bi('No, keep my progress', 'No, conservar mi progreso') + '</button>' +
-          '<button type="button" class="fp-btn fp-btn--text" id="ckptConfirm">' + bi('Yes, start over', 'Sí, empezar de nuevo') + '</button>' +
+        '<button type="button" class="fp-btn fp-btn--primary fp-btn--block" id="ckptKeep">' +
+        bi('No, keep my progress', 'No, conservar mi progreso') +
+        '</button>' +
+        '<button type="button" class="fp-btn fp-btn--text" id="ckptConfirm">' +
+        bi('Yes, start over', 'Sí, empezar de nuevo') +
+        '</button>' +
         '</div>';
       modal.setAttribute('aria-labelledby', 'ckptConfirmTitle');
       modal.setAttribute('aria-describedby', 'ckptConfirmMsg');
       modal.querySelector('#ckptKeep').onclick = showMain;
-      modal.querySelector('#ckptConfirm').onclick = function () { cleanup(); if (opts.onStartOver) opts.onStartOver(); };
+      modal.querySelector('#ckptConfirm').onclick = function () {
+        cleanup();
+        if (opts.onStartOver) opts.onStartOver();
+      };
       modal.querySelector('#ckptKeep').focus();
     }
 

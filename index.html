@@ -1,194 +1,224 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>FluentPath · English for your life in a new country</title>
-<meta name="description" content="FluentPath is one-on-one English tutoring for adult immigrants — a free placement test, a personalised daily course, and live calls with a real teacher.">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#1E2A38">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FluentPath">
-<meta property="og:title" content="FluentPath · English for your life in a new country">
-<meta property="og:description" content="One-on-one English tutoring for adult immigrants. Free placement test, personalised daily lessons, and a real teacher.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://fluentpath.ca/">
-<link rel="stylesheet" href="src/styles/tokens.css">
-<link rel="stylesheet" href="src/styles/theme.css">
-<link rel="stylesheet" href="src/styles/components.css">
-<link rel="stylesheet" href="src/styles/brochure.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>FluentPath · English for your life in a new country</title>
+    <meta
+      name="description"
+      content="FluentPath is one-on-one English tutoring for adult immigrants — a free placement test, a personalised daily course, and live calls with a real teacher."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#1E2A38" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FluentPath" />
+    <meta property="og:title" content="FluentPath · English for your life in a new country" />
+    <meta
+      property="og:description"
+      content="One-on-one English tutoring for adult immigrants. Free placement test, personalised daily lessons, and a real teacher."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://fluentpath.ca/" />
+    <link rel="stylesheet" href="src/styles/tokens.css" />
+    <link rel="stylesheet" href="src/styles/theme.css" />
+    <link rel="stylesheet" href="src/styles/components.css" />
+    <link rel="stylesheet" href="src/styles/brochure.css" />
+  </head>
+  <body>
+    <!-- ── Header: logo, access links, language toggle ── -->
+    <header class="fp-header site-header">
+      <a class="site-logo" href="./" aria-label="FluentPath"
+        ><img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath"
+      /></a>
+      <nav class="nav-access" aria-label="Access">
+        <a class="fp-btn fp-btn--text" href="app.html" data-i18n="navStudent">Student Access</a>
+        <a class="fp-btn fp-btn--text" href="https://teacher.fluentpath.ca" data-i18n="navTeacher">Teacher Access</a>
+        <a id="langToggle" class="fp-btn fp-btn--text lang-toggle" href="?lang=es" hreflang="es">Español</a>
+      </nav>
+    </header>
 
-<!-- ── Header: logo, access links, language toggle ── -->
-<header class="fp-header site-header">
-  <a class="site-logo" href="./" aria-label="FluentPath"><img class="fp-logo" src="src/img/logo-primary-horizontal.svg" alt="FluentPath"></a>
-  <nav class="nav-access" aria-label="Access">
-    <a class="fp-btn fp-btn--text" href="app.html" data-i18n="navStudent">Student Access</a>
-    <a class="fp-btn fp-btn--text" href="https://teacher.fluentpath.ca" data-i18n="navTeacher">Teacher Access</a>
-    <a id="langToggle" class="fp-btn fp-btn--text lang-toggle" href="?lang=es" hreflang="es">Español</a>
-  </nav>
-</header>
+    <main class="wrap">
+      <!-- ── Hero ── -->
+      <section class="hero">
+        <img class="fp-logo fp-logo--stacked hero-logo" src="src/img/logo-stacked.svg" alt="" />
+        <h1 class="tagline" data-i18n="tagline">English for your life in a new country.</h1>
+        <p class="intro" data-i18n="intro">
+          One-on-one English tutoring built for working adults. Learn with a real teacher, at your own pace, around your
+          own schedule — no classrooms, no rigid timetables.
+        </p>
+        <a class="fp-btn fp-btn--primary hero-cta" href="app.html"
+          ><span data-i18n="ctaStart">Take the free placement test</span><i data-icon="arrow_right_alt"></i
+        ></a>
+        <p class="cta-note" data-i18n="ctaNote">No payment, no account fees. It takes about 40 minutes.</p>
+      </section>
 
-<main class="wrap">
+      <!-- ── How it works: a route with three stops ── -->
+      <section aria-labelledby="howTitle">
+        <h2 class="section-title" id="howTitle" data-i18n="howTitle">How it works</h2>
+        <ol class="route">
+          <li class="stop">
+            <span class="stop__node" aria-hidden="true"></span>
+            <h3 data-i18n="step1Title">Take the free placement test</h3>
+            <p data-i18n="step1Body">
+              A short test across reading, writing, listening and speaking finds your level — completely free, no
+              payment needed.
+            </p>
+          </li>
+          <li class="stop">
+            <span class="stop__node" aria-hidden="true"></span>
+            <h3 data-i18n="step2Title">Follow your personalised course</h3>
+            <p data-i18n="step2Body">
+              A structured daily course is tailored to your level, with a new lesson each day you can fit around work
+              and family.
+            </p>
+          </li>
+          <li class="stop">
+            <span class="stop__node" aria-hidden="true"></span>
+            <h3 data-i18n="step3Title">Meet your teacher one-on-one</h3>
+            <p data-i18n="step3Body">
+              Your teacher marks your work, tracks your progress, and is available for live video calls whenever you
+              need a hand.
+            </p>
+          </li>
+        </ol>
+      </section>
 
-  <!-- ── Hero ── -->
-  <section class="hero">
-    <img class="fp-logo fp-logo--stacked hero-logo" src="src/img/logo-stacked.svg" alt="">
-    <h1 class="tagline" data-i18n="tagline">English for your life in a new country.</h1>
-    <p class="intro" data-i18n="intro">
-      One-on-one English tutoring built for working adults. Learn with a real
-      teacher, at your own pace, around your own schedule — no classrooms, no
-      rigid timetables.
-    </p>
-    <a class="fp-btn fp-btn--primary hero-cta" href="app.html"><span data-i18n="ctaStart">Take the free placement test</span><i data-icon="arrow_right_alt"></i></a>
-    <p class="cta-note" data-i18n="ctaNote">No payment, no account fees. It takes about 40 minutes.</p>
-  </section>
+      <!-- ── Pricing ── -->
+      <section aria-labelledby="priceTitle">
+        <div class="fp-card pricing">
+          <h2 class="pricing__title" id="priceTitle" data-i18n="priceTitle">Simple, one-time pricing</h2>
+          <p data-i18n="priceBody">
+            The placement test is always free. When you're ready, a single one-time payment unlocks your full course —
+            permanently, with no subscription.
+          </p>
+          <span class="fp-badge fp-badge--warning" data-i18n="priceBadge">Payments coming soon</span>
+        </div>
+      </section>
+    </main>
 
-  <!-- ── How it works: a route with three stops ── -->
-  <section aria-labelledby="howTitle">
-    <h2 class="section-title" id="howTitle" data-i18n="howTitle">How it works</h2>
-    <ol class="route">
-      <li class="stop">
-        <span class="stop__node" aria-hidden="true"></span>
-        <h3 data-i18n="step1Title">Take the free placement test</h3>
-        <p data-i18n="step1Body">A short test across reading, writing, listening and speaking finds your
-           level — completely free, no payment needed.</p>
-      </li>
-      <li class="stop">
-        <span class="stop__node" aria-hidden="true"></span>
-        <h3 data-i18n="step2Title">Follow your personalised course</h3>
-        <p data-i18n="step2Body">A structured daily course is tailored to your level, with a new lesson
-           each day you can fit around work and family.</p>
-      </li>
-      <li class="stop">
-        <span class="stop__node" aria-hidden="true"></span>
-        <h3 data-i18n="step3Title">Meet your teacher one-on-one</h3>
-        <p data-i18n="step3Body">Your teacher marks your work, tracks your progress, and is available for
-           live video calls whenever you need a hand.</p>
-      </li>
-    </ol>
-  </section>
+    <footer class="site-footer">
+      <p>fluentpath.ca</p>
+    </footer>
 
-  <!-- ── Pricing ── -->
-  <section aria-labelledby="priceTitle">
-    <div class="fp-card pricing">
-      <h2 class="pricing__title" id="priceTitle" data-i18n="priceTitle">Simple, one-time pricing</h2>
-      <p data-i18n="priceBody">The placement test is always free. When you're ready, a single one-time
-         payment unlocks your full course — permanently, with no subscription.</p>
-      <span class="fp-badge fp-badge--warning" data-i18n="priceBadge">Payments coming soon</span>
-    </div>
-  </section>
+    <script src="src/scripts/icons.js"></script>
+    <script>
+      (function () {
+        // Inline two-language dictionary. Keys map to [data-i18n] / [data-i18n-html]
+        // elements; meta keys (leading _) drive <title>, <html lang>, and the toggle.
+        var I18N = {
+          en: {
+            _title: 'FluentPath · English for your life in a new country',
+            _lang: 'en',
+            _toggle: 'Español',
+            _toggleAria: 'Cambiar a español',
+            navStudent: 'Student Access',
+            navTeacher: 'Teacher Access',
+            tagline: 'English for your life in a new country.',
+            intro:
+              'One-on-one English tutoring built for working adults. Learn with a real teacher, at your own pace, around your own schedule — no classrooms, no rigid timetables.',
+            howTitle: 'How it works',
+            step1Title: 'Take the free placement test',
+            step1Body:
+              'A short test across reading, writing, listening and speaking finds your level — completely free, no payment needed.',
+            step2Title: 'Follow your personalised course',
+            step2Body:
+              'A structured daily course is tailored to your level, with a new lesson each day you can fit around work and family.',
+            step3Title: 'Meet your teacher one-on-one',
+            step3Body:
+              'Your teacher marks your work, tracks your progress, and is available for live video calls whenever you need a hand.',
+            priceTitle: 'Simple, one-time pricing',
+            priceBody:
+              "The placement test is always free. When you're ready, a single one-time payment unlocks your full course — permanently, with no subscription.",
+            priceBadge: 'Payments coming soon',
+            ctaStart: 'Take the free placement test',
+            ctaNote: 'No payment, no account fees. It takes about 40 minutes.',
+          },
+          es: {
+            _title: 'FluentPath · Inglés para tu vida en un nuevo país',
+            _lang: 'es',
+            _toggle: 'English',
+            _toggleAria: 'Switch to English',
+            navStudent: 'Acceso de estudiantes',
+            navTeacher: 'Acceso de profesores',
+            tagline: 'Inglés para tu vida en un nuevo país.',
+            intro:
+              'Clases de inglés individuales pensadas para adultos que trabajan. Aprende con un profesor de verdad, a tu propio ritmo y según tu horario — sin aulas ni horarios rígidos.',
+            howTitle: 'Cómo funciona',
+            step1Title: 'Haz la prueba de nivel gratis',
+            step1Body:
+              'Una prueba corta de lectura, escritura, comprensión auditiva y expresión oral determina tu nivel — totalmente gratis, sin pagar nada.',
+            step2Title: 'Sigue tu curso personalizado',
+            step2Body:
+              'Un curso diario y estructurado se adapta a tu nivel, con una lección nueva cada día que puedes encajar entre el trabajo y la familia.',
+            step3Title: 'Reúnete con tu profesor uno a uno',
+            step3Body:
+              'Tu profesor corrige tu trabajo, sigue tu progreso y está disponible para videollamadas en vivo siempre que necesites ayuda.',
+            priceTitle: 'Precio simple, un solo pago',
+            priceBody:
+              'La prueba de nivel siempre es gratis. Cuando estés listo, un único pago desbloquea tu curso completo — para siempre, sin suscripción.',
+            priceBadge: 'Pagos próximamente',
+            ctaStart: 'Haz la prueba de nivel gratis',
+            ctaNote: 'Sin pagos ni costos ocultos. Dura unos 40 minutos.',
+          },
+        };
 
-</main>
+        var KEY = 'fp_lang';
 
-<footer class="site-footer">
-  <p>fluentpath.ca</p>
-</footer>
+        function resolveLang() {
+          var p = new URLSearchParams(location.search).get('lang');
+          if (p === 'es' || p === 'en') return p;
+          try {
+            var saved = localStorage.getItem(KEY);
+            if (saved === 'es' || saved === 'en') return saved;
+          } catch (e) {}
+          return (navigator.language || '').toLowerCase().indexOf('es') === 0 ? 'es' : 'en';
+        }
 
-<script src="src/scripts/icons.js"></script>
-<script>
-(function () {
-  // Inline two-language dictionary. Keys map to [data-i18n] / [data-i18n-html]
-  // elements; meta keys (leading _) drive <title>, <html lang>, and the toggle.
-  var I18N = {
-    en: {
-      _title: 'FluentPath · English for your life in a new country',
-      _lang: 'en',
-      _toggle: 'Español',
-      _toggleAria: 'Cambiar a español',
-      navStudent: 'Student Access',
-      navTeacher: 'Teacher Access',
-      tagline: 'English for your life in a new country.',
-      intro: 'One-on-one English tutoring built for working adults. Learn with a real teacher, at your own pace, around your own schedule — no classrooms, no rigid timetables.',
-      howTitle: 'How it works',
-      step1Title: 'Take the free placement test',
-      step1Body: 'A short test across reading, writing, listening and speaking finds your level — completely free, no payment needed.',
-      step2Title: 'Follow your personalised course',
-      step2Body: 'A structured daily course is tailored to your level, with a new lesson each day you can fit around work and family.',
-      step3Title: 'Meet your teacher one-on-one',
-      step3Body: 'Your teacher marks your work, tracks your progress, and is available for live video calls whenever you need a hand.',
-      priceTitle: 'Simple, one-time pricing',
-      priceBody: "The placement test is always free. When you're ready, a single one-time payment unlocks your full course — permanently, with no subscription.",
-      priceBadge: 'Payments coming soon',
-      ctaStart: 'Take the free placement test',
-      ctaNote: 'No payment, no account fees. It takes about 40 minutes.'
-    },
-    es: {
-      _title: 'FluentPath · Inglés para tu vida en un nuevo país',
-      _lang: 'es',
-      _toggle: 'English',
-      _toggleAria: 'Switch to English',
-      navStudent: 'Acceso de estudiantes',
-      navTeacher: 'Acceso de profesores',
-      tagline: 'Inglés para tu vida en un nuevo país.',
-      intro: 'Clases de inglés individuales pensadas para adultos que trabajan. Aprende con un profesor de verdad, a tu propio ritmo y según tu horario — sin aulas ni horarios rígidos.',
-      howTitle: 'Cómo funciona',
-      step1Title: 'Haz la prueba de nivel gratis',
-      step1Body: 'Una prueba corta de lectura, escritura, comprensión auditiva y expresión oral determina tu nivel — totalmente gratis, sin pagar nada.',
-      step2Title: 'Sigue tu curso personalizado',
-      step2Body: 'Un curso diario y estructurado se adapta a tu nivel, con una lección nueva cada día que puedes encajar entre el trabajo y la familia.',
-      step3Title: 'Reúnete con tu profesor uno a uno',
-      step3Body: 'Tu profesor corrige tu trabajo, sigue tu progreso y está disponible para videollamadas en vivo siempre que necesites ayuda.',
-      priceTitle: 'Precio simple, un solo pago',
-      priceBody: 'La prueba de nivel siempre es gratis. Cuando estés listo, un único pago desbloquea tu curso completo — para siempre, sin suscripción.',
-      priceBadge: 'Pagos próximamente',
-      ctaStart: 'Haz la prueba de nivel gratis',
-      ctaNote: 'Sin pagos ni costos ocultos. Dura unos 40 minutos.'
-    }
-  };
+        function apply(lang) {
+          var T = I18N[lang] || I18N.en;
+          document.documentElement.lang = T._lang;
+          document.title = T._title;
 
-  var KEY = 'fp_lang';
+          document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var v = T[el.getAttribute('data-i18n')];
+            if (v != null) el.textContent = v;
+          });
+          document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
+            var v = T[el.getAttribute('data-i18n-html')];
+            if (v != null) el.innerHTML = v; // trusted static strings only
+          });
 
-  function resolveLang() {
-    var p = new URLSearchParams(location.search).get('lang');
-    if (p === 'es' || p === 'en') return p;
-    try { var saved = localStorage.getItem(KEY); if (saved === 'es' || saved === 'en') return saved; } catch (e) {}
-    return (navigator.language || '').toLowerCase().indexOf('es') === 0 ? 'es' : 'en';
-  }
+          var toggle = document.getElementById('langToggle');
+          if (toggle) {
+            var next = lang === 'es' ? 'en' : 'es';
+            toggle.textContent = T._toggle;
+            toggle.setAttribute('href', '?lang=' + next);
+            toggle.setAttribute('hreflang', next);
+            toggle.setAttribute('aria-label', T._toggleAria);
+          }
+          try {
+            localStorage.setItem(KEY, lang);
+          } catch (e) {}
+        }
 
-  function apply(lang) {
-    var T = I18N[lang] || I18N.en;
-    document.documentElement.lang = T._lang;
-    document.title = T._title;
+        var current = resolveLang();
+        apply(current);
 
-    document.querySelectorAll('[data-i18n]').forEach(function (el) {
-      var v = T[el.getAttribute('data-i18n')];
-      if (v != null) el.textContent = v;
-    });
-    document.querySelectorAll('[data-i18n-html]').forEach(function (el) {
-      var v = T[el.getAttribute('data-i18n-html')];
-      if (v != null) el.innerHTML = v; // trusted static strings only
-    });
-
-    var toggle = document.getElementById('langToggle');
-    if (toggle) {
-      var next = lang === 'es' ? 'en' : 'es';
-      toggle.textContent = T._toggle;
-      toggle.setAttribute('href', '?lang=' + next);
-      toggle.setAttribute('hreflang', next);
-      toggle.setAttribute('aria-label', T._toggleAria);
-    }
-    try { localStorage.setItem(KEY, lang); } catch (e) {}
-  }
-
-  var current = resolveLang();
-  apply(current);
-
-  var toggle = document.getElementById('langToggle');
-  if (toggle) {
-    toggle.addEventListener('click', function (e) {
-      e.preventDefault();
-      current = current === 'es' ? 'en' : 'es';
-      apply(current);
-      try { history.replaceState(null, '', current === 'en' ? location.pathname : '?lang=es'); } catch (err) {}
-    });
-  }
-})();
-</script>
-
-</body>
+        var toggle = document.getElementById('langToggle');
+        if (toggle) {
+          toggle.addEventListener('click', function (e) {
+            e.preventDefault();
+            current = current === 'es' ? 'en' : 'es';
+            apply(current);
+            try {
+              history.replaceState(null, '', current === 'en' ? location.pathname : '?lang=es');
+            } catch (err) {}
+          });
+        }
+      })();
+    </script>
+  </body>
 </html>

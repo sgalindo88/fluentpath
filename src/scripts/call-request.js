@@ -25,7 +25,11 @@ var CallRequest = (function () {
   };
 
   function getStudentName() {
-    try { return localStorage.getItem('fp_student_name') || ''; } catch (e) { return ''; }
+    try {
+      return localStorage.getItem('fp_student_name') || '';
+    } catch (e) {
+      return '';
+    }
   }
 
   function apiGet(action, params) {
@@ -109,7 +113,9 @@ var CallRequest = (function () {
       btn.classList.remove('fp-btn--secondary');
       btn.classList.add('fp-btn--primary');
       setButton(btn, 'videocam', "Join teacher's call", 'Unirme a la llamada del profesor');
-      btn.onclick = function () { window.open(state.currentRequest.call_link, '_blank'); };
+      btn.onclick = function () {
+        window.open(state.currentRequest.call_link, '_blank');
+      };
     }
   }
 
@@ -119,11 +125,18 @@ var CallRequest = (function () {
       return;
     }
     FP.ui.banner({
-      id: 'fp-call-banner', variant: 'success', position: 'top',
+      id: 'fp-call-banner',
+      variant: 'success',
+      position: 'top',
       html: bi('Your teacher sent a call link.', 'Tu profesor te envió un enlace para la llamada.'),
       actions: [
         { html: 'Join call' + FP.ui.es('Unirme'), href: state.currentRequest.call_link },
-        { html: 'Dismiss' + FP.ui.es('Descartar'), onclick: function () { CallRequest.dismiss(); } },
+        {
+          html: 'Dismiss' + FP.ui.es('Descartar'),
+          onclick: function () {
+            CallRequest.dismiss();
+          },
+        },
       ],
     });
   }
@@ -133,21 +146,35 @@ var CallRequest = (function () {
   async function onButtonClick() {
     if (state.currentRequest) return; // already have a request
     var name = getStudentName();
-    if (!name) { showToast(bi('Please log in first.', 'Inicia sesión primero.'), true, true); return; }
+    if (!name) {
+      showToast(bi('Please log in first.', 'Inicia sesión primero.'), true, true);
+      return;
+    }
     try {
       await apiPost('request_video_call', {
         student_name: name,
         page: state.page,
-        day_number: state.dayNumber || ''
+        day_number: state.dayNumber || '',
       });
       // Optimistic update — we don't get the id back from no-cors POST
       state.currentRequest = { status: 'pending', call_link: '' };
       renderButton();
-      showToast(bi('Request sent. Your teacher will send you a call link soon.', 'Solicitud enviada. Tu profesor te enviará un enlace pronto.'), false, true);
+      showToast(
+        bi(
+          'Request sent. Your teacher will send you a call link soon.',
+          'Solicitud enviada. Tu profesor te enviará un enlace pronto.'
+        ),
+        false,
+        true
+      );
       // Poll after 3s to pick up the real id
       setTimeout(refresh, 3000);
     } catch (e) {
-      showToast(bi('Could not send the request. Please try again.', 'No pudimos enviar la solicitud. Inténtalo de nuevo.'), true, true);
+      showToast(
+        bi('Could not send the request. Please try again.', 'No pudimos enviar la solicitud. Inténtalo de nuevo.'),
+        true,
+        true
+      );
     }
   }
 
@@ -163,7 +190,9 @@ var CallRequest = (function () {
       }
       renderButton();
       renderBanner();
-    } catch (e) { /* silent — keep current state */ }
+    } catch (e) {
+      /* silent — keep current state */
+    }
   }
 
   async function dismiss() {
@@ -175,7 +204,9 @@ var CallRequest = (function () {
     }
     try {
       await apiPost('update_call_status', { id: state.currentRequest.id, status: 'dismissed' });
-    } catch (e) { /* silent */ }
+    } catch (e) {
+      /* silent */
+    }
     state.currentRequest = null;
     renderButton();
     renderBanner();
@@ -190,7 +221,7 @@ var CallRequest = (function () {
   function init(opts) {
     state.page = (opts && opts.page) || 'hub';
     state.dayNumber = (opts && opts.dayNumber) || '';
-    state.mountEl = (opts && opts.mount) ? document.querySelector(opts.mount) : null;
+    state.mountEl = opts && opts.mount ? document.querySelector(opts.mount) : null;
     state.compact = !!(opts && opts.compact);
     if (!getStudentName()) return; // no name yet — don't show button
     ensureButton();

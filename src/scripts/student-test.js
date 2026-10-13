@@ -44,7 +44,7 @@
 // }
 // ─────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════
-const FORMSPREE_ENDPOINT   = FP.FORMSPREE_ENDPOINT;
+const FORMSPREE_ENDPOINT = FP.FORMSPREE_ENDPOINT;
 const GOOGLE_SHEET_WEBHOOK = FP.WEBHOOK_URL;
 
 // Bilingual text (English, Spanish beneath; Spanish hidden for B2+ by ui.js). Test items
@@ -52,10 +52,12 @@ const GOOGLE_SHEET_WEBHOOK = FP.WEBHOOK_URL;
 const bi = FP.ui.bi;
 const esOnly = FP.ui.es;
 /** Icon + bilingual message, for feedback banners and statuses. `html` is already escaped. */
-const iconMsg = (icon, html, opts) => FP.icon(icon, Object.assign({ size: 'sm' }, opts || {})) + '<span>' + html + '</span>';
-const playsLeftHtml = (left) => left === 0
-  ? bi('No plays left', 'Sin reproducciones')
-  : bi(left + (left === 1 ? ' play left' : ' plays left'), left + (left === 1 ? ' reproducción' : ' reproducciones'));
+const iconMsg = (icon, html, opts) =>
+  FP.icon(icon, Object.assign({ size: 'sm' }, opts || {})) + '<span>' + html + '</span>';
+const playsLeftHtml = (left) =>
+  left === 0
+    ? bi('No plays left', 'Sin reproducciones')
+    : bi(left + (left === 1 ? ' play left' : ' plays left'), left + (left === 1 ? ' reproducción' : ' reproducciones'));
 
 // ── STATE ──
 const state = {
@@ -71,8 +73,38 @@ const state = {
 };
 const MAX_PLAYS = 3;
 
-const CORRECT_ANSWERS = { q1:'B',q2:'C',q3:'C',q4:'C',q5:'B',q6:'A',q7:'C',q8:'B',q9:'B',q10:'B',q15:'B',q16:'C',q17:'C',q18:'C' };
-const MCQ_MARKS = { q1:2,q2:2,q3:2,q4:2,q5:2,q6:2,q7:2,q8:2,q9:2,q10:2,q15:2,q16:2,q17:2,q18:2 };
+const CORRECT_ANSWERS = {
+  q1: 'B',
+  q2: 'C',
+  q3: 'C',
+  q4: 'C',
+  q5: 'B',
+  q6: 'A',
+  q7: 'C',
+  q8: 'B',
+  q9: 'B',
+  q10: 'B',
+  q15: 'B',
+  q16: 'C',
+  q17: 'C',
+  q18: 'C',
+};
+const MCQ_MARKS = {
+  q1: 2,
+  q2: 2,
+  q3: 2,
+  q4: 2,
+  q5: 2,
+  q6: 2,
+  q7: 2,
+  q8: 2,
+  q9: 2,
+  q10: 2,
+  q15: 2,
+  q16: 2,
+  q17: 2,
+  q18: 2,
+};
 
 // ── CHECKPOINT (session recovery) ──
 const CKPT_KEY = 'test';
@@ -82,7 +114,7 @@ function saveTestCheckpoint() {
   const screen = document.querySelector('.screen.active')?.id;
   if (!screen || screen === 'screen-cover' || screen === 'screen-results' || screen === 'screen-submitting') return;
   const textValues = {};
-  ['q11','q12','q13','q14','q20','q21','q22','q23','q24'].forEach(id => {
+  ['q11', 'q12', 'q13', 'q14', 'q20', 'q21', 'q22', 'q23', 'q24'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) textValues[id] = el.value;
   });
@@ -109,7 +141,10 @@ function startTestAutoSave() {
 }
 
 function clearTestCheckpoint() {
-  if (ckptInterval) { clearInterval(ckptInterval); ckptInterval = null; }
+  if (ckptInterval) {
+    clearInterval(ckptInterval);
+    ckptInterval = null;
+  }
   Checkpoint.clear(CKPT_KEY);
 }
 
@@ -122,7 +157,7 @@ function tryResumeTest() {
     message: 'You have an unfinished test. Would you like to pick up where you left off?',
     messageEs: 'Tienes una prueba sin terminar. ¿Quieres continuar donde lo dejaste?',
     savedAt: data._savedAt,
-    onResume: function() {
+    onResume: function () {
       testInProgress = true;
       document.getElementById('candidateName').value = data.candidateName || '';
       document.getElementById('candidateDate').value = data.candidateDate || '';
@@ -138,7 +173,7 @@ function tryResumeTest() {
       state.dictationPlays = data.dictationPlays || 0;
       // Restore textarea values
       if (data.textValues) {
-        Object.entries(data.textValues).forEach(function(pair) {
+        Object.entries(data.textValues).forEach(function (pair) {
           var el = document.getElementById(pair[0]);
           if (el) el.value = pair[1];
         });
@@ -155,24 +190,26 @@ function tryResumeTest() {
       showScreen(data.screen);
       startTestAutoSave();
     },
-    onStartOver: function() {
+    onStartOver: function () {
       clearTestCheckpoint();
-    }
+    },
   });
 }
 
 // ── SCREEN MANAGEMENT ──
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
   updateNav(id);
   updateProgress(id);
   // the help card (call request) shows on the question and intro screens only
-  document.getElementById('testHelp').classList.toggle('fp-hidden', ['screen-cover', 'screen-submitting', 'screen-results'].includes(id));
+  document
+    .getElementById('testHelp')
+    .classList.toggle('fp-hidden', ['screen-cover', 'screen-submitting', 'screen-results'].includes(id));
   if (ckptInterval) saveTestCheckpoint();
   // Focus management: move focus to first interactive element in new screen
-  setTimeout(function() {
+  setTimeout(function () {
     var screen = document.getElementById(id);
     if (!screen) return;
     var target = screen.querySelector('button:not(:disabled), textarea, input, [tabindex="0"]');
@@ -182,22 +219,33 @@ function showScreen(id) {
 
 function updateNav(id) {
   const labels = {
-    'screen-cover':          ['General placement', 'Prueba general'],
-    'screen-reading-intro':  ['Part 01 · Reading', 'Parte 01 · Lectura'],
-    'screen-reading':        ['Part 01 · Reading', 'Parte 01 · Lectura'],
-    'screen-writing-intro':  ['Part 02 · Writing', 'Parte 02 · Escritura'],
-    'screen-writing':        ['Part 02 · Writing', 'Parte 02 · Escritura'],
-    'screen-listening-intro':['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
-    'screen-listening':      ['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
+    'screen-cover': ['General placement', 'Prueba general'],
+    'screen-reading-intro': ['Part 01 · Reading', 'Parte 01 · Lectura'],
+    'screen-reading': ['Part 01 · Reading', 'Parte 01 · Lectura'],
+    'screen-writing-intro': ['Part 02 · Writing', 'Parte 02 · Escritura'],
+    'screen-writing': ['Part 02 · Writing', 'Parte 02 · Escritura'],
+    'screen-listening-intro': ['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
+    'screen-listening': ['Part 03 · Listening', 'Parte 03 · Comprensión auditiva'],
     'screen-speaking-intro': ['Part 04 · Speaking', 'Parte 04 · Expresión oral'],
-    'screen-speaking':       ['Part 04 · Speaking', 'Parte 04 · Expresión oral'],
-    'screen-results':        ['Results', 'Resultados'],
+    'screen-speaking': ['Part 04 · Speaking', 'Parte 04 · Expresión oral'],
+    'screen-results': ['Results', 'Resultados'],
   };
   const l = labels[id];
   document.getElementById('navSection').innerHTML = l ? bi(l[0], l[1]) : '';
 }
 
-const screenOrder = ['screen-cover','screen-reading-intro','screen-reading','screen-writing-intro','screen-writing','screen-listening-intro','screen-listening','screen-speaking-intro','screen-speaking','screen-results'];
+const screenOrder = [
+  'screen-cover',
+  'screen-reading-intro',
+  'screen-reading',
+  'screen-writing-intro',
+  'screen-writing',
+  'screen-listening-intro',
+  'screen-listening',
+  'screen-speaking-intro',
+  'screen-speaking',
+  'screen-results',
+];
 
 function updateProgress(id) {
   const idx = screenOrder.indexOf(id);
@@ -209,7 +257,11 @@ function updateProgress(id) {
 
 // ── beforeunload — warn when test is in progress ──
 var testInProgress = false;
-function onBeforeUnload(e) { if (testInProgress) { e.preventDefault(); } }
+function onBeforeUnload(e) {
+  if (testInProgress) {
+    e.preventDefault();
+  }
+}
 window.addEventListener('beforeunload', onBeforeUnload);
 
 // ── START ──
@@ -251,8 +303,12 @@ function startTest() {
 
 // ── MCQ ──
 function verdictHtml(ok) {
-  return '<span class="fp-answer__verdict">' + FP.icon(ok ? 'check_small' : 'close_small', { size: 'sm' }) +
-    (ok ? bi('Correct', 'Correcto') : bi('Not quite', 'No exactamente')) + '</span>';
+  return (
+    '<span class="fp-answer__verdict">' +
+    FP.icon(ok ? 'check_small' : 'close_small', { size: 'sm' }) +
+    (ok ? bi('Correct', 'Correcto') : bi('Not quite', 'No exactamente')) +
+    '</span>'
+  );
 }
 
 function selectMCQ(qId, letter, isCorrect) {
@@ -260,13 +316,18 @@ function selectMCQ(qId, letter, isCorrect) {
   state.answers[qId] = { selected: letter, correct: isCorrect };
 
   const btns = document.querySelectorAll(`[onclick*="'${qId}'"]`);
-  btns.forEach(btn => {
+  btns.forEach((btn) => {
     btn.disabled = true;
     const btnLetter = btn.querySelector('.opt-letter').textContent.trim();
     const correctLetter = CORRECT_ANSWERS[qId];
     btn.setAttribute('aria-checked', btnLetter === letter ? 'true' : 'false');
-    if (btnLetter === correctLetter) { btn.classList.add('correct'); btn.insertAdjacentHTML('beforeend', verdictHtml(true)); }
-    else if (btnLetter === letter && !isCorrect) { btn.classList.add('wrong'); btn.insertAdjacentHTML('beforeend', verdictHtml(false)); }
+    if (btnLetter === correctLetter) {
+      btn.classList.add('correct');
+      btn.insertAdjacentHTML('beforeend', verdictHtml(true));
+    } else if (btnLetter === letter && !isCorrect) {
+      btn.classList.add('wrong');
+      btn.insertAdjacentHTML('beforeend', verdictHtml(false));
+    }
   });
 
   const fb = document.getElementById(qId + '-fb');
@@ -279,14 +340,20 @@ function selectMCQ(qId, letter, isCorrect) {
       fb.innerHTML = iconMsg('check_small', bi('Correct! +' + m + ' marks', '¡Correcto! +' + m + ' puntos'));
     } else {
       fb.classList.add('wrong-fb');
-      fb.innerHTML = iconMsg('close_small', bi('Not quite. The correct answer is ' + CORRECT_ANSWERS[qId] + '.', 'No exactamente. La respuesta correcta es ' + CORRECT_ANSWERS[qId] + '.'));
+      fb.innerHTML = iconMsg(
+        'close_small',
+        bi(
+          'Not quite. The correct answer is ' + CORRECT_ANSWERS[qId] + '.',
+          'No exactamente. La respuesta correcta es ' + CORRECT_ANSWERS[qId] + '.'
+        )
+      );
     }
   }
   updateScoreDisplay();
 }
 
 // ── MULTI-SELECT Q19 ──
-const Q19_CORRECT = new Set(['B','C']);
+const Q19_CORRECT = new Set(['B', 'C']);
 function toggleMulti(qId, letter) {
   if (state.answers[qId + '_submitted']) return;
   const btn = document.getElementById(qId + '-' + letter);
@@ -305,15 +372,20 @@ function toggleMulti(qId, letter) {
 
 function submitQ19() {
   state.answers['q19_submitted'] = true;
-  const correct = [...state.q19selected].every(l => Q19_CORRECT.has(l)) && state.q19selected.size === 2;
-  const partialCorrect = [...state.q19selected].filter(l => Q19_CORRECT.has(l)).length;
+  const correct = [...state.q19selected].every((l) => Q19_CORRECT.has(l)) && state.q19selected.size === 2;
+  const partialCorrect = [...state.q19selected].filter((l) => Q19_CORRECT.has(l)).length;
 
-  document.querySelectorAll('[id^="q19-"]').forEach(btn => {
+  document.querySelectorAll('[id^="q19-"]').forEach((btn) => {
     if (!btn.classList.contains('q-feedback') && btn.tagName === 'BUTTON') {
       btn.disabled = true;
-      const letter = btn.id.replace('q19-','');
-      if (Q19_CORRECT.has(letter)) { btn.classList.add('correct'); btn.insertAdjacentHTML('beforeend', verdictHtml(true)); }
-      else if (state.q19selected.has(letter)) { btn.classList.add('wrong'); btn.insertAdjacentHTML('beforeend', verdictHtml(false)); }
+      const letter = btn.id.replace('q19-', '');
+      if (Q19_CORRECT.has(letter)) {
+        btn.classList.add('correct');
+        btn.insertAdjacentHTML('beforeend', verdictHtml(true));
+      } else if (state.q19selected.has(letter)) {
+        btn.classList.add('wrong');
+        btn.insertAdjacentHTML('beforeend', verdictHtml(false));
+      }
     }
   });
 
@@ -322,17 +394,30 @@ function submitQ19() {
   fb.classList.add('show');
   if (correct) {
     fb.classList.add('correct-fb');
-    fb.innerHTML = iconMsg('check_small', bi('Correct! Both answers found. +2 marks', '¡Correcto! Encontraste las dos respuestas. +2 puntos'));
+    fb.innerHTML = iconMsg(
+      'check_small',
+      bi('Correct! Both answers found. +2 marks', '¡Correcto! Encontraste las dos respuestas. +2 puntos')
+    );
     state.answers['q19'] = { correct: true, marks: 2 };
   } else if (partialCorrect > 0) {
     fb.classList.add('info-fb');
-    fb.innerHTML = iconMsg('lightbulb', bi(`Partly correct. ${partialCorrect} of 2 correct answers selected. +${partialCorrect} mark${partialCorrect>1?'s':''}.`,
-      `Parcialmente correcto. Elegiste ${partialCorrect} de 2 respuestas correctas. +${partialCorrect} punto${partialCorrect>1?'s':''}.`));
+    fb.innerHTML = iconMsg(
+      'lightbulb',
+      bi(
+        `Partly correct. ${partialCorrect} of 2 correct answers selected. +${partialCorrect} mark${partialCorrect > 1 ? 's' : ''}.`,
+        `Parcialmente correcto. Elegiste ${partialCorrect} de 2 respuestas correctas. +${partialCorrect} punto${partialCorrect > 1 ? 's' : ''}.`
+      )
+    );
     state.answers['q19'] = { correct: false, marks: partialCorrect };
   } else {
     fb.classList.add('wrong-fb');
-    fb.innerHTML = iconMsg('close_small', bi('Not quite. Neither answer was correct. The correct answers are: At reception and On the website.',
-      'No exactamente. Ninguna respuesta fue correcta. Las respuestas correctas son: At reception y On the website.'));
+    fb.innerHTML = iconMsg(
+      'close_small',
+      bi(
+        'Not quite. Neither answer was correct. The correct answers are: At reception and On the website.',
+        'No exactamente. Ninguna respuesta fue correcta. Las respuestas correctas son: At reception y On the website.'
+      )
+    );
     state.answers['q19'] = { correct: false, marks: partialCorrect };
   }
   updateScoreDisplay();
@@ -363,29 +448,48 @@ function updateWordCount() {
   const inRange = words >= 120 && words <= 150;
   const over = words > 150;
   wc.className = 'word-count' + (inRange ? ' is-ok' : over ? ' is-over' : '');
-  wc.innerHTML = (inRange ? FP.icon('check_small', { size: 'sm' }) : over ? FP.icon('warning', { size: 'sm' }) : '') +
-    '<span>' + bi(words + ' words' + (over ? ' (aim for 120–150)' : ''), words + ' palabras' + (over ? ' (intenta escribir 120–150)' : '')) + '</span>';
+  wc.innerHTML =
+    (inRange ? FP.icon('check_small', { size: 'sm' }) : over ? FP.icon('warning', { size: 'sm' }) : '') +
+    '<span>' +
+    bi(
+      words + ' words' + (over ? ' (aim for 120–150)' : ''),
+      words + ' palabras' + (over ? ' (intenta escribir 120–150)' : '')
+    ) +
+    '</span>';
   saveText('q14');
 }
 
 function chooseTask(opt) {
   state.chosenTask = opt;
-  [['A', 'taskA'], ['B', 'taskB']].forEach(([o, id]) => {
+  [
+    ['A', 'taskA'],
+    ['B', 'taskB'],
+  ].forEach(([o, id]) => {
     const b = document.getElementById(id);
     b.classList.toggle('chosen', opt === o);
     b.setAttribute('aria-pressed', opt === o ? 'true' : 'false');
   });
   const q14 = document.getElementById('q14');
-  q14.setAttribute('data-placeholder-en', opt === 'A' ? 'Write your informal email here (120–150 words)…' : 'Write your opinion paragraph here (120–150 words)…');
-  q14.setAttribute('data-ph-es', opt === 'A' ? 'Escribe aquí tu correo informal (120–150 palabras)…' : 'Escribe aquí tu párrafo de opinión (120–150 palabras)…');
+  q14.setAttribute(
+    'data-placeholder-en',
+    opt === 'A'
+      ? 'Write your informal email here (120–150 words)…'
+      : 'Write your opinion paragraph here (120–150 words)…'
+  );
+  q14.setAttribute(
+    'data-ph-es',
+    opt === 'A'
+      ? 'Escribe aquí tu correo informal (120–150 palabras)…'
+      : 'Escribe aquí tu párrafo de opinión (120–150 palabras)…'
+  );
   FP.ui.localizeAttrs(q14.parentElement);
 }
 
 // ── SCORE DISPLAY ──
 function getMCQScore() {
   let total = 0;
-  Object.keys(CORRECT_ANSWERS).forEach(qId => {
-    if (state.answers[qId]?.correct) total += (MCQ_MARKS[qId] || 2);
+  Object.keys(CORRECT_ANSWERS).forEach((qId) => {
+    if (state.answers[qId]?.correct) total += MCQ_MARKS[qId] || 2;
   });
   if (state.answers['q19']) total += state.answers['q19'].marks || 0;
   return total;
@@ -401,8 +505,9 @@ function finishReading() {
 }
 
 // ── AUDIO: Text-to-Speech ──
-const LISTENING_TEXT = "Hello, and welcome to the Westfield Community Centre. My name is Diane, and I am the programme coordinator. I would like to let you know about a few changes this month. First, the yoga class on Wednesday evenings has moved to Thursday at seven p.m. Second, the swimming pool will be closed for maintenance from the fourteenth to the twentieth of this month. If you have any questions, please speak to reception or visit our website. Thank you, and have a great day.";
-const DICTATION_TEXT = "Although the weather was unpredictable, they decided to go ahead with the outdoor festival.";
+const LISTENING_TEXT =
+  'Hello, and welcome to the Westfield Community Centre. My name is Diane, and I am the programme coordinator. I would like to let you know about a few changes this month. First, the yoga class on Wednesday evenings has moved to Thursday at seven p.m. Second, the swimming pool will be closed for maintenance from the fourteenth to the twentieth of this month. If you have any questions, please speak to reception or visit our website. Thank you, and have a great day.';
+const DICTATION_TEXT = 'Although the weather was unpredictable, they decided to go ahead with the outdoor festival.';
 
 // ── SPEAKING: Speech Recognition for Q21-Q24 ──
 var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -412,17 +517,21 @@ var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogniti
 // so it must never be what switches recording on or off. The recordings are
 // uploaded when the test is submitted (uploadSpeakingAudio) and played back in
 // the teacher's placement-test panel.
-var speakingRecorders = {};   // { q21: { recognition, recorder, chunks, recording, transcript } }
-var speakingAudio = {};       // { q21: Blob }, the latest take for each question
+var speakingRecorders = {}; // { q21: { recognition, recorder, chunks, recording, transcript } }
+var speakingAudio = {}; // { q21: Blob }, the latest take for each question
 var speakingStream = null;
 var speakingAudioJson = null; // set once uploaded; a retry reuses it instead of re-uploading
 
-const MSG_NO_SPEAKING = () => bi(
-  'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call.',
-  'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.');
-const MSG_NO_MIC = () => bi(
-  'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap the microphone again.',
-  'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca el micrófono de nuevo.');
+const MSG_NO_SPEAKING = () =>
+  bi(
+    'Voice recording is not available on this device. That is fine: write your ideas in the box above and your teacher will listen to you on the video call.',
+    'La grabación de voz no está disponible en este dispositivo. No hay problema: escribe tus ideas en el cuadro de arriba y tu profesor te escuchará en la videollamada.'
+  );
+const MSG_NO_MIC = () =>
+  bi(
+    'We could not use the microphone. Allow microphone access for this site in your browser settings, then tap the microphone again.',
+    'No pudimos usar el micrófono. Permite el acceso al micrófono para este sitio en la configuración del navegador y toca el micrófono de nuevo.'
+  );
 
 /** Show a message in a question's status line. kind: 'error' or '' (plain). `html` is escaped markup. */
 function setRecStatus(qId, html, kind) {
@@ -434,11 +543,21 @@ function setRecStatus(qId, html, kind) {
 
 /** One place for the record button's look (spec 6.6): idle, requesting, recording, recorded, failed. */
 const REC_STATES = {
-  idle:       { icon: 'mic',  fill: false, en: 'Record your answer',            es: 'Graba tu respuesta' },
-  requesting: { icon: 'mic',  fill: false, en: 'Allow the microphone',          es: 'Permite el micrófono' },
-  recording:  { icon: 'stop', fill: true,  en: 'Recording… tap to stop',        es: 'Grabando… toca para detener' },
-  recorded:   { icon: 'mic',  fill: false, en: 'Recorded. Tap to record again.', es: 'Grabado. Toca para grabar de nuevo.' },
-  failed:     { icon: 'mic',  fill: false, en: 'Could not record. Tap to try again.', es: 'No pudimos grabar. Toca para intentar de nuevo.' },
+  idle: { icon: 'mic', fill: false, en: 'Record your answer', es: 'Graba tu respuesta' },
+  requesting: { icon: 'mic', fill: false, en: 'Allow the microphone', es: 'Permite el micrófono' },
+  recording: { icon: 'stop', fill: true, en: 'Recording… tap to stop', es: 'Grabando… toca para detener' },
+  recorded: {
+    icon: 'mic',
+    fill: false,
+    en: 'Recorded. Tap to record again.',
+    es: 'Grabado. Toca para grabar de nuevo.',
+  },
+  failed: {
+    icon: 'mic',
+    fill: false,
+    en: 'Could not record. Tap to try again.',
+    es: 'No pudimos grabar. Toca para intentar de nuevo.',
+  },
 };
 function setRecUi(qId, stateName) {
   const st = REC_STATES[stateName];
@@ -458,8 +577,12 @@ function getAudioMimeType() {
   }
   return '';
 }
-function audioExtension(mime) { return mime.includes('mp4') ? 'mp4' : 'webm'; }
-function canRecordAudio() { return !!window.MediaRecorder && !!getAudioMimeType(); }
+function audioExtension(mime) {
+  return mime.includes('mp4') ? 'mp4' : 'webm';
+}
+function canRecordAudio() {
+  return !!window.MediaRecorder && !!getAudioMimeType();
+}
 
 async function getSpeakingStream() {
   if (speakingStream && speakingStream.active) return speakingStream;
@@ -474,7 +597,9 @@ async function getSpeakingStream() {
 
 function releaseSpeakingStream() {
   if (speakingStream) {
-    speakingStream.getTracks().forEach(function (t) { t.stop(); });
+    speakingStream.getTracks().forEach(function (t) {
+      t.stop();
+    });
     speakingStream = null;
   }
 }
@@ -482,7 +607,9 @@ function releaseSpeakingStream() {
 function blobToBase64(blob) {
   return new Promise(function (resolve, reject) {
     var reader = new FileReader();
-    reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
+    reader.onload = function () {
+      resolve(String(reader.result).split(',')[1]);
+    };
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
@@ -492,8 +619,16 @@ function stopSpeakingRec(qId) {
   var rec = speakingRecorders[qId];
   if (!rec || !rec.recording) return;
   rec.recording = false;
-  if (rec.recognition) { try { rec.recognition.stop(); } catch (e) {} }
-  if (rec.recorder && rec.recorder.state !== 'inactive') { try { rec.recorder.stop(); } catch (e) {} }
+  if (rec.recognition) {
+    try {
+      rec.recognition.stop();
+    } catch (e) {}
+  }
+  if (rec.recorder && rec.recorder.state !== 'inactive') {
+    try {
+      rec.recorder.stop();
+    } catch (e) {}
+  }
   setRecStatus(qId, '');
   // With a recording the state is "recorded" (and a player appears); a transcript-only device just goes back to idle.
   setRecUi(qId, canRecordAudio() ? 'recorded' : 'idle');
@@ -510,12 +645,25 @@ async function toggleSpeakingRec(qId) {
   }
 
   var rec = speakingRecorders[qId];
-  if (!rec) rec = speakingRecorders[qId] = { recognition: null, recorder: null, chunks: [], recording: false, starting: false, transcript: '' };
-  if (rec.recording) { stopSpeakingRec(qId); return; }
+  if (!rec)
+    rec = speakingRecorders[qId] = {
+      recognition: null,
+      recorder: null,
+      chunks: [],
+      recording: false,
+      starting: false,
+      transcript: '',
+    };
+  if (rec.recording) {
+    stopSpeakingRec(qId);
+    return;
+  }
   if (rec.starting) return; // a second tap while the mic permission prompt is open
 
   // One question at a time.
-  Object.keys(speakingRecorders).forEach(function (k) { if (k !== qId) stopSpeakingRec(k); });
+  Object.keys(speakingRecorders).forEach(function (k) {
+    if (k !== qId) stopSpeakingRec(k);
+  });
 
   var transcriptEl = document.getElementById('rec-transcript-' + qId);
   setRecStatus(qId, '');
@@ -542,7 +690,9 @@ async function toggleSpeakingRec(qId) {
     var mime = getAudioMimeType();
     rec.chunks = [];
     rec.recorder = new MediaRecorder(stream, { mimeType: mime });
-    rec.recorder.ondataavailable = function (ev) { if (ev.data && ev.data.size > 0) rec.chunks.push(ev.data); };
+    rec.recorder.ondataavailable = function (ev) {
+      if (ev.data && ev.data.size > 0) rec.chunks.push(ev.data);
+    };
     rec.recorder.onstop = function () {
       if (!rec.chunks.length) return;
       speakingAudio[qId] = new Blob(rec.chunks, { type: mime });
@@ -575,15 +725,28 @@ async function toggleSpeakingRec(qId) {
     };
     recognition.onerror = function (e) {
       // The recording is what matters; a refused or failed recogniser only costs the transcript.
-      if (e.error !== 'aborted' && e.error !== 'no-speech' && e.error !== 'not-allowed' && e.error !== 'service-not-allowed') {
+      if (
+        e.error !== 'aborted' &&
+        e.error !== 'no-speech' &&
+        e.error !== 'not-allowed' &&
+        e.error !== 'service-not-allowed'
+      ) {
         console.warn('[FluentPath] Speech recognition error:', e.error);
       }
     };
     recognition.onend = function () {
-      if (rec.recording) { try { recognition.start(); } catch (e) {} }
+      if (rec.recording) {
+        try {
+          recognition.start();
+        } catch (e) {}
+      }
     };
     rec.recognition = recognition;
-    try { recognition.start(); } catch (err) { rec.recognition = null; }
+    try {
+      recognition.start();
+    } catch (err) {
+      rec.recognition = null;
+    }
   }
 }
 
@@ -600,13 +763,19 @@ async function uploadSpeakingAudio() {
   for (var k = 0; k < keys.length; k++) {
     var blob = speakingAudio[keys[k]];
     if (!blob || !blob.size) continue;
-    try { recordings[keys[k]] = { data: await blobToBase64(blob), ext: audioExtension(blob.type || '') }; }
-    catch (e) { console.warn('[FluentPath] Could not encode audio for', keys[k], e); }
+    try {
+      recordings[keys[k]] = { data: await blobToBase64(blob), ext: audioExtension(blob.type || '') };
+    } catch (e) {
+      console.warn('[FluentPath] Could not encode audio for', keys[k], e);
+    }
   }
   if (!Object.keys(recordings).length) return '';
   try {
-    var json = await FP.api.postText(GOOGLE_SHEET_WEBHOOK + '?action=save_audio',
-      JSON.stringify({ action: 'save_audio', day_number: 'test', recordings: recordings }), { timeout: 90000 });
+    var json = await FP.api.postText(
+      GOOGLE_SHEET_WEBHOOK + '?action=save_audio',
+      JSON.stringify({ action: 'save_audio', day_number: 'test', recordings: recordings }),
+      { timeout: 90000 }
+    );
     if (json && json.result === 'error') console.error('[FluentPath] Audio upload server error:', json.message);
     speakingAudioJson = (json && json.audio_json) || null;
     return speakingAudioJson || '';
@@ -622,10 +791,24 @@ function speakText(text, onEnd) {
 
 // ── Listening and dictation audio: play/stop, plays left, time listened ──
 const AUDIO_UI = {
-  listening: { box: 'listeningAudioBox', play: 'playBtn', stop: 'stopBtn', status: 'audioStatus', time: 'audioPlayTime', left: 'audioPlaysLeft',
-    again: ['Tap play to listen again', 'Toca reproducir para escuchar otra vez'] },
-  dictation: { box: 'dictationAudioBox', play: 'dictPlayBtn', stop: 'dictStopBtn', status: 'dictAudioStatus', time: 'dictPlayTime', left: 'dictPlaysLeft',
-    again: ['Tap play to hear it again', 'Toca reproducir para oírla otra vez'] },
+  listening: {
+    box: 'listeningAudioBox',
+    play: 'playBtn',
+    stop: 'stopBtn',
+    status: 'audioStatus',
+    time: 'audioPlayTime',
+    left: 'audioPlaysLeft',
+    again: ['Tap play to listen again', 'Toca reproducir para escuchar otra vez'],
+  },
+  dictation: {
+    box: 'dictationAudioBox',
+    play: 'dictPlayBtn',
+    stop: 'dictStopBtn',
+    status: 'dictAudioStatus',
+    time: 'dictPlayTime',
+    left: 'dictPlaysLeft',
+    again: ['Tap play to hear it again', 'Toca reproducir para oírla otra vez'],
+  },
 };
 const audioClock = { listening: { start: null, total: 0 }, dictation: { start: null, total: 0 } };
 
@@ -641,17 +824,24 @@ function audioPlayStart(kind, left) {
 }
 
 function audioPlayEnd(kind, left) {
-  const u = AUDIO_UI[kind], clock = audioClock[kind];
-  if (clock.start) { clock.total += Date.now() - clock.start; clock.start = null; }
+  const u = AUDIO_UI[kind],
+    clock = audioClock[kind];
+  if (clock.start) {
+    clock.total += Date.now() - clock.start;
+    clock.start = null;
+  }
   document.getElementById(u.stop).style.display = 'none';
   const play = document.getElementById(u.play);
   play.style.display = 'inline-flex';
-  document.getElementById(u.status).innerHTML = left > 0 ? bi(u.again[0], u.again[1]) : bi('No more plays available', 'Ya no hay más reproducciones');
+  document.getElementById(u.status).innerHTML =
+    left > 0 ? bi(u.again[0], u.again[1]) : bi('No more plays available', 'Ya no hay más reproducciones');
   const t = document.getElementById(u.time);
   t.style.display = 'inline';
   t.innerHTML = bi('Listened for ' + formatPlayTime(clock.total), 'Escuchado: ' + formatPlayTime(clock.total));
-  if (left === 0) { play.disabled = true; document.getElementById(u.box).classList.add('is-exhausted'); }
-  else play.focus();
+  if (left === 0) {
+    play.disabled = true;
+    document.getElementById(u.box).classList.add('is-exhausted');
+  } else play.focus();
 }
 
 function playListeningAudio() {
@@ -659,7 +849,9 @@ function playListeningAudio() {
   state.listeningPlays++;
   var left = MAX_PLAYS - state.listeningPlays;
   audioPlayStart('listening', left);
-  speakText(LISTENING_TEXT, function() { audioPlayEnd('listening', left); });
+  speakText(LISTENING_TEXT, function () {
+    audioPlayEnd('listening', left);
+  });
 }
 function stopListeningAudio() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -671,7 +863,9 @@ function playDictationAudio() {
   state.dictationPlays++;
   var left = MAX_PLAYS - state.dictationPlays;
   audioPlayStart('dictation', left);
-  speakText(DICTATION_TEXT, function() { audioPlayEnd('dictation', left); });
+  speakText(DICTATION_TEXT, function () {
+    audioPlayEnd('dictation', left);
+  });
 }
 function stopDictationAudio() {
   if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -685,9 +879,14 @@ if (window.speechSynthesis) {
 
 // ── FINAL RESULTS — auto-submit ──
 async function finishTest() {
-  var wasRecording = Object.keys(speakingRecorders).some(function (k) { return speakingRecorders[k].recording; });
+  var wasRecording = Object.keys(speakingRecorders).some(function (k) {
+    return speakingRecorders[k].recording;
+  });
   Object.keys(speakingRecorders).forEach(stopSpeakingRec);
-  if (wasRecording) await new Promise(function (r) { setTimeout(r, 400); }); // let the recorder hand over its last chunk
+  if (wasRecording)
+    await new Promise(function (r) {
+      setTimeout(r, 400);
+    }); // let the recorder hand over its last chunk
   testInProgress = false;
   state.endTime = new Date();
   showScreen('screen-submitting');
@@ -703,12 +902,28 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
   const duration = state.endTime && state.startTime ? state.endTime - state.startTime : null;
   const timeSummary = document.getElementById('timeSummary');
   const timeItems = [
-    ['Started', 'Inicio', state.startTime ? state.startTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'],
-    ['Finished', 'Fin', state.endTime ? state.endTime.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'],
+    [
+      'Started',
+      'Inicio',
+      state.startTime ? state.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
+    ],
+    [
+      'Finished',
+      'Fin',
+      state.endTime ? state.endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—',
+    ],
     ['Duration', 'Duración', duration ? formatDuration(duration) : '—'],
   ];
-  timeSummary.innerHTML = timeItems.map(([en, es, value]) =>
-    '<div class="ts-item"><div class="ts-label">' + bi(en, es) + '</div><div class="ts-value">' + value + '</div></div>').join('');
+  timeSummary.innerHTML = timeItems
+    .map(
+      ([en, es, value]) =>
+        '<div class="ts-item"><div class="ts-label">' +
+        bi(en, es) +
+        '</div><div class="ts-value">' +
+        value +
+        '</div></div>'
+    )
+    .join('');
 
   // Submission banner (message is already escaped, bilingual markup)
   const banner = document.getElementById('submissionBanner');
@@ -716,11 +931,13 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
   if (submissionOk) {
     banner.classList.add('fp-banner--success');
     banner.setAttribute('role', 'status');
-    banner.innerHTML = FP.icon('check', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
+    banner.innerHTML =
+      FP.icon('check', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
   } else {
     banner.classList.add('fp-banner--error');
     banner.setAttribute('role', 'alert');
-    banner.innerHTML = FP.icon('warning', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
+    banner.innerHTML =
+      FP.icon('warning', { className: 'fp-banner__icon' }) + '<div class="fp-banner__body">' + submissionMsg + '</div>';
     // Give the student a way out rather than a dead end.
     const retry = document.createElement('button');
     retry.id = 'retrySubmitBtn';
@@ -739,7 +956,9 @@ function showResultsScreen(submissionOk, submissionMsg, verified) {
     if (verified) localStorage.setItem('fp_test_completed', 'true');
     localStorage.setItem('fp_test_date', document.getElementById('candidateDate').value);
     localStorage.setItem('fp_test_submitted_at', new Date().toISOString());
-  } catch(e) { /* localStorage unavailable */ }
+  } catch (e) {
+    /* localStorage unavailable */
+  }
 
   showScreen('screen-results');
 }
@@ -749,25 +968,29 @@ async function submitResults() {
   FP.showSaveOverlay(bi('Submitting your test results…', 'Enviando los resultados de tu prueba…'), true);
 
   const missingFormspree = FORMSPREE_ENDPOINT.includes('YOUR_FORM_ID_HERE');
-  const missingSheet     = GOOGLE_SHEET_WEBHOOK.includes('YOUR_SCRIPT_ID_HERE');
+  const missingSheet = GOOGLE_SHEET_WEBHOOK.includes('YOUR_SCRIPT_ID_HERE');
 
   // Build payload
-  const mcqDetail = Object.keys(CORRECT_ANSWERS).map(q => {
-    const ans = state.answers[q];
-    return `${q.toUpperCase()}: ${ans ? ans.selected + (ans.correct ? ' ✓' : ' ✗ (correct: ' + CORRECT_ANSWERS[q] + ')') : 'Not answered'}`;
-  }).join('\n');
-  const q19ans    = state.answers['q19'];
+  const mcqDetail = Object.keys(CORRECT_ANSWERS)
+    .map((q) => {
+      const ans = state.answers[q];
+      return `${q.toUpperCase()}: ${ans ? ans.selected + (ans.correct ? ' ✓' : ' ✗ (correct: ' + CORRECT_ANSWERS[q] + ')') : 'Not answered'}`;
+    })
+    .join('\n');
+  const q19ans = state.answers['q19'];
   const q19detail = q19ans ? `Q19: ${[...state.q19selected].join(',')} — ${q19ans.marks}/2 marks` : 'Q19: Not answered';
 
   let readingScore = 0;
-  ['q1','q2','q3','q4','q5','q6','q7','q8','q9','q10'].forEach(q => { if (state.answers[q]?.correct) readingScore += 2; });
+  ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10'].forEach((q) => {
+    if (state.answers[q]?.correct) readingScore += 2;
+  });
   let listeningScore = 0;
-  ['q15','q16','q17','q18'].forEach(q => { if (state.answers[q]?.correct) listeningScore += 2; });
+  ['q15', 'q16', 'q17', 'q18'].forEach((q) => {
+    if (state.answers[q]?.correct) listeningScore += 2;
+  });
   if (q19ans) listeningScore += q19ans.marks || 0;
 
-  const duration = state.endTime && state.startTime
-    ? formatDuration(state.endTime - state.startTime)
-    : 'unknown';
+  const duration = state.endTime && state.startTime ? formatDuration(state.endTime - state.startTime) : 'unknown';
 
   // Typed notes plus, when the device could transcribe, what was said. The audio
   // itself travels separately (speaking_audio_json).
@@ -783,27 +1006,27 @@ async function submitResults() {
   };
 
   const payload = {
-    submitted_at:           new Date().toLocaleString(),
-    candidate_name:         document.getElementById('candidateName').value || '(not provided)',
-    test_date:              document.getElementById('candidateDate').value || '',
-    start_time:             state.startTime ? state.startTime.toLocaleTimeString() : '',
-    end_time:               state.endTime   ? state.endTime.toLocaleTimeString()   : '',
-    duration:               duration,
-    reading_score:          `${readingScore} / 20`,
-    listening_score:        `${listeningScore} / 15`,
-    auto_total:             `${readingScore + listeningScore} / 30`,
-    writing_score:          'Pending examiner review (/ 25)',
-    speaking_score:         'Pending examiner review (/ 20)',
-    mcq_answers:            mcqDetail + '\n' + q19detail,
-    q11_passive_voice:      state.textAnswers['q11'] || '(blank)',
-    q12_combined_sentence:  state.textAnswers['q12'] || '(blank)',
-    q13_error_correction:   state.textAnswers['q13'] || '(blank)',
-    q14_writing_task:       `[Option ${state.chosenTask || '?'}] ${state.textAnswers['q14'] || '(blank)'}`,
-    q20_dictation:          state.textAnswers['q20'] || '(blank)',
-    q21_speaking_notes:     speakingAnswer('q21'),
-    q22_speaking_notes:     speakingAnswer('q22'),
-    q23_speaking_notes:     speakingAnswer('q23'),
-    q24_speaking_notes:     speakingAnswer('q24'),
+    submitted_at: new Date().toLocaleString(),
+    candidate_name: document.getElementById('candidateName').value || '(not provided)',
+    test_date: document.getElementById('candidateDate').value || '',
+    start_time: state.startTime ? state.startTime.toLocaleTimeString() : '',
+    end_time: state.endTime ? state.endTime.toLocaleTimeString() : '',
+    duration: duration,
+    reading_score: `${readingScore} / 20`,
+    listening_score: `${listeningScore} / 15`,
+    auto_total: `${readingScore + listeningScore} / 30`,
+    writing_score: 'Pending examiner review (/ 25)',
+    speaking_score: 'Pending examiner review (/ 20)',
+    mcq_answers: mcqDetail + '\n' + q19detail,
+    q11_passive_voice: state.textAnswers['q11'] || '(blank)',
+    q12_combined_sentence: state.textAnswers['q12'] || '(blank)',
+    q13_error_correction: state.textAnswers['q13'] || '(blank)',
+    q14_writing_task: `[Option ${state.chosenTask || '?'}] ${state.textAnswers['q14'] || '(blank)'}`,
+    q20_dictation: state.textAnswers['q20'] || '(blank)',
+    q21_speaking_notes: speakingAnswer('q21'),
+    q22_speaking_notes: speakingAnswer('q22'),
+    q23_speaking_notes: speakingAnswer('q23'),
+    q24_speaking_notes: speakingAnswer('q24'),
   };
 
   // DATA-2: one opaque id per test attempt (minted at startTest, kept in the
@@ -825,7 +1048,9 @@ async function submitResults() {
     try {
       await FP.api.postJson(FORMSPREE_ENDPOINT, payload);
       results.email = 'ok';
-    } catch { results.email = 'error'; }
+    } catch {
+      results.email = 'error';
+    }
   }
 
   // ── Speaking recordings → Drive (before the row, so the row can reference them) ──
@@ -843,10 +1068,15 @@ async function submitResults() {
     try {
       await FP.api.postForm(GOOGLE_SHEET_WEBHOOK, sheetPayload);
       results.sheet = 'sent';
-    } catch { results.sheet = 'error'; }
+    } catch {
+      results.sheet = 'error';
+    }
 
     if (results.sheet === 'sent') {
-      FP.updateSaveOverlay(bi('Confirming your results were saved…', 'Confirmando que tus resultados se guardaron…'), true);
+      FP.updateSaveOverlay(
+        bi('Confirming your results were saved…', 'Confirmando que tus resultados se guardaron…'),
+        true
+      );
       results.verified = await verifySubmission(submissionId);
     }
   }
@@ -860,20 +1090,31 @@ async function submitResults() {
   let ok, msg;
   if (bothUnconfigured) {
     ok = false;
-    msg = bi('Submission is not set up. Please ask your teacher to set up the test.', 'El envío no está configurado. Pide a tu profesor que configure la prueba.');
+    msg = bi(
+      'Submission is not set up. Please ask your teacher to set up the test.',
+      'El envío no está configurado. Pide a tu profesor que configure la prueba.'
+    );
   } else if (results.verified) {
     ok = true;
-    msg = results.email === 'ok'
-      ? bi('Your results have been saved and emailed to your teacher.', 'Tus resultados se guardaron y se enviaron por correo a tu profesor.')
-      : bi('Your results have been saved.', 'Tus resultados se guardaron.');
+    msg =
+      results.email === 'ok'
+        ? bi(
+            'Your results have been saved and emailed to your teacher.',
+            'Tus resultados se guardaron y se enviaron por correo a tu profesor.'
+          )
+        : bi('Your results have been saved.', 'Tus resultados se guardaron.');
   } else if (results.email === 'ok') {
     ok = false;
-    msg = bi('We emailed your results to your teacher, but could not confirm they were saved. Tap "Retry submission". Your answers are still saved on this device.',
-      'Enviamos tus resultados por correo a tu profesor, pero no pudimos confirmar que se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo.');
+    msg = bi(
+      'We emailed your results to your teacher, but could not confirm they were saved. Tap "Retry submission". Your answers are still saved on this device.',
+      'Enviamos tus resultados por correo a tu profesor, pero no pudimos confirmar que se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo.'
+    );
   } else {
     ok = false;
-    msg = bi('We could not confirm your results were saved. Tap "Retry submission". Your answers are still saved on this device. Do not close this page.',
-      'No pudimos confirmar que tus resultados se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo. No cierres esta página.');
+    msg = bi(
+      'We could not confirm your results were saved. Tap "Retry submission". Your answers are still saved on this device. Do not close this page.',
+      'No pudimos confirmar que tus resultados se guardaron. Toca "Reintentar el envío". Tus respuestas siguen guardadas en este dispositivo. No cierres esta página.'
+    );
   }
 
   FP.hideSaveOverlay();
@@ -890,16 +1131,22 @@ async function submitResults() {
  * Retries a few times because Apps Script writes and the sheet read can lag.
  */
 async function verifySubmission(submissionId) {
-  const who = (function () {
-    try { return localStorage.getItem('fp_student_name') || ''; } catch (e) { return ''; }
-  })() || (document.getElementById('candidateName').value || '').trim();
+  const who =
+    (function () {
+      try {
+        return localStorage.getItem('fp_student_name') || '';
+      } catch (e) {
+        return '';
+      }
+    })() || (document.getElementById('candidateName').value || '').trim();
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
     try {
       const data = await FP.api.get(
         GOOGLE_SHEET_WEBHOOK + '?action=get_test_results&student=' + encodeURIComponent(who),
-        { timeout: 15000 });
+        { timeout: 15000 }
+      );
       if (submissionMatches(data, submissionId)) return true;
     } catch (e) {
       console.warn('[FluentPath] Submission verify attempt ' + (attempt + 1) + ' failed:', e.message);
@@ -917,7 +1164,11 @@ async function verifySubmission(submissionId) {
  */
 async function retrySubmission() {
   const btn = document.getElementById('retrySubmitBtn');
-  if (btn) { btn.disabled = true; btn.classList.add('is-loading'); btn.innerHTML = bi('Retrying…', 'Reintentando…'); }
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.innerHTML = bi('Retrying…', 'Reintentando…');
+  }
 
   if (state.submissionId) {
     FP.showSaveOverlay(bi('Checking whether your results arrived…', 'Revisando si llegaron tus resultados…'), true);
@@ -954,56 +1205,81 @@ function restartTest() {
   releaseSpeakingStream();
   ['q21', 'q22', 'q23', 'q24'].forEach(function (q) {
     var player = document.getElementById('rec-audio-' + q);
-    if (player) { if (player.src) URL.revokeObjectURL(player.src); player.remove(); }
+    if (player) {
+      if (player.src) URL.revokeObjectURL(player.src);
+      player.remove();
+    }
     var st = document.getElementById('rec-status-' + q);
-    if (st) { st.style.display = 'none'; st.textContent = ''; }
+    if (st) {
+      st.style.display = 'none';
+      st.textContent = '';
+    }
     var tr = document.getElementById('rec-transcript-' + q);
-    if (tr) { tr.style.display = 'none'; tr.textContent = ''; }
+    if (tr) {
+      tr.style.display = 'none';
+      tr.textContent = '';
+    }
     setRecUi(q, 'idle');
   });
 
   // Reset all MCQ buttons
-  document.querySelectorAll('.option-btn').forEach(btn => {
+  document.querySelectorAll('.option-btn').forEach((btn) => {
     btn.disabled = false;
-    btn.classList.remove('selected','correct','wrong');
+    btn.classList.remove('selected', 'correct', 'wrong');
     if (btn.getAttribute('role') === 'radio') btn.setAttribute('aria-checked', 'false');
     else if (btn.hasAttribute('aria-pressed')) btn.setAttribute('aria-pressed', 'false');
-    btn.tabIndex = btn.dataset.firstOption === '1' ? 0 : (btn.getAttribute('role') === 'radio' ? -1 : 0);
+    btn.tabIndex = btn.dataset.firstOption === '1' ? 0 : btn.getAttribute('role') === 'radio' ? -1 : 0;
     const v = btn.querySelector('.fp-answer__verdict');
     if (v) v.remove();
   });
 
   // Reset all feedbacks
-  document.querySelectorAll('.q-feedback').forEach(fb => {
+  document.querySelectorAll('.q-feedback').forEach((fb) => {
     fb.className = 'q-feedback';
     fb.innerHTML = '';
   });
 
   // Reset text inputs
-  document.querySelectorAll('.text-input-area').forEach(el => el.value = '');
+  document.querySelectorAll('.text-input-area').forEach((el) => (el.value = ''));
   updateWordCount();
 
   // Reset task choice
-  ['taskA', 'taskB'].forEach(id => { const b = document.getElementById(id); b.classList.remove('chosen'); b.setAttribute('aria-pressed', 'false'); });
+  ['taskA', 'taskB'].forEach((id) => {
+    const b = document.getElementById(id);
+    b.classList.remove('chosen');
+    b.setAttribute('aria-pressed', 'false');
+  });
 
   // Reset audio players
-  Object.keys(AUDIO_UI).forEach(kind => {
+  Object.keys(AUDIO_UI).forEach((kind) => {
     const u = AUDIO_UI[kind];
     audioClock[kind] = { start: null, total: 0 };
-    document.getElementById(u.status).innerHTML = kind === 'listening'
-      ? bi('Press play to listen. You can play it up to 3 times.', 'Toca reproducir para escuchar. Puedes escucharlo hasta 3 veces.')
-      : bi('Press play to hear the sentence', 'Toca reproducir para escuchar la oración');
+    document.getElementById(u.status).innerHTML =
+      kind === 'listening'
+        ? bi(
+            'Press play to listen. You can play it up to 3 times.',
+            'Toca reproducir para escuchar. Puedes escucharlo hasta 3 veces.'
+          )
+        : bi('Press play to hear the sentence', 'Toca reproducir para escuchar la oración');
     document.getElementById(u.left).innerHTML = playsLeftHtml(MAX_PLAYS);
     const play = document.getElementById(u.play);
-    play.disabled = false; play.style.display = 'inline-flex';
+    play.disabled = false;
+    play.style.display = 'inline-flex';
     document.getElementById(u.stop).style.display = 'none';
-    const t = document.getElementById(u.time); t.style.display = 'none'; t.textContent = '';
+    const t = document.getElementById(u.time);
+    t.style.display = 'none';
+    t.textContent = '';
     document.getElementById(u.box).classList.remove('is-exhausted');
   });
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   // Reset submission banner
   const banner = document.getElementById('submissionBanner');
-  if (banner) { banner.classList.add('fp-hidden'); banner.classList.remove('fp-banner--error'); banner.classList.add('fp-banner--success'); banner.innerHTML = ''; }
+  if (banner) {
+    banner.classList.add('fp-hidden');
+    banner.classList.remove('fp-banner--error');
+    banner.classList.add('fp-banner--success');
+    banner.innerHTML = '';
+  }
 
   // Reset nav score
   document.getElementById('navScore').textContent = '';
@@ -1019,11 +1295,14 @@ function restartTest() {
 function enhanceOptionGroups() {
   document.querySelectorAll('.options-grid').forEach((grid, i) => {
     const prompt = grid.closest('.question-card')?.querySelector('.q-prompt');
-    if (prompt) { if (!prompt.id) prompt.id = 'qp-' + i; grid.setAttribute('aria-labelledby', prompt.id); }
+    if (prompt) {
+      if (!prompt.id) prompt.id = 'qp-' + i;
+      grid.setAttribute('aria-labelledby', prompt.id);
+    }
     const opts = Array.from(grid.querySelectorAll('.option-btn'));
     if (grid.id === 'q19-options') {
       grid.setAttribute('role', 'group');
-      opts.forEach(b => b.setAttribute('aria-pressed', 'false'));
+      opts.forEach((b) => b.setAttribute('aria-pressed', 'false'));
       return;
     }
     grid.setAttribute('role', 'radiogroup');
@@ -1033,26 +1312,31 @@ function enhanceOptionGroups() {
       b.tabIndex = k === 0 ? 0 : -1;
       if (k === 0) b.dataset.firstOption = '1';
     });
-    grid.addEventListener('keydown', e => {
+    grid.addEventListener('keydown', (e) => {
       const keys = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 };
       if (!(e.key in keys)) return;
-      const enabled = opts.filter(b => !b.disabled);
+      const enabled = opts.filter((b) => !b.disabled);
       const at = enabled.indexOf(document.activeElement);
       if (at < 0 || !enabled.length) return;
       e.preventDefault();
       const next = enabled[(at + keys[e.key] + enabled.length) % enabled.length];
-      enabled.forEach(b => { b.tabIndex = b === next ? 0 : -1; });
+      enabled.forEach((b) => {
+        b.tabIndex = b === next ? 0 : -1;
+      });
       next.focus();
     });
   });
-  ['taskA', 'taskB'].forEach(id => document.getElementById(id).setAttribute('aria-pressed', 'false'));
+  ['taskA', 'taskB'].forEach((id) => document.getElementById(id).setAttribute('aria-pressed', 'false'));
 }
 
 // Set today's date on load
 window.addEventListener('DOMContentLoaded', () => {
   enhanceOptionGroups();
   // Session guard — the placement test requires a logged-in student (free, not public).
-  if (FP.getSession && !FP.getSession()) { FP.redirectToLogin(); return; }
+  if (FP.getSession && !FP.getSession()) {
+    FP.redirectToLogin();
+    return;
+  }
 
   document.getElementById('candidateDate').value = localDateString();
 

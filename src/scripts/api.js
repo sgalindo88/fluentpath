@@ -22,18 +22,22 @@ FP.api = (function () {
     var controller = new AbortController();
     opts.signal = controller.signal;
 
-    var timer = setTimeout(function () { controller.abort(); }, ms);
+    var timer = setTimeout(function () {
+      controller.abort();
+    }, ms);
 
-    return fetch(url, opts).then(function (resp) {
-      clearTimeout(timer);
-      return resp;
-    }).catch(function (err) {
-      clearTimeout(timer);
-      if (err.name === 'AbortError') {
-        throw new Error('Request timed out after ' + (ms / 1000) + 's');
-      }
-      throw err;
-    });
+    return fetch(url, opts)
+      .then(function (resp) {
+        clearTimeout(timer);
+        return resp;
+      })
+      .catch(function (err) {
+        clearTimeout(timer);
+        if (err.name === 'AbortError') {
+          throw new Error('Request timed out after ' + ms / 1000 + 's');
+        }
+        throw err;
+      });
   }
 
   /**
@@ -43,9 +47,11 @@ FP.api = (function () {
    */
   function _encodeForm(payload, maxLen) {
     var limit = maxLen || 10000;
-    return Object.keys(payload).map(function (k) {
-      return encodeURIComponent(k) + '=' + encodeURIComponent(String(payload[k]).substring(0, limit));
-    }).join('&');
+    return Object.keys(payload)
+      .map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(String(payload[k]).substring(0, limit));
+      })
+      .join('&');
   }
 
   /**
@@ -93,7 +99,8 @@ FP.api = (function () {
       .then(function (resp) {
         if (!resp.ok) throw new Error('GET failed: ' + resp.status);
         return resp.json();
-      }).then(_checkAuth);
+      })
+      .then(_checkAuth);
   }
 
   /**
@@ -114,12 +121,18 @@ FP.api = (function () {
     var session = FP.getSession && FP.getSession();
     if (isWebhook && FP.APP_TOKEN) authedPayload.token = FP.APP_TOKEN;
     if (isWebhook && session) authedPayload.session = session;
-    return _fetch(url, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: _encodeForm(authedPayload, opt.maxValueLength),
-    }, opt.timeout).then(function () { return true; });
+    return _fetch(
+      url,
+      {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: _encodeForm(authedPayload, opt.maxValueLength),
+      },
+      opt.timeout
+    ).then(function () {
+      return true;
+    });
   }
 
   /**
@@ -133,19 +146,27 @@ FP.api = (function () {
    */
   function postJson(url, payload, options) {
     var opt = options || {};
-    var headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    var headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
     if (opt.headers) {
-      Object.keys(opt.headers).forEach(function (k) { headers[k] = opt.headers[k]; });
+      Object.keys(opt.headers).forEach(function (k) {
+        headers[k] = opt.headers[k];
+      });
     }
     // For JSON posts, append token as query parameter (body is JSON, not form data)
-    return _fetch(_appendToken(url), {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(payload),
-    }, opt.timeout).then(function (resp) {
-      if (!resp.ok) throw new Error('POST failed: ' + resp.status);
-      return resp.json();
-    }).then(_checkAuth);
+    return _fetch(
+      _appendToken(url),
+      {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payload),
+      },
+      opt.timeout
+    )
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('POST failed: ' + resp.status);
+        return resp.json();
+      })
+      .then(_checkAuth);
   }
 
   /**
@@ -163,14 +184,20 @@ FP.api = (function () {
     var session = FP.getSession && FP.getSession();
     if (isWebhook && FP.APP_TOKEN) authed.token = FP.APP_TOKEN;
     if (isWebhook && session) authed.session = session;
-    return _fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: _encodeForm(authed, opt.maxValueLength),
-    }, opt.timeout).then(function (resp) {
-      if (!resp.ok) throw new Error('POST failed: ' + resp.status);
-      return resp.json();
-    }).then(_checkAuth);
+    return _fetch(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: _encodeForm(authed, opt.maxValueLength),
+      },
+      opt.timeout
+    )
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('POST failed: ' + resp.status);
+        return resp.json();
+      })
+      .then(_checkAuth);
   }
 
   /**
@@ -181,23 +208,32 @@ FP.api = (function () {
    */
   function postText(url, bodyString, options) {
     var opt = options || {};
-    return _fetch(_appendToken(url), {
-      method: 'POST',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain' },
-      body: bodyString,
-    }, opt.timeout).then(function (resp) {
-      if (!resp.ok) throw new Error('POST failed: ' + resp.status);
-      return resp.json();
-    }).then(_checkAuth);
+    return _fetch(
+      _appendToken(url),
+      {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain' },
+        body: bodyString,
+      },
+      opt.timeout
+    )
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('POST failed: ' + resp.status);
+        return resp.json();
+      })
+      .then(_checkAuth);
   }
 
   return {
-    get: get, postForm: postForm, postJson: postJson, postRead: postRead,
-    postText: postText, appendToken: _appendToken,
+    get: get,
+    postForm: postForm,
+    postJson: postJson,
+    postRead: postRead,
+    postText: postText,
+    appendToken: _appendToken,
   };
 })();
-
 
 // ══════════════════════════════════════════════════════
 // SAVE OVERLAY — blocks interaction during async saves
@@ -218,13 +254,14 @@ FP.showSaveOverlay = function (message, isHtml) {
     el.setAttribute('aria-labelledby', 'fp-save-msg');
     el.innerHTML =
       '<div class="fp-modal fp-wait">' +
-        '<span class="fp-spinner" aria-hidden="true"></span>' +
-        '<div id="fp-save-msg" class="fp-wait__msg">Saving…</div>' +
+      '<span class="fp-spinner" aria-hidden="true"></span>' +
+      '<div id="fp-save-msg" class="fp-wait__msg">Saving…</div>' +
       '</div>';
     (document.body || document.documentElement).appendChild(el);
   }
   var msg = document.getElementById('fp-save-msg');
-  if (isHtml) msg.innerHTML = message; else msg.textContent = message || 'Saving…';
+  if (isHtml) msg.innerHTML = message;
+  else msg.textContent = message || 'Saving…';
   el.classList.add('is-open');
 };
 
@@ -235,7 +272,8 @@ FP.showSaveOverlay = function (message, isHtml) {
 FP.updateSaveOverlay = function (message, isHtml) {
   var m = document.getElementById('fp-save-msg');
   if (!m) return;
-  if (isHtml) m.innerHTML = message; else m.textContent = message;
+  if (isHtml) m.innerHTML = message;
+  else m.textContent = message;
 };
 
 /**
@@ -245,7 +283,6 @@ FP.hideSaveOverlay = function () {
   var el = document.getElementById('fp-save-overlay');
   if (el) el.classList.remove('is-open');
 };
-
 
 // ══════════════════════════════════════════════════════
 // STARTUP — run once on every page load
@@ -267,7 +304,6 @@ if (FP.ENV === 'development') {
   });
 }
 
-
 // ══════════════════════════════════════════════════════
 // SERVICE WORKER — offline resilience
 // ══════════════════════════════════════════════════════
@@ -279,12 +315,20 @@ if ('serviceWorker' in navigator) {
   var rootBase = base.replace(/src\/$/, '').replace(/legacy\/$/, '');
   var swPath = rootBase + 'sw.js';
 
-  navigator.serviceWorker.register(swPath).then(function (reg) {
-    // Check for updates every 30 minutes
-    setInterval(function () { reg.update(); }, 30 * 60 * 1000);
-  }).catch(function (err) {
-    console.warn('[FluentPath] Service worker registration failed:', err);
-  });
+  navigator.serviceWorker
+    .register(swPath)
+    .then(function (reg) {
+      // Check for updates every 30 minutes
+      setInterval(
+        function () {
+          reg.update();
+        },
+        30 * 60 * 1000
+      );
+    })
+    .catch(function (err) {
+      console.warn('[FluentPath] Service worker registration failed:', err);
+    });
 
   // When coming back online, tell the SW to replay queued POSTs
   window.addEventListener('online', function () {
@@ -296,8 +340,12 @@ if ('serviceWorker' in navigator) {
   // Listen for messages from the SW (e.g. queue replayed)
   navigator.serviceWorker.addEventListener('message', function (event) {
     if (event.data && event.data.type === 'queue-replayed') {
-      console.log('[FluentPath] Replayed ' + event.data.count + ' offline request(s)' +
-        (event.data.dropped ? ', dropped ' + event.data.dropped + ' that the server rejected.' : '.'));
+      console.log(
+        '[FluentPath] Replayed ' +
+          event.data.count +
+          ' offline request(s)' +
+          (event.data.dropped ? ', dropped ' + event.data.dropped + ' that the server rejected.' : '.')
+      );
     }
   });
 }

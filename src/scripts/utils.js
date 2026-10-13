@@ -47,7 +47,9 @@ function formatDate(dateStr, style) {
       return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     }
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  } catch (e) { return String(dateStr); }
+  } catch (e) {
+    return String(dateStr);
+  }
 }
 
 /** Format a lesson date as short: "10 Apr".
@@ -121,7 +123,7 @@ function cleanupLocalStorage() {
           var parsed = JSON.parse(raw);
           // Check _ts (timestamp we add) or _savedAt (checkpoint format)
           var ts = parsed && (parsed._ts || parsed._savedAt);
-          if (ts && (now - ts) > LS_MAX_AGE) {
+          if (ts && now - ts > LS_MAX_AGE) {
             keysToRemove.push(key);
           }
           // If no timestamp, add one for future cleanup
@@ -136,7 +138,7 @@ function cleanupLocalStorage() {
       }
     }
 
-    keysToRemove.forEach(function(k) {
+    keysToRemove.forEach(function (k) {
       localStorage.removeItem(k);
     });
 
@@ -154,9 +156,10 @@ function cleanupLocalStorage() {
     if (totalSize > 4 * 1024 * 1024) {
       console.warn('[FluentPath] localStorage usage is ' + sizeMB + 'MB — approaching the 5MB browser limit.');
     }
-  } catch (e) { /* localStorage unavailable */ }
+  } catch (e) {
+    /* localStorage unavailable */
+  }
 }
-
 
 /** DATA-2: opaque id for one placement-test submission. Prefixed so Sheets
  *  can never coerce it to a number or date. crypto.randomUUID is missing on
@@ -170,9 +173,15 @@ function newSubmissionId() {
     } else if (c && c.getRandomValues) {
       var a = new Uint8Array(16);
       c.getRandomValues(a);
-      hex = Array.prototype.map.call(a, function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
+      hex = Array.prototype.map
+        .call(a, function (b) {
+          return (b < 16 ? '0' : '') + b.toString(16);
+        })
+        .join('');
     }
-  } catch (e) { hex = null; }
+  } catch (e) {
+    hex = null;
+  }
   if (!hex) {
     hex = '';
     for (var i = 0; i < 4; i++) hex += Math.floor(Math.random() * 0x100000000).toString(16);
@@ -182,8 +191,7 @@ function newSubmissionId() {
 
 /** DATA-2: true only when the server's newest test row carries exactly our id. */
 function submissionMatches(data, submissionId) {
-  return !!(submissionId && data && data.found &&
-    String(data.submission_id || '').trim() === String(submissionId));
+  return !!(submissionId && data && data.found && String(data.submission_id || '').trim() === String(submissionId));
 }
 
 /** N-12 / DATA-6: a get_progress reply confirms THIS lesson save only if one of
@@ -192,7 +200,7 @@ function submissionMatches(data, submissionId) {
 function lessonSaveConfirmed(progress, submissionId) {
   if (!submissionId || !progress || !Array.isArray(progress.lessons)) return false;
   return progress.lessons.some(function (l) {
-    return String(l && l.submission_id || '').trim() === String(submissionId);
+    return String((l && l.submission_id) || '').trim() === String(submissionId);
   });
 }
 
@@ -200,7 +208,8 @@ function lessonSaveConfirmed(progress, submissionId) {
  *  toISOString() is UTC, so a Toronto student after ~8 pm got tomorrow's date. */
 function localDateString(d) {
   d = d || new Date();
-  var m = d.getMonth() + 1, day = d.getDate();
+  var m = d.getMonth() + 1,
+    day = d.getDate();
   return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
 }
 
@@ -217,7 +226,9 @@ function localDateString(d) {
 function compactAnswersJson(answers, limit) {
   limit = limit || 5000;
   var data = {};
-  Object.keys(answers || {}).forEach(function (k) { data[k] = answers[k]; });
+  Object.keys(answers || {}).forEach(function (k) {
+    data[k] = answers[k];
+  });
   var full = JSON.stringify(data);
   if (full.length <= limit) return full;
 
@@ -225,7 +236,9 @@ function compactAnswersJson(answers, limit) {
   var cut = {};
   function out() {
     var o = {};
-    Object.keys(data).forEach(function (k) { o[k] = data[k]; });
+    Object.keys(data).forEach(function (k) {
+      o[k] = data[k];
+    });
     o._truncated = true;
     o._truncated_keys = Object.keys(cut);
     return JSON.stringify(o);
@@ -246,7 +259,14 @@ function compactAnswersJson(answers, limit) {
   }
   // Last resort (only reachable with an absurdly small limit or huge protected
   // data): keep the protected counters and the flag, which is still valid JSON.
-  var minimal = { _truncated: true, _truncated_keys: Object.keys(data).filter(function (k) { return !PROTECTED.test(k); }) };
-  Object.keys(data).forEach(function (k) { if (PROTECTED.test(k)) minimal[k] = data[k]; });
+  var minimal = {
+    _truncated: true,
+    _truncated_keys: Object.keys(data).filter(function (k) {
+      return !PROTECTED.test(k);
+    }),
+  };
+  Object.keys(data).forEach(function (k) {
+    if (PROTECTED.test(k)) minimal[k] = data[k];
+  });
   return JSON.stringify(minimal);
 }

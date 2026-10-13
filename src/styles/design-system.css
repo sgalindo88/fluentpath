@@ -1,16 +1,74 @@
 /* Component sheet (design-system.html): layout only. Components come from components.css. */
-*, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; line-height: 1.6; }
-h2, h3, p { margin: 0; }
-.ds-tag { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-muted); }
-.ds { max-width: 900px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-16); }
-.ds section { margin-bottom: var(--space-8); }
-.ds h2 { margin-bottom: var(--space-3); font-size: var(--font-size-h3); font-weight: var(--font-weight-bold); }
-.ds-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
-.ds-stack { display: flex; flex-direction: column; gap: var(--space-2); max-width: 520px; }
-.ds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); }
-.ds-labels > div { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); font-size: var(--font-size-xs); color: var(--text-muted); }
-.ds-steps { max-width: 420px; margin-top: var(--space-3); }
-.ds-fill { width: 40%; }
-.ds-frame { padding: var(--space-6); background: rgba(30, 42, 56, 0.5); border-radius: var(--radius-lg); }
-.ds-modal { margin: 0 auto; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  line-height: 1.6;
+}
+h2,
+h3,
+p {
+  margin: 0;
+}
+.ds-tag {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+}
+.ds {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-16);
+}
+.ds section {
+  margin-bottom: var(--space-8);
+}
+.ds h2 {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-bold);
+}
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 520px;
+}
+.ds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+.ds-labels > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+.ds-steps {
+  max-width: 420px;
+  margin-top: var(--space-3);
+}
+.ds-fill {
+  width: 40%;
+}
+.ds-frame {
+  padding: var(--space-6);
+  background: rgba(30, 42, 56, 0.5);
+  border-radius: var(--radius-lg);
+}
+.ds-modal {
+  margin: 0 auto;
+}

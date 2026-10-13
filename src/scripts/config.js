@@ -21,7 +21,7 @@ FP.ENV = (function () {
 // (fluentpath.ca vs teacher.fluentpath.ca). A page is the teacher site when
 // its hostname starts with "teacher."; this also lets each side link to the
 // other and lets the teacher login gate enforce role === 'teacher'.
-FP.IS_TEACHER_SITE = (typeof location !== 'undefined') && location.hostname.indexOf('teacher.') === 0;
+FP.IS_TEACHER_SITE = typeof location !== 'undefined' && location.hostname.indexOf('teacher.') === 0;
 FP.STUDENT_URL = 'https://fluentpath.ca';
 FP.TEACHER_URL = 'https://teacher.fluentpath.ca';
 
@@ -29,7 +29,8 @@ FP.TEACHER_URL = 'https://teacher.fluentpath.ca';
 // Production webhook — always set here as the default.
 // For local development, override FP.WEBHOOK_URL in config.local.js
 // to point to a separate "FluentPath - Dev" Apps Script deployment.
-FP.WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
+FP.WEBHOOK_URL =
+  'https://script.google.com/macros/s/AKfycbwsicAxs8wunL5Eg_G0wXYbE1JuN-aqWdP5Fv6Bry4jfWyWm58PfhYcH3Pat-g4P9fX/exec';
 FP.FORMSPREE_ENDPOINT = 'https://formspree.io/f/mpqoorna';
 
 // ── Auth Token ──────────────────────────────────────────────
@@ -49,12 +50,17 @@ FP.APP_TOKEN = '04eaecb3a0ccb2dc91c6b0da61a8d875';
 
 // ── CEFR Levels ──────────────────────────────────────────────
 FP.LEVELS = {
-  A1: { name: 'Beginner',            theme: 'Everyday Survival',    name_es: 'Principiante',        theme_es: 'Supervivencia diaria' },
-  A2: { name: 'Elementary',          theme: 'Community & Life',     name_es: 'Elemental',           theme_es: 'Comunidad y vida' },
-  B1: { name: 'Intermediate',        theme: 'The Workplace',        name_es: 'Intermedio',          theme_es: 'El trabajo' },
-  B2: { name: 'Upper-Intermediate',  theme: 'Career & Society',     name_es: 'Intermedio alto',     theme_es: 'Carrera y sociedad' },
-  C1: { name: 'Advanced',            theme: 'Professional Mastery', name_es: 'Avanzado',            theme_es: 'Dominio profesional' },
-  C2: { name: 'Proficiency',         theme: 'Full Fluency',         name_es: 'Dominio',             theme_es: 'Fluidez total' },
+  A1: { name: 'Beginner', theme: 'Everyday Survival', name_es: 'Principiante', theme_es: 'Supervivencia diaria' },
+  A2: { name: 'Elementary', theme: 'Community & Life', name_es: 'Elemental', theme_es: 'Comunidad y vida' },
+  B1: { name: 'Intermediate', theme: 'The Workplace', name_es: 'Intermedio', theme_es: 'El trabajo' },
+  B2: {
+    name: 'Upper-Intermediate',
+    theme: 'Career & Society',
+    name_es: 'Intermedio alto',
+    theme_es: 'Carrera y sociedad',
+  },
+  C1: { name: 'Advanced', theme: 'Professional Mastery', name_es: 'Avanzado', theme_es: 'Dominio profesional' },
+  C2: { name: 'Proficiency', theme: 'Full Fluency', name_es: 'Dominio', theme_es: 'Fluidez total' },
 };
 
 // ── Course Constants ─────────────────────────────────────────
@@ -64,21 +70,21 @@ FP.LESSON_DURATION_MIN = 90;
 
 // ── localStorage Keys ────────────────────────────────────────
 FP.KEYS = {
-  STUDENT_NAME:     'fp_student_name',
-  TEST_COMPLETED:   'fp_test_completed',
-  TEST_DATE:        'fp_test_date',
-  TEST_SCORE:       'fp_test_score',
-  CEFR_LEVEL:       'fp_cefr_level',
-  LAST_LESSON_DAY:  'fp_last_lesson_day',
+  STUDENT_NAME: 'fp_student_name',
+  TEST_COMPLETED: 'fp_test_completed',
+  TEST_DATE: 'fp_test_date',
+  TEST_SCORE: 'fp_test_score',
+  CEFR_LEVEL: 'fp_cefr_level',
+  LAST_LESSON_DAY: 'fp_last_lesson_day',
   LAST_LESSON_DATE: 'fp_last_lesson_date',
-  HUB_CACHE:        'fp_hub_cache',
-  TEACHER_STATE:    'fluentpath_teacher',
-  LESSON_MARKS:     'fp_lesson_marks',
-  COURSE_ID:        'fp_course_id',
+  HUB_CACHE: 'fp_hub_cache',
+  TEACHER_STATE: 'fluentpath_teacher',
+  LESSON_MARKS: 'fp_lesson_marks',
+  COURSE_ID: 'fp_course_id',
   // Session (set at login, read by api.js on every webhook call)
-  SESSION:          'fp_session',
-  SESSION_EXP:      'fp_session_exp',
-  ROLE:             'fp_role',
+  SESSION: 'fp_session',
+  SESSION_EXP: 'fp_session_exp',
+  ROLE: 'fp_role',
 };
 
 // ── Session helpers ──────────────────────────────────────────
@@ -91,9 +97,14 @@ FP.getSession = function () {
     var token = localStorage.getItem(FP.KEYS.SESSION);
     if (!token) return null;
     var exp = localStorage.getItem(FP.KEYS.SESSION_EXP);
-    if (exp && new Date(exp).getTime() < Date.now()) { FP.clearSession(); return null; }
+    if (exp && new Date(exp).getTime() < Date.now()) {
+      FP.clearSession();
+      return null;
+    }
     return token;
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
 };
 
 FP.clearSession = function () {
@@ -101,7 +112,9 @@ FP.clearSession = function () {
     localStorage.removeItem(FP.KEYS.SESSION);
     localStorage.removeItem(FP.KEYS.SESSION_EXP);
     localStorage.removeItem(FP.KEYS.ROLE);
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    /* ignore */
+  }
 };
 
 /**
@@ -129,7 +142,9 @@ FP.purgeStudentState = function () {
       if (k && k.indexOf('fp_') === 0 && FP.PURGE_KEEP.indexOf(k) === -1) doomed.push(k);
     }
     for (var j = 0; j < doomed.length; j++) localStorage.removeItem(doomed[j]);
-  } catch (e) { /* storage unavailable — nothing to purge */ }
+  } catch (e) {
+    /* storage unavailable — nothing to purge */
+  }
 };
 
 /** Redirect to the appropriate login screen (teacher dashboard vs student app). */
@@ -149,6 +164,8 @@ FP.redirectToLogin = function () {
   var basePath = thisScript.src.substring(0, thisScript.src.lastIndexOf('/') + 1);
   var s = document.createElement('script');
   s.src = basePath + 'config.local.js';
-  s.onerror = function () { s.remove(); };
+  s.onerror = function () {
+    s.remove();
+  };
   thisScript.parentNode.insertBefore(s, thisScript.nextSibling);
 })();

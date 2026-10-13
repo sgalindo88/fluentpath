@@ -14,7 +14,7 @@ const PAGES = [['index.html', ''], ['app.html', ''], ['src/student-course.html',
 describe('page heads', () => {
   for (const [page, pfx] of PAGES) {
     it(`${page} declares theme colour, touch icon, manifest and favicon`, () => {
-      const html = read(page);
+      const html = read(page).replace(/\s*\/>/g, '>'); // prettier writes void elements as <tag />
       expect(html).toContain('<meta name="theme-color" content="#1E2A38">');
       expect(html).toContain(`<link rel="apple-touch-icon" href="${pfx}apple-touch-icon.png">`);
       expect(html).toContain(`<link rel="manifest" href="${pfx}manifest.webmanifest">`);

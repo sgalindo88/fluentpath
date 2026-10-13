@@ -8,7 +8,12 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Global touch optimisations ────────────────────────────── */
-button, a, [onclick], .option-btn, .level-card, .task-choice-btn {
+button,
+a,
+[onclick],
+.option-btn,
+.level-card,
+.task-choice-btn {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -17,7 +22,6 @@ button, a, [onclick], .option-btn, .level-card, .task-choice-btn {
    MOBILE STYLES  (max-width: 600px)
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
-
   /* iOS auto-zoom on focus: handled for ALL widths (iPad zooms too) by the base
      rule in tokens.css (input, select, textarea { font-size: var(--font-size-input) }).
      Component rules that size a form control must use var(--font-size-input), not px. */
@@ -76,9 +80,9 @@ button, a, [onclick], .option-btn, .level-card, .task-choice-btn {
   }
 
   /* ── Form inputs — comfortable size ───────────────────────── */
-  input[type="text"],
-  input[type="date"],
-  input[type="email"] {
+  input[type='text'],
+  input[type='date'],
+  input[type='email'] {
     padding: 12px;
     min-height: 48px;
   }
@@ -152,7 +156,6 @@ button, a, [onclick], .option-btn, .level-card, .task-choice-btn {
    Extra adjustments for narrow screens (iPhone SE, etc.)
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 380px) {
-
   .option-btn {
     padding: 14px 12px;
     font-size: 14px;
@@ -189,7 +192,6 @@ button, a, [onclick], .option-btn, .level-card, .task-choice-btn {
    Subtle hover upgrades for mouse users.
    ═══════════════════════════════════════════════════════════════ */
 @media (min-width: 601px) and (hover: hover) {
-
   .option-btn:hover:not(:disabled) {
     transform: translateX(3px);
   }
