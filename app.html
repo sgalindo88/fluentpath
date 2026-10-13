@@ -37,7 +37,7 @@
       </div>
       <div class="fp-field">
         <label class="fp-label" for="loginPassword">Password <span class="fp-bi__es" lang="es">Contraseña</span></label>
-        <input class="fp-input" type="password" id="loginPassword" placeholder="Your password · Tu contraseña" autocomplete="current-password">
+        <input class="fp-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password">
       </div>
       <div class="fp-field-error" id="loginError" role="alert" style="display:none;"></div>
       <p class="auth__hint">Use the email and password your teacher gave you.
@@ -133,6 +133,16 @@
 
     <!-- What to do next -->
     <section class="fp-card hub-next" id="ctaSection" aria-live="polite"></section>
+
+    <!-- Talking to the teacher: an in-page card, not a floating button over the content -->
+    <section class="fp-card hub-call" aria-labelledby="callTitle">
+      <div>
+        <h2 class="hub-card-title" id="callTitle">Need to talk to your teacher? <span class="fp-bi__es" lang="es">¿Necesitas hablar con tu profesor?</span></h2>
+        <p class="hub-desc">Ask for a video call and your teacher will send you a link.
+          <span class="fp-bi__es" lang="es">Pide una videollamada y tu profesor te enviará un enlace.</span></p>
+      </div>
+      <div id="callSlot"></div>
+    </section>
 
     <!-- Details for each waypoint (JS fills the cards) -->
     <div class="hub-grid">

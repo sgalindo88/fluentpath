@@ -94,7 +94,7 @@ FP.ui = (function () {
         var btn = document.createElement(a.href ? 'a' : 'button');
         if (a.href) { btn.href = a.href; btn.target = '_blank'; btn.rel = 'noopener'; } else { btn.type = 'button'; }
         btn.className = 'fp-btn fp-btn--secondary ' + (a.className || '');
-        btn.textContent = a.label;
+        if (a.html) btn.innerHTML = a.html; else btn.textContent = a.label;
         if (a.onclick) btn.addEventListener('click', a.onclick);
         box.appendChild(btn);
       });
@@ -108,6 +108,24 @@ FP.ui = (function () {
     var el = document.getElementById(id);
     if (el) el.remove();
   }
+
+  /* ── Who sees Spanish ───────────────────────────────────────
+     Students at A1, A2 and B1 (and anyone whose level is not known yet: login, a new
+     student, the placement test) see the Spanish line under every English one.
+     B2, C1 and C2 see English only. `fp-no-es` on <html> hides every Spanish fragment
+     (.fp-bi__es, .fp-es) with CSS, so the same markup serves both. */
+  function showSpanishFor(level) { return !/^(B2|C1|C2)/i.test(String(level || '')); }
+  function setLevel(level) {
+    document.documentElement.classList.toggle('fp-no-es', !showSpanishFor(level));
+  }
+  function spanishOn() { return !document.documentElement.classList.contains('fp-no-es'); }
+  try { setLevel(localStorage.getItem('fp_cefr_level')); } catch (e) { /* storage unavailable: show Spanish */ }
+
+  /** Inline Spanish after an English phrase: " · Spanish" (hidden for B2 and up). */
+  function es(text) { return '<span class="fp-es" lang="es"> · ' + esc(text) + '</span>'; }
+
+  /** Plain-text label for attributes (aria-label, placeholder, title) where markup can't go. */
+  function label(en, esText) { return spanishOn() ? en + ' / ' + esText : en; }
 
   /** English with its Spanish line underneath. Both arguments are plain text (escaped here). */
   function bi(en, es) {
@@ -127,5 +145,8 @@ FP.ui = (function () {
     } catch (e) { return String(dateStr); }
   }
 
-  return { toast: toast, banner: banner, removeBanner: removeBanner, bi: bi, dateEs: dateEs, esc: esc };
+  return {
+    toast: toast, banner: banner, removeBanner: removeBanner, bi: bi, dateEs: dateEs, esc: esc,
+    es: es, label: label, setLevel: setLevel, showSpanishFor: showSpanishFor, spanishOn: spanishOn,
+  };
 })();

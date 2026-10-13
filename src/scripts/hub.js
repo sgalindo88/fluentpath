@@ -247,7 +247,7 @@ function confidenceFace(v) {
     [/😄|😀|great/i,     'sentiment_very_satisfied', 'Great', 'Genial'],
   ];
   for (var k = 0; k < table.length; k++) {
-    if (table[k][0].test(t)) return FP.icon(table[k][1], { label: table[k][2] + ' / ' + table[k][3] });
+    if (table[k][0].test(t)) return FP.icon(table[k][1], { label: FP.ui.label(table[k][2], table[k][3]) });
   }
   return '';
 }
@@ -265,11 +265,11 @@ function setRouteStep(id, state, metaText) {
   var old = li.querySelector('.fp-sr-only');
   if (old) old.remove();
   var words = { completed: ['Completed', 'Completado'], current: ['Current step', 'Paso actual'], upcoming: ['Coming up', 'Próximo'] }[state];
-  li.insertAdjacentHTML('beforeend', '<span class="fp-sr-only">' + words[0] + '. <span lang="es">' + words[1] + '.</span></span>');
+  li.insertAdjacentHTML('beforeend', '<span class="fp-sr-only">' + words[0] + '.<span class="fp-es" lang="es"> ' + words[1] + '.</span></span>');
 }
 
 function badge(variant, iconName, en, es) {
-  return '<span class="fp-badge fp-badge--' + variant + '">' + FP.icon(iconName, { size: 'sm' }) + FP.ui.esc(en) + ' · ' + FP.ui.esc(es) + '</span>';
+  return '<span class="fp-badge fp-badge--' + variant + '">' + FP.icon(iconName, { size: 'sm' }) + FP.ui.esc(en) + FP.ui.es(es) + '</span>';
 }
 
 function toggleLessonHistory(btn) {
@@ -288,7 +288,7 @@ function lessonRowHtml(lesson) {
   var face = confidenceFace(lesson.confidence);
   var day = escHtml(String(lesson.day));
   return '<li class="hub-lesson">' +
-    '<span><strong>Day ' + day + ' · Día ' + day + '</strong>' +
+    '<span><strong>Day ' + day + FP.ui.es('Día ' + day) + '</strong>' +
     (lesson.topic ? ' <span class="hub-lesson__topic">· ' + escHtml(lesson.topic) + '</span>' : '') + '</span>' +
     '<span class="hub-lesson__meta">' + (timeStr ? '<span>' + timeStr + '</span>' : '') + face +
     (dateStr ? '<span>' + escHtml(dateStr) + '</span>' : '') + '</span></li>';
@@ -296,6 +296,9 @@ function lessonRowHtml(lesson) {
 
 function renderDashboard() {
   const d = progress;
+
+  // Spanish lines are for A1/A2/B1 (and until a level exists); B2+ see English only.
+  FP.ui.setLevel(d.cefr_level);
 
   // Greeting
   document.getElementById('dashName').textContent = studentName;
@@ -335,7 +338,7 @@ function renderDashboard() {
     if (d.total_score) testHtml += '<span class="hub-score">' + escHtml(String(d.total_score)) + ' / ' + TOTAL_MARKS + '</span>';
     testHtml += '</div>';
     if (settings.allow_retake_test) {
-      testHtml += '<p class="hub-retake"><a href="src/student-initial-test.html">Re-take the placement test · Repetir la prueba de nivel</a>' +
+      testHtml += '<p class="hub-retake"><a href="src/student-initial-test.html">Re-take the placement test' + FP.ui.es('Repetir la prueba de nivel') + '</a>' +
         ' <span class="hub-sub">' + bi('(approved by your teacher)', '(aprobado por tu profesor)') + '</span></p>';
     }
     msTestCard.innerHTML = testHtml;
@@ -354,8 +357,8 @@ function renderDashboard() {
     msLevelCard.style.display = 'block';
     msLevelCard.innerHTML =
       '<div class="hub-level"><span class="hub-level__code">' + escHtml(d.cefr_level) + '</span>' +
-      '<div><div class="hub-level__name">' + escHtml(info.name) + ' · ' + escHtml(info.name_es || info.name) + '</div>' +
-      '<div class="hub-level__theme">' + escHtml(info.theme) + (info.theme_es ? ' · ' + escHtml(info.theme_es) : '') + '</div></div></div>';
+      '<div><div class="hub-level__name">' + escHtml(info.name) + FP.ui.es(info.name_es || info.name) + '</div>' +
+      '<div class="hub-level__theme">' + escHtml(info.theme) + (info.theme_es ? FP.ui.es(info.theme_es) : '') + '</div></div></div>';
   } else if (testDone) {
     msLevelDesc.innerHTML = bi('Your teacher is reviewing your test. You will see your level here once it is ready.',
       'Tu profesor está revisando tu prueba. Verás tu nivel aquí cuando esté listo.');
@@ -384,7 +387,7 @@ function renderDashboard() {
       var lessons = d.lessons.slice().sort(function(a, b) { return parseInt(a.day || 0) - parseInt(b.day || 0); });
       var total = lessons.length;
       var MAX_VISIBLE = 5;
-      historyHtml = '<div class="hub-lessons"><h3 class="hub-lessons__title">Completed lessons · Lecciones completadas</h3><ul>' +
+      historyHtml = '<div class="hub-lessons"><h3 class="hub-lessons__title">Completed lessons' + FP.ui.es('Lecciones completadas') + '</h3><ul>' +
         lessons.slice(0, MAX_VISIBLE).map(lessonRowHtml).join('') + '</ul>';
       if (total > MAX_VISIBLE) {
         historyHtml += '<ul id="lesson-history-all" class="fp-hidden hub-more">' + lessons.slice(MAX_VISIBLE).map(lessonRowHtml).join('') + '</ul>' +
@@ -463,6 +466,7 @@ function logout() {
   } else {
     try { localStorage.removeItem('fp_student_name'); } catch (e) { /* ignore */ }
   }
+  FP.ui.setLevel(null); // the log in screen shows Spanish
   studentName = '';
   progress = null;
   settings = { allow_skip_test: false, allow_retake_test: false };
@@ -504,14 +508,14 @@ function renderAchievements(d) {
       FP.icon(a.icon, { fill: isEarned }) +
       '<span>' + escHtml(a.name) + '<span class="fp-bi__es" lang="es">' + escHtml(a.name_es) + '</span></span>' +
       (isEarned
-        ? '<span class="fp-sr-only">Earned. <span lang="es">Logrado.</span></span>'
-        : '<span class="achieve-state">Locked · Bloqueado</span>') +
+        ? '<span class="fp-sr-only">Earned.<span class="fp-es" lang="es"> Logrado.</span></span>'
+        : '<span class="achieve-state">Locked' + FP.ui.es('Bloqueado') + '</span>') +
       '</li>';
   }).join('');
 
   section.style.display = 'block';
   section.innerHTML =
-    '<h2 class="achieve-title">Achievements · Logros</h2>' +
+    '<h2 class="achieve-title">Achievements' + FP.ui.es('Logros') + '</h2>' +
     '<ul class="achieve-grid">' + badges + '</ul>';
 
   // Show toast for newly unlocked achievements
@@ -542,7 +546,7 @@ function showOfflineBanner() {
   FP.ui.banner({
     id: 'fp-offline-banner', variant: 'offline', position: 'bottom',
     html: bi('You are offline. Showing saved data.', 'Sin conexión. Mostrando datos guardados.'),
-    actions: [{ label: 'Retry · Reintentar', onclick: function () { refreshProgress(); } }],
+    actions: [{ html: 'Retry' + FP.ui.es('Reintentar'), onclick: function () { refreshProgress(); } }],
   });
 }
 
@@ -579,6 +583,6 @@ function hideOfflineBanner() {
    ───────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof CallRequest !== 'undefined') {
-    CallRequest.init({ page: 'hub' });
+    CallRequest.init({ page: 'hub', mount: '#callSlot' });
   }
 });

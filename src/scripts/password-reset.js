@@ -42,7 +42,7 @@
     modal.className = 'fp-scrim has-sheet';
     modal.innerHTML =
       '<div class="fp-modal fp-reset" role="dialog" aria-modal="true" aria-labelledby="fp-reset-title">' +
-        '<button type="button" class="fp-modal__close" id="fp-reset-x" aria-label="Close · Cerrar">' + FP.icon('close_small') + '</button>' +
+        '<button type="button" class="fp-modal__close" id="fp-reset-x" aria-label="' + FP.ui.label('Close', 'Cerrar') + '">' + FP.icon('close_small') + '</button>' +
         '<div id="fp-view-forgot" class="fp-reset__view" style="display:none;">' +
           '<h2 class="fp-modal__title" id="fp-reset-title">' + bi('Reset your password', 'Restablece tu contraseña') + '</h2>' +
           '<p class="fp-reset__sub">' + bi("Enter your email and we'll send you a link to set a new password.", 'Escribe tu correo y te enviaremos un enlace para crear una contraseña nueva.') + '</p>' +

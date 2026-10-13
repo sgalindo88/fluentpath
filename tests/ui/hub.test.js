@@ -195,3 +195,86 @@ describe('hub states', () => {
     await ctx.close();
   });
 });
+
+describe('who sees Spanish: A1, A2, B1 and not-yet-placed students; B2 and up see English only', () => {
+  const visibleEs = (page) => page.locator('.fp-bi__es:visible, .fp-es:visible').count();
+
+  for (const level of ['A1', 'A2', 'B1']) {
+    it(`${level}: Spanish lines are shown`, async () => {
+      const { page, ctx } = await open(LEVEL_PROGRESS({ cefr_level: level, max_day: 3, lessons_completed: 3, lessons: LESSONS.slice(0, 3), test_date: '2026-10-01' }));
+      await page.waitForSelector('#screen-dashboard.active');
+      expect(await page.evaluate(() => document.documentElement.classList.contains('fp-no-es'))).toBe(false);
+      expect(await visibleEs(page)).toBeGreaterThan(10);
+      expect(await page.innerText('#ctaSection')).toContain('Empezar la lección del día 4');
+      await ctx.close();
+    });
+  }
+
+  for (const level of ['B2', 'C1', 'C2']) {
+    it(`${level}: no Spanish anywhere on the hub, and the layout still holds`, async () => {
+      const { page, ctx, errors } = await open(LEVEL_PROGRESS({ cefr_level: level, max_day: 3, lessons_completed: 3, lessons: LESSONS.slice(0, 3), test_date: '2026-10-01' }));
+      await page.waitForSelector('#screen-dashboard.active');
+      expect(await page.evaluate(() => document.documentElement.classList.contains('fp-no-es'))).toBe(true);
+      expect(await visibleEs(page)).toBe(0);
+      const text = await page.innerText('#screen-dashboard');
+      for (const es of ['Empezar', 'Qué bueno', 'Prueba de nivel', 'Tu curso', 'Bloqueado', 'Completada', 'Logros', 'Día ']) expect(text, es).not.toContain(es);
+      expect(text).toContain('Start Day 4 lesson');
+      // aria labels follow the same rule (no "Hard / Difícil")
+      const labels = await page.$$eval('.hub-lesson svg[role="img"]', (els) => els.map((e) => e.getAttribute('aria-label')));
+      expect(labels.every((l) => !l.includes('/'))).toBe(true);
+      expect(errors).toEqual([]);
+      await ctx.close();
+    });
+  }
+
+  it('a student with no level yet (new, or placement test not graded) still gets Spanish', async () => {
+    for (const k of ['fresh', 'review']) {
+      const { page, ctx } = await open(states[k]);
+      await page.waitForSelector('#screen-dashboard.active');
+      expect(await visibleEs(page), k).toBeGreaterThan(10);
+      await ctx.close();
+    }
+  });
+
+  it('logging out brings the Spanish back for the next person at the log in screen', async () => {
+    const { page, ctx } = await open(LEVEL_PROGRESS({ cefr_level: 'C1', max_day: 2, lessons_completed: 2, lessons: LESSONS.slice(0, 2), test_date: '2026-10-01' }));
+    await page.waitForSelector('#screen-dashboard.active');
+    expect(await visibleEs(page)).toBe(0);
+    await page.click('button:has-text("Switch student")');
+    await page.waitForSelector('#screen-welcome.active');
+    expect(await page.locator('#screen-welcome .fp-bi__es:visible').count()).toBeGreaterThan(3);
+    await ctx.close();
+  });
+
+  it('the level is remembered across pages: a B2 student opening the placement-test page sees English only', async () => {
+    const t = await newPage(browser, { handlers: {} });
+    await t.page.addInitScript(() => localStorage.setItem('fp_cefr_level', 'B2'));
+    await t.page.goto(base + '/app.html', { waitUntil: 'load' });
+    expect(await t.page.evaluate(() => document.documentElement.classList.contains('fp-no-es'))).toBe(true);
+    await t.ctx.close();
+  });
+});
+
+describe('talking to the teacher is an in-page card, not a floating button', () => {
+  it('the request control sits in the hub card and does not float over the content', async () => {
+    const { page, ctx } = await open(states.mid);
+    await page.waitForSelector('#screen-dashboard.active');
+    await page.waitForSelector('#callSlot #fp-call-btn');
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('fp-call-wrap')).position)).not.toBe('fixed');
+    expect(await page.textContent('#callSlot')).toContain('Pedir una videollamada');
+    const box = await page.locator('#fp-call-btn').boundingBox();
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    await ctx.close();
+  });
+
+  it('requesting a call shows pending with its own Refresh button', async () => {
+    const t = await newPage(browser, { handlers: { get_progress: () => states.mid, get_settings: () => ({ found: true }), request_video_call: () => ({ result: 'success' }) } });
+    await t.page.goto(base + '/app.html', { waitUntil: 'load' });
+    await t.page.waitForSelector('#callSlot #fp-call-btn');
+    await t.page.click('#fp-call-btn');
+    await t.page.waitForSelector('#fp-call-refresh');
+    expect(await t.page.textContent('#fp-call-btn')).toContain('Solicitud pendiente');
+    expect(await t.page.getAttribute('#fp-call-btn', 'aria-disabled')).toBe('true');
+    await t.ctx.close();
+  });
+});

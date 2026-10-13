@@ -20,6 +20,7 @@ var CallRequest = (function () {
     currentRequest: null, // { id, status, call_link, ... }
     btnEl: null,
     wrapEl: null,
+    mountEl: null, // optional: place the control inside the page instead of floating
   };
 
   function getStudentName() {
@@ -48,14 +49,14 @@ var CallRequest = (function () {
     if (state.btnEl) return state.btnEl;
     var wrap = document.createElement('div');
     wrap.id = 'fp-call-wrap';
-    wrap.className = 'fp-fab';
+    wrap.className = state.mountEl ? 'fp-call' : 'fp-fab';
     var btn = document.createElement('button');
     btn.id = 'fp-call-btn';
     btn.type = 'button';
     btn.className = 'fp-btn fp-btn--secondary';
     btn.onclick = onButtonClick;
     wrap.appendChild(btn);
-    document.body.appendChild(wrap);
+    (state.mountEl || document.body).appendChild(wrap);
     state.btnEl = btn;
     state.wrapEl = wrap;
     return btn;
@@ -107,8 +108,8 @@ var CallRequest = (function () {
       id: 'fp-call-banner', variant: 'success', position: 'top',
       html: bi('Your teacher sent a call link.', 'Tu profesor te envió un enlace para la llamada.'),
       actions: [
-        { label: 'Join call · Unirme', href: state.currentRequest.call_link },
-        { label: 'Dismiss · Descartar', onclick: function () { CallRequest.dismiss(); } },
+        { html: 'Join call' + FP.ui.es('Unirme'), href: state.currentRequest.call_link },
+        { html: 'Dismiss' + FP.ui.es('Descartar'), onclick: function () { CallRequest.dismiss(); } },
       ],
     });
   }
@@ -175,6 +176,7 @@ var CallRequest = (function () {
   function init(opts) {
     state.page = (opts && opts.page) || 'hub';
     state.dayNumber = (opts && opts.dayNumber) || '';
+    state.mountEl = (opts && opts.mount) ? document.querySelector(opts.mount) : null;
     if (!getStudentName()) return; // no name yet — don't show button
     ensureButton();
     renderButton();

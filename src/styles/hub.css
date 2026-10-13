@@ -37,7 +37,7 @@ a { color: var(--fp-navy-900); }
   max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4);
   padding: var(--space-6) var(--space-4) var(--space-12);
   padding-left: max(var(--space-4), env(safe-area-inset-left)); padding-right: max(var(--space-4), env(safe-area-inset-right));
-  padding-bottom: calc(96px + env(safe-area-inset-bottom)); /* room for the floating call button */
+  padding-bottom: calc(var(--space-12) + env(safe-area-inset-bottom));
 }
 @media (min-width: 600px) { .hub { padding: var(--space-8) var(--space-6) var(--space-12); gap: var(--space-6); } }
 .hub-home { display: inline-flex; align-items: center; min-height: 44px; }
@@ -75,6 +75,10 @@ a { color: var(--fp-navy-900); }
 .hub-next__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: stretch; }
 .hub-next__actions .fp-btn { flex: 1 1 220px; }
 .hub-next__extra { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); font-size: var(--font-size-sm); color: var(--text-muted); display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+
+/* ── Talk to the teacher ───────────────────────────────────── */
+.hub-call { display: flex; flex-direction: column; gap: var(--space-4); }
+@media (min-width: 768px) { .hub-call { flex-direction: row; align-items: center; justify-content: space-between; } .hub-call .hub-desc { max-width: 46ch; } }
 
 /* ── Detail cards ──────────────────────────────────────────── */
 .hub-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
