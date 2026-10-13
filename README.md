@@ -204,7 +204,7 @@ Health check: `…/exec?action=health` returns `status`, the sheet name, which s
 - **Recordings** are stored under `FluentPath Audios/<student>/<Lesson n or Placement Test>` and are readable only through the teacher-only `get_audio`.
 - **Delete a student** removes their rows from every tab and moves their Drive folder to the Drive trash (about 30 days there); the daily spreadsheet backups (7 kept) keep a copy until they rotate out.
 - **Topic requests** are suggestions: approved topics reach the lesson prompt as a preference, never as an instruction.
-- **Caching:** progress and settings use `CacheService` (5 minutes) and are invalidated on every write. Plain numbers are written to the sheet (Sheets would parse "10 / 20" as a date).
+- **Caching:** progress and settings use `CacheService` (5 minutes) and are invalidated on every write. The cached progress reply is deliberately small (no per-lesson answers; the teacher dashboard asks for them with `include_answers=1`) and a value over 90 KB is refused and logged. Hot-path reads (progress, the course-day check, the library lookup) read only the columns they need, and no read writes: the Students tab is filled at account creation and at log in. Plain numbers are written to the sheet (Sheets would parse "10 / 20" as a date).
 
 ---
 

@@ -50,7 +50,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.59.0';
+var BACKEND_VERSION = '0.60.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -799,12 +799,13 @@ function studentCourseId(settingsRow) {
 /** Highest day with a saved lesson in this course (0 if none). Redo rows do not inflate it. */
 function maxCompletedDay(studentName, courseId) {
   var target = String(studentName).toLowerCase().trim();
-  var rows = sheetToObjects(getOrCreateSheet('Course Progress', HEADERS['Course Progress']));
+  // BE-8: this runs on every lesson request and save; read three small columns, not every cell.
+  var rows = readColumns(getOrCreateSheet('Course Progress', HEADERS['Course Progress']), ['student_name', 'course_id', 'day_number']);
   var max = 0;
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i]['student_name'] || '').toLowerCase().trim() !== target) continue;
-    if (String(rows[i]['course_id'] || '1').trim() !== courseId) continue;
-    var d = parseInt(rows[i]['day_number'], 10);
+  for (var i = 0; i < rows.n; i++) {
+    if (String(colVal(rows, 'student_name', i)).toLowerCase().trim() !== target) continue;
+    if (String(colVal(rows, 'course_id', i) || '1').trim() !== courseId) continue;
+    var d = parseInt(colVal(rows, 'day_number', i), 10);
     if (d > max) max = d;
   }
   return Math.min(max, COURSE_DAYS);
@@ -1197,9 +1198,18 @@ function cacheGet(key) {
 /** Store a JSON-serialisable value in the script cache. */
 function cachePut(key, value) {
   try {
-    CacheService.getScriptCache().put(key, JSON.stringify(value), CACHE_TTL);
-  } catch (e) { /* quota exceeded or unavailable */ }
+    var json = JSON.stringify(value);
+    // N-20: CacheService refuses a value over 100 KB and the failure was silent, so a cache that
+    // "worked" in tests never worked for a student with many lessons. Say so instead.
+    if (json.length > CACHE_MAX_CHARS) {
+      console.warn('cachePut skipped "' + key + '": ' + json.length + ' chars is over the ' + CACHE_MAX_CHARS + ' limit');
+      return false;
+    }
+    CacheService.getScriptCache().put(key, json, CACHE_TTL);
+    return true;
+  } catch (e) { return false; /* quota exceeded or unavailable */ }
 }
+var CACHE_MAX_CHARS = 90 * 1024; // CacheService's limit is 100 KB per value; leave headroom for multi-byte text
 
 /**
  * Highest course_id the progress cache invalidates.
@@ -1477,6 +1487,31 @@ function getOrCreateSheet(name, headers) {
 }
 
 /** Read all rows from a sheet and return as array of objects */
+/**
+ * BE-8: read only some columns of a tab, one column per call. sheetToObjects reads EVERY cell, which
+ * for Course Progress means every student's writing, transcripts and answers_json on every cache miss.
+ * Returns { n: data rows, cols: { name: [[v], [v], …] or null when the tab has no such column } }.
+ */
+function readColumns(sheet, names) {
+  var out = { n: 0, cols: {} };
+  var last = sheet.getLastRow();
+  if (last < 2) return out;
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+    .map(function(h) { return String(h).trim(); });
+  out.n = last - 1;
+  names.forEach(function(name) {
+    var c = header.indexOf(name);
+    out.cols[name] = c < 0 ? null : sheet.getRange(2, c + 1, out.n, 1).getValues();
+  });
+  return out;
+}
+
+/** One cell of readColumns output ('' when the column or row is missing). */
+function colVal(cols, name, i) {
+  var col = cols.cols[name];
+  return col && col[i] ? col[i][0] : '';
+}
+
 function sheetToObjects(sheet) {
   var data = sheet.getDataRange().getValues();
   if (data.length < 2) return [];
@@ -1705,7 +1740,7 @@ var HEADERS = {
 // ══════════════════════════════════════════════════════
 
 var GET_HANDLERS = {
-  get_progress:          function(p) { return handleGetProgress(p.student, p.course_id); },
+  get_progress:          function(p) { return handleGetProgress(p.student, p.course_id, String(p.include_answers) === '1'); },
   get_settings:          function(p) { return handleGetSettings(p.student); },
   get_test_results:      function(p) { return handleGetTestResults(p.student); },
   get_latest_submission: function(p) { return handleGetLatestSubmission(p.student, (p.day || '').trim()); },
@@ -1791,7 +1826,7 @@ function doGet(e) {
 // ── GET: get_progress ──────────────────────────────────
 // Returns the student's journey status for the hub page (cached 5 min).
 // Optional course_id filters to a specific course (default: current from Settings, fallback 1).
-function handleGetProgress(studentName, courseId) {
+function handleGetProgress(studentName, courseId, includeAnswers) {
   if (!studentName) return { found: false };
 
   // Fetch Settings once: used for the active course_id and the unlock flag.
@@ -1806,7 +1841,9 @@ function handleGetProgress(studentName, courseId) {
   var courseUnlocked = isCourseUnlocked(settingsRow);
 
   var cacheKey = 'progress_' + String(studentName).toLowerCase().trim() + '_c' + courseId;
-  var cached = cacheGet(cacheKey);
+  // N-20: the cached reply is the LIGHT one (no answers_json). The teacher dashboard asks for the
+  // answers with include_answers=1; that reply is neither read from nor written to the cache.
+  var cached = includeAnswers ? null : cacheGet(cacheKey);
   if (cached) {
     cached.course_unlocked = courseUnlocked;
     return cached;
@@ -1843,42 +1880,48 @@ function handleGetProgress(studentName, courseId) {
   result.cefr_level = resolveStudentLevel(settingsRow, gradedRow) || null;
   if (result.cefr_level) result.found = true;
 
-  // Check course progress
+  // Check course progress. BE-8: only the columns the reply needs, not every cell of both tabs.
   var progressSheet = getOrCreateSheet('Course Progress', HEADERS['Course Progress']);
-  var progressRows = sheetToObjects(progressSheet);
   var target = String(studentName).toLowerCase().trim();
   var lessons = [];
 
+  var progCols = ['student_name', 'course_id', 'day_number', 'topic', 'lesson_date', 'time_spent_min', 'confidence', 'submission_id'];
+  if (includeAnswers) progCols.push('answers_json');
+  var prog = readColumns(progressSheet, progCols);
+
   // Read Lesson Marks to join writing_score + speaking_score by day (filtered by course_id)
   var marksSheet = getOrCreateSheet('Lesson Marks', HEADERS['Lesson Marks']);
-  var marksRows = sheetToObjects(marksSheet);
+  var marks = readColumns(marksSheet, ['student_name', 'course_id', 'day_number', 'writing_score', 'speaking_score']);
   var marksByDay = {};
-  for (var m = 0; m < marksRows.length; m++) {
-    if (String(marksRows[m]['student_name'] || '').toLowerCase().trim() !== target) continue;
-    var mCourse = String(marksRows[m]['course_id'] || '1').trim();
-    if (mCourse !== courseId) continue;
-    marksByDay[String(marksRows[m]['day_number'])] = marksRows[m];
+  for (var m = 0; m < marks.n; m++) {
+    if (String(colVal(marks, 'student_name', m)).toLowerCase().trim() !== target) continue;
+    if (String(colVal(marks, 'course_id', m) || '1').trim() !== courseId) continue;
+    marksByDay[String(colVal(marks, 'day_number', m))] = {
+      writing_score: colVal(marks, 'writing_score', m),
+      speaking_score: colVal(marks, 'speaking_score', m)
+    };
   }
 
-  for (var i = 0; i < progressRows.length; i++) {
-    var name = String(progressRows[i]['student_name'] || '').toLowerCase().trim();
+  for (var i = 0; i < prog.n; i++) {
+    var name = String(colVal(prog, 'student_name', i)).toLowerCase().trim();
     // Filter by student and course_id (rows without course_id default to '1')
-    var rowCourseId = String(progressRows[i]['course_id'] || '1').trim();
+    var rowCourseId = String(colVal(prog, 'course_id', i) || '1').trim();
     if (name === target && rowCourseId === courseId) {
       result.found = true;
-      var dayKey = String(progressRows[i]['day_number'] || '');
+      var dayKey = String(colVal(prog, 'day_number', i) || '');
       var dayMarks = marksByDay[dayKey];
-      lessons.push({
-        day: progressRows[i]['day_number'],
-        topic: progressRows[i]['topic'] || '',
-        date: progressRows[i]['lesson_date'] || '',
-        time_spent: progressRows[i]['time_spent_min'] || '',
-        confidence: progressRows[i]['confidence'] || '',
+      var lesson = {
+        day: colVal(prog, 'day_number', i),
+        topic: colVal(prog, 'topic', i) || '',
+        date: colVal(prog, 'lesson_date', i) || '',
+        time_spent: colVal(prog, 'time_spent_min', i) || '',
+        confidence: colVal(prog, 'confidence', i) || '',
         writing_score: dayMarks ? (dayMarks['writing_score'] || null) : null,
         speaking_score: dayMarks ? (dayMarks['speaking_score'] || null) : null,
-        answers_json: progressRows[i]['answers_json'] || '',
-        submission_id: String(progressRows[i]['submission_id'] || '')
-      });
+        submission_id: String(colVal(prog, 'submission_id', i) || '')
+      };
+      if (includeAnswers) lesson.answers_json = colVal(prog, 'answers_json', i) || '';
+      lessons.push(lesson);
     }
   }
 
@@ -1901,32 +1944,10 @@ function handleGetProgress(studentName, courseId) {
     result.last_lesson_date = lessons[lessons.length - 1].date;
   }
 
-  // Auto-register student in Students tab if not already present
-  var studentsSheet = getOrCreateSheet('Students', HEADERS['Students']);
-  var studentsRows = sheetToObjects(studentsSheet);
-  var alreadyRegistered = false;
-  for (var s = 0; s < studentsRows.length; s++) {
-    var sName = studentsRows[s]['student_name'] || studentsRows[s]['Student Name'] || '';
-    if (String(sName).toLowerCase().trim() === target) {
-      alreadyRegistered = true;
-      break;
-    }
-  }
-  if (!alreadyRegistered) {
-    // BE-1/BE-5: a write inside a cached read handler. Re-check membership under
-    // the lock so two concurrent first-calls can't both append the same student.
-    withScriptLock(function () {
-      var fresh = studentsSheet.getLastRow() > 1
-        ? studentsSheet.getRange(2, 1, studentsSheet.getLastRow() - 1, 1).getValues()
-        : [];
-      for (var r = 0; r < fresh.length; r++) {
-        if (String(fresh[r][0]).toLowerCase().trim() === target) return;
-      }
-      studentsSheet.appendRow([sheetSafe(studentName), new Date().toISOString().split('T')[0]]);
-    });
-  }
+  // BE-5: no write inside a read. A student is added to the Students tab when the account is created
+  // (create_account) and again at every log in (registerStudentRow, idempotent), never from here.
 
-  cachePut(cacheKey, result);
+  if (!includeAnswers) cachePut(cacheKey, result);
   return result;
 }
 
@@ -3313,27 +3334,25 @@ function getLibraryEntries(level, day) {
   var sheet  = getOrCreateSheet('Lesson Library', HEADERS['Lesson Library']);
   if (sheet.getLastRow() < 2) return [];
 
-  // Read header row to find column indices
+  // BE-8: the library holds a big lesson_json per row and this runs on every lesson request.
+  // Find the matching rows from the small columns first, then read only those rows in full.
   var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
     .map(function(h) { return String(h).trim(); });
   var colIdx = {};
   ['id', 'level', 'day', 'is_active', 'original_difficulty_json', 'times_served', 'created_at', 'source_student', 'lesson_json'].forEach(function(c) {
     colIdx[c] = headerRow.indexOf(c);
   });
-
-  // Read all data rows (including lesson_json — needed for serving)
-  var dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, headerRow.length);
-  var allRows = dataRange.getValues();
+  var small = readColumns(sheet, ['level', 'day', 'is_active']);
 
   var targetLevel = String(level).trim();
   var targetDay   = parseInt(day, 10);
   var result = [];
 
-  for (var i = 0; i < allRows.length; i++) {
-    var row = allRows[i];
-    if (String(row[colIdx['level']]).trim() !== targetLevel) continue;
-    if (parseInt(row[colIdx['day']], 10) !== targetDay) continue;
-    if (String(row[colIdx['is_active']]).trim() === 'false') continue;
+  for (var i = 0; i < small.n; i++) {
+    if (String(colVal(small, 'level', i)).trim() !== targetLevel) continue;
+    if (parseInt(colVal(small, 'day', i), 10) !== targetDay) continue;
+    if (String(colVal(small, 'is_active', i)).trim() === 'false') continue;
+    var row = sheet.getRange(i + 2, 1, 1, headerRow.length).getValues()[0];
     var entry = {
       id:             String(row[colIdx['id']]).trim(),
       level:          row[colIdx['level']],
@@ -4145,6 +4164,11 @@ var POST_HANDLERS = {
       return { _json: { ok: false, error: 'Invalid email or password' } };
     }
     var session = createSession(account);
+    // BE-5: the teacher's student list is filled here (a write, in a POST), not from get_progress.
+    // Covers accounts that predate create_account doing it. Never blocks a log in.
+    if (String(account.role).toLowerCase() === 'student') {
+      try { registerStudentRow(account.student_name); } catch (regErr) { /* the list can wait */ }
+    }
     return { _json: {
       ok: true,
       session: session.token,

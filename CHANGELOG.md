@@ -4,6 +4,14 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.60.0] - 2026-10-13
+
+### Changed — Hub speed (Phase E batch B: N-20, BE-8, BE-5; backend 0.60.0)
+- **N-20:** `get_progress` no longer returns `answers_json` for every lesson. That field pushed the reply over CacheService's 100 KB limit, so the 5-minute cache silently never worked for a student with many lessons. The reply is now small (about a few KB for 20 lessons) and cached; the teacher dashboard asks for the answers with `include_answers=1` (that reply is never cached). `cachePut` now refuses and logs a value over 90 KB instead of failing silently.
+- **BE-8:** the progress read, `maxCompletedDay` (run on every lesson request and save) and the library lookup read only the columns they need (`readColumns`) instead of every cell of Course Progress, Lesson Marks and Lesson Library; the library reads full rows (with the large `lesson_json`) only for the entries that match the level and day.
+- **BE-5:** a read no longer writes. `get_progress` used to append the queried name to the Students tab (even a name nobody has). Students are now listed when the account is created and again at every log in (`registerStudentRow`, idempotent), which also covers accounts that predate that.
+- Tests: `tests/progress-perf.test.js` (12) checks which columns are read, the cached size, `include_answers`, and that reads do not write.
+
 ## [0.59.0] - 2026-10-13
 
 ### Changed — Clean URLs without `.html` (Phase E batch E; backend 0.59.0)

@@ -128,6 +128,17 @@ d('teacher portal: inbox', () => {
   });
 });
 
+d('teacher dashboard: progress read', () => {
+  it('asks for the answers (include_answers=1): the hub-facing reply no longer carries them', async () => {
+    const t = await openPanel();
+    await t.page.waitForTimeout(500);
+    const asked = t.calls.filter((c) => c.action === 'get_progress');
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((c) => c.params.include_answers === '1')).toBe(true);
+    await t.ctx.close();
+  });
+});
+
 d('teacher site: clean URLs', () => {
   it('the dashboard opens at /src/examiner-panel (no .html) and the portal links there', async () => {
     const t = await newPage(browser, { handlers });

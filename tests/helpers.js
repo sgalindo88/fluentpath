@@ -356,6 +356,10 @@ export function loadAppsScriptAuth(props = {}) {
     _sleeps: sleeps,
     extractJsonObject: globalThis.extractJsonObject,
     isValidLesson: globalThis.isValidLesson,
+    handleGetProgress: globalThis.handleGetProgress,
+    maxCompletedDay: globalThis.maxCompletedDay,
+    getLibraryEntries: globalThis.getLibraryEntries,
+    readColumns: globalThis.readColumns,
     libraryFallbackLesson: globalThis.libraryFallbackLesson,
   };
 }
