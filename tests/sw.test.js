@@ -300,7 +300,9 @@ describe('app shell lists', () => {
     
     for (const p of shellOf(read('sw.js'))) {
       if (p === './') continue;
-      expect(existsSync(resolve(import.meta.dirname, '..', p)), p).toBe(true);
+      // clean URLs: /app is served from app.html (like GitHub Pages)
+      const onDisk = (f) => existsSync(resolve(import.meta.dirname, '..', f));
+      expect(onDisk(p) || onDisk(p + '.html'), p).toBe(true);
     }
   });
 });

@@ -24,7 +24,9 @@ export function serve(root = ROOT) {
     const server = http.createServer((req, res) => {
       let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (p.endsWith('/')) p += 'index.html';
-      const file = path.join(root, p);
+      let file = path.join(root, p);
+      // like GitHub Pages: /app is served from app.html
+      if (!path.extname(file) && fs.existsSync(file + '.html')) file += '.html';
       if (!file.startsWith(root) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end('not found'); }
       res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream' });
       fs.createReadStream(file).pipe(res);

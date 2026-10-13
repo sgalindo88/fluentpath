@@ -2,7 +2,7 @@
   "name": "FluentPath",
   "short_name": "FluentPath",
   "description": "English for your life in a new country: a free placement test, a daily course and a real teacher.",
-  "start_url": "./app.html",
+  "start_url": "./app",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

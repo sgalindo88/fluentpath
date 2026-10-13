@@ -27,7 +27,7 @@ describe('request_reset', () => {
     const res = fp.POST_HANDLERS.request_reset({ email: 'maria@x.com' }, {});
     expect(res._json.ok).toBe(true);
     expect(fp._mail.length).toBe(1);
-    expect(fp._mail[0].htmlBody).toMatch(/https:\/\/fluentpath\.ca\/app\.html\?reset=/);
+    expect(fp._mail[0].htmlBody).toMatch(/https:\/\/fluentpath\.ca\/app\?reset=/);
     expect(fp._mail[0].htmlBody).not.toMatch(/fluentpath\.ca\/\?reset=/);
   });
 
@@ -51,7 +51,7 @@ describe('request_reset', () => {
     const fp = loadAppsScriptAuth({ PW_PEPPER: 'pep', STUDENT_URL: 'https://fluentpath.ca/' });
     makeStudent(fp);
     fp.POST_HANDLERS.request_reset({ email: 'maria@x.com' }, {});
-    expect(fp._mail[0].htmlBody).toContain('https://fluentpath.ca/app.html?reset=');
+    expect(fp._mail[0].htmlBody).toContain('https://fluentpath.ca/app?reset=');
   });
 
   it('sends the teacher link to the teacher site', () => {

@@ -36,7 +36,8 @@ describe('manifest', () => {
     expect(sizes).toContain('512x512');
     expect(m.icons.some((i) => i.purpose === 'maskable')).toBe(true);
     for (const i of m.icons) expect(existsSync(root(i.src)), i.src).toBe(true);
-    expect(existsSync(root(m.start_url))).toBe(true);
+    expect(existsSync(root(m.start_url)) || existsSync(root(m.start_url + '.html'))).toBe(true);
+    expect(m.start_url).toBe('./app'); // clean URL
   });
 });
 

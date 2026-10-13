@@ -154,7 +154,7 @@ function goToCourse() {
     openPaywall();
     return;
   }
-  location.href = 'src/student-course.html';
+  location.href = 'src/student-course';
 }
 
 function openPaywall() {
@@ -443,7 +443,7 @@ function renderDashboard() {
     testHtml += '</div>';
     if (settings.allow_retake_test) {
       testHtml +=
-        '<p class="hub-retake"><a href="src/student-initial-test.html">Re-take the placement test' +
+        '<p class="hub-retake"><a href="src/student-initial-test">Re-take the placement test' +
         FP.ui.es('Repetir la prueba de nivel') +
         '</a>' +
         ' <span class="hub-sub">' +
@@ -599,7 +599,7 @@ function renderDashboard() {
         'Tu primer paso es la prueba de nivel. Dura unos 40 minutos.'
       ) +
       '</p>' +
-      '<div class="hub-next__actions"><a class="fp-btn fp-btn--primary" href="src/student-initial-test.html">' +
+      '<div class="hub-next__actions"><a class="fp-btn fp-btn--primary" href="src/student-initial-test">' +
       bi('Take the placement test', 'Hacer la prueba de nivel') +
       arrow +
       '</a></div>' +

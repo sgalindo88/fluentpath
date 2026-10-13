@@ -221,8 +221,8 @@ describe('create_checkout handler', () => {
     expect(captured.opts.payload['line_items[0][price]']).toBe('price_1');
     // PAY-1: must land on the app (which runs handlePaidReturn), not the
     // brochure at "/", which has no ?paid=1 handler and never unlocks.
-    expect(captured.opts.payload['success_url']).toBe('https://fluentpath.ca/app.html?paid=1');
-    expect(captured.opts.payload['cancel_url']).toBe('https://fluentpath.ca/app.html?paid=0');
+    expect(captured.opts.payload['success_url']).toBe('https://fluentpath.ca/app?paid=1');
+    expect(captured.opts.payload['cancel_url']).toBe('https://fluentpath.ca/app?paid=0');
   });
 
   it('refuses without a student session', () => {

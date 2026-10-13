@@ -159,8 +159,32 @@ FP.redirectToLogin = function () {
   }
   var inSrc = location.pathname.indexOf('/src/') >= 0;
   var root = inSrc ? '../' : './';
-  location.href = root + (FP.IS_TEACHER_SITE ? 'teacher.html' : 'app.html');
+  // Clean URLs: the student app is /app (no .html); on the teacher site the portal is the site root.
+  location.href = root + (FP.IS_TEACHER_SITE ? '' : 'app');
 };
+
+/**
+ * Clean URLs. GitHub Pages serves /app for app.html and /src/student-course for student-course.html,
+ * but it cannot redirect the old .html address. So every link points at the clean address, and a page
+ * that is opened at an old .html address (bookmark, installed home-screen icon, an email sent before
+ * this change) tidies the address bar itself. The old address keeps working.
+ * Only on the real hosts: a local static server may not map /app to app.html.
+ */
+FP.cleanPath = function (pathname) {
+  if (/\/index\.html$/.test(pathname)) return pathname.replace(/index\.html$/, '');
+  return pathname.replace(/\.html$/, '');
+};
+FP.tidyUrl = function (opts) {
+  try {
+    if (!(opts && opts.force) && FP.ENV !== 'production') return;
+    var clean = FP.cleanPath(location.pathname);
+    if (clean !== location.pathname)
+      window.history.replaceState(window.history.state, '', clean + location.search + location.hash);
+  } catch (e) {
+    /* history unavailable: leave the address as it is */
+  }
+};
+FP.tidyUrl();
 
 // ── Load config.local.js (optional, gitignored) ─────────
 // Only loads if the file exists. In production (GitHub Pages) the file

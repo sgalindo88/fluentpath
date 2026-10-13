@@ -64,7 +64,7 @@ const readShared = (path, rel) => (isBinary(rel) ? readFileSync(path) : readFile
 const sameContent = (a, b) => (Buffer.isBuffer(a) && Buffer.isBuffer(b) ? a.equals(b) : a === b);
 
 // Teacher service worker (generated from this repo's sw.js).
-const TEACHER_CACHE_VERSION = 'fp-teacher-v12'; // bump to evict old caches
+const TEACHER_CACHE_VERSION = 'fp-teacher-v13'; // bump to evict old caches
 const TEACHER_APP_SHELL = [
   './',
   './index.html',
@@ -80,6 +80,7 @@ const TEACHER_APP_SHELL = [
   './src/img/logo-primary-horizontal-light.svg',
   './src/img/logo-stacked-light.svg',
   './src/img/logo-submark-f-light.svg',
+  './src/examiner-panel',
   './src/examiner-panel.html',
   './src/scripts/config.js',
   './src/scripts/api.js',

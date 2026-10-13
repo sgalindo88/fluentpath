@@ -153,3 +153,43 @@ describe('shared UI (toast, banner, save overlay) built from component classes',
     await ctx.close();
   });
 });
+
+describe('clean URLs (no .html)', () => {
+  const handlers = { get_progress: () => LEVEL_PROGRESS({}), get_settings: () => ({ found: true }) };
+
+  it('/app, /src/student-initial-test and /src/student-course open without the extension', async () => {
+    for (const [path, probe] of [['/app', '#loginEmail'], ['/src/student-initial-test', '#btnStartTest'], ['/src/student-course', '#btnBeginLesson']]) {
+      const { page, ctx, errors } = await open({ handlers, session: path === '/app' ? false : true }, path);
+      await page.waitForSelector(probe, { state: 'attached' });
+      expect(new URL(page.url()).pathname).toBe(path);
+      expect(errors).toEqual([]);
+      await ctx.close();
+    }
+  });
+
+  it('an old .html address is tidied in the address bar, keeping the query and hash (production hosts only)', async () => {
+    const { page, ctx } = await open({ handlers, session: false }, '/app.html?paid=0#top');
+    // local servers are left alone: a plain dev server may not map /app to app.html
+    expect(new URL(page.url()).pathname).toBe('/app.html');
+    await page.evaluate(() => FP.tidyUrl({ force: true }));
+    const u = new URL(page.url());
+    expect([u.pathname, u.search, u.hash]).toEqual(['/app', '?paid=0', '#top']);
+    await page.reload({ waitUntil: 'load' }); // the clean address really loads
+    await page.waitForSelector('#loginEmail', { state: 'attached' });
+    await ctx.close();
+  });
+
+  it('cleanPath handles the brochure, app and nested pages', async () => {
+    const { page, ctx } = await open({ handlers, session: false }, '/app');
+    const out = await page.evaluate(() => ['/index.html', '/app.html', '/src/student-course.html', '/src/', '/', '/app', '/fluentpath/app.html'].map((p) => FP.cleanPath(p)));
+    expect(out).toEqual(['/', '/app', '/src/student-course', '/src/', '/', '/app', '/fluentpath/app']);
+    await ctx.close();
+  });
+
+  it('every internal link on the pages points at a clean address', async () => {
+    const { page, ctx } = await open({ handlers, session: false }, '/app');
+    const hrefs = await page.$$eval('a[href]', (as) => as.map((a) => a.getAttribute('href')).filter((h) => !/^(https?:|mailto:|#|javascript:)/.test(h)));
+    expect(hrefs.filter((h) => /\.html(\?|#|$)/.test(h))).toEqual([]);
+    await ctx.close();
+  });
+});

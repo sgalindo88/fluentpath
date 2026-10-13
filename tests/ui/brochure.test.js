@@ -23,7 +23,7 @@ describe('brochure', () => {
     const { page, ctx, errors, external } = await open({ width: 1024, height: 800 }, 'en');
     expect(await page.locator('.fp-btn--primary:visible').count()).toBe(1);
     expect(await page.textContent('.hero-cta')).toContain('Request a free account');
-    expect(await page.getAttribute('.hero-login', 'href')).toBe('app.html');
+    expect(await page.getAttribute('.hero-login', 'href')).toBe('app'); // clean URL, no .html
     // it no longer promises the test straight away: you need an account first
     expect(await page.textContent('.cta-note')).toContain('You need an account');
     expect(await page.textContent('body')).not.toContain('No payment, no account fees');

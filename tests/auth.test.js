@@ -406,7 +406,7 @@ describe('create_account + login handlers', () => {
       expect(m.htmlBody).toContain('Sebastian Galindo');
       expect(m.htmlBody).not.toContain('<b>L</b>'); // names are escaped
       expect(m.htmlBody).not.toContain('pw1234'); // the typed password never goes by email
-      expect(m.htmlBody).toMatch(/app\.html\?reset=/);
+      expect(m.htmlBody).toMatch(/\/app\?reset=/);
     });
 
     it('the emailed link really sets the password, works for days, and is single-use', () => {

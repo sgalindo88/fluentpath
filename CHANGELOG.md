@@ -4,6 +4,13 @@ All notable changes to the FluentPath platform are documented here.
 
 ---
 
+## [0.59.0] - 2026-10-13
+
+### Changed — Clean URLs without `.html` (Phase E batch E; backend 0.59.0)
+- GitHub Pages already served `/app`, `/src/student-course`, `/src/student-initial-test` and the teacher `/src/examiner-panel` without the extension; now every link we write uses them: brochure and hub links, the placement-test and lesson "back" links, `manifest.webmanifest` `start_url`, the "log in again" redirect, the teacher portal's links, and in the backend the password-reset and welcome links, the Stripe return URLs (`/app?paid=1`) and the teacher notification links. The default base URLs are now `https://fluentpath.ca` and `https://teacher.fluentpath.ca` (the old `sgalindo88.github.io` fallback is gone).
+- Old `.html` addresses (bookmarks, installed home-screen icons, emails already sent) keep working. A page opened at one tidies the address bar itself (`FP.tidyUrl`, production hosts only; the query and hash are kept). Pages cannot send a real redirect, so this is cosmetic by design.
+- The service workers cache the clean addresses as well as the old ones; the brochure has a `canonical` link; the test server serves clean paths like GitHub Pages.
+
 ## [0.58.0] - 2026-10-13
 
 ### Fixed — Lessons when the AI misbehaves (Phase E batch A: BE-6, N-22, AI-1f part 2; backend 0.58.0)

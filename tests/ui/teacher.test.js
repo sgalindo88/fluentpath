@@ -57,7 +57,7 @@ d('teacher portal', () => {
     await t.page.waitForSelector('.student-card');
     expect(await t.page.locator('.student-card').count()).toBe(2);
     expect(await t.page.locator('.student-card svg.fp-icon').count()).toBe(2);
-    expect(await t.page.locator('.student-card').first().getAttribute('href')).toContain('examiner-panel.html?student=Maria%20Lopez');
+    expect(await t.page.locator('.student-card').first().getAttribute('href')).toContain('examiner-panel?student=Maria%20Lopez');
     expect(t.errors).toEqual([]);
     await t.ctx.close();
   });
@@ -123,6 +123,21 @@ d('teacher portal: inbox', () => {
     await t.page.waitForFunction(() => document.querySelectorAll('#feedbackList .inbox-item').length === 0);
     expect(updates).toEqual([expect.objectContaining({ id: 'f2', status: 'done' })]);
     expect(await t.page.textContent('#feedbackDoneSummary')).toBe('Done (2)');
+    expect(t.errors).toEqual([]);
+    await t.ctx.close();
+  });
+});
+
+d('teacher site: clean URLs', () => {
+  it('the dashboard opens at /src/examiner-panel (no .html) and the portal links there', async () => {
+    const t = await newPage(browser, { handlers });
+    await t.page.addInitScript(() => localStorage.setItem('fp_role', 'teacher'));
+    await t.page.goto(base + '/src/examiner-panel?student=Maria%20Lopez', { waitUntil: 'load' });
+    await t.page.waitForSelector('#app', { state: 'visible' });
+    expect(new URL(t.page.url()).pathname).toBe('/src/examiner-panel');
+    expect(await t.page.evaluate(() => { FP.tidyUrl({ force: true }); return location.pathname + location.search; })).toBe('/src/examiner-panel?student=Maria%20Lopez');
+    await t.page.evaluate(() => { history.replaceState(null, '', '/src/examiner-panel.html?student=Maria%20Lopez'); FP.tidyUrl({ force: true }); });
+    expect(new URL(t.page.url()).pathname).toBe('/src/examiner-panel'); // an old bookmark is tidied
     expect(t.errors).toEqual([]);
     await t.ctx.close();
   });
@@ -302,7 +317,7 @@ d('teacher portal: create account', () => {
     const text = await t.page.textContent('#caStatus');
     expect(text).toContain('Account created for Test Dress Rehearsal');
     expect(text).toContain('free course access');
-    expect(await t.page.getAttribute('#caStatus a', 'href')).toContain('examiner-panel.html?student=Test%20Dress%20Rehearsal');
+    expect(await t.page.getAttribute('#caStatus a', 'href')).toContain('examiner-panel?student=Test%20Dress%20Rehearsal');
     await t.page.waitForSelector('.student-card');
     expect(await t.page.textContent('.student-name')).toBe('Test Dress Rehearsal');
     expect(await t.page.inputValue('#caName')).toBe('');

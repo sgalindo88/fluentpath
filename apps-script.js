@@ -50,7 +50,7 @@
  *
  * Distinct from package.json's version, which tracks the frontend repo.
  */
-var BACKEND_VERSION = '0.58.0';
+var BACKEND_VERSION = '0.59.0';
 
 var AI_DEFAULT_MODEL = 'gemini-2.5-flash';
 
@@ -869,11 +869,11 @@ function isValidLesson(lesson) {
 //    emails keep working until STUDENT_URL/TEACHER_URL are set at cutover) ──
 function studentBaseUrl() {
   return PropertiesService.getScriptProperties().getProperty('STUDENT_URL')
-    || 'https://sgalindo88.github.io/fluentpath';
+    || 'https://fluentpath.ca';
 }
 function teacherBaseUrl() {
   return PropertiesService.getScriptProperties().getProperty('TEACHER_URL')
-    || 'https://sgalindo88.github.io/fluentpath';
+    || 'https://teacher.fluentpath.ca';
 }
 
 // ── Stripe (Phase 3) ──────────────────────────────────
@@ -1072,7 +1072,7 @@ function sendPasswordResetEmail(email, role, token) {
   var base = (isTeacher ? teacherBaseUrl() : studentBaseUrl()).replace(/\/+$/, '');
   // N-4: only app.html (students) and the teacher index load password-reset.js;
   // the student site root is the brochure, which has no reset handler.
-  var link = base + (isTeacher ? '/' : '/app.html') + '?reset=' + encodeURIComponent(token);
+  var link = base + (isTeacher ? '/' : '/app') + '?reset=' + encodeURIComponent(token);
   sendNotificationEmail(
     email,
     'FluentPath: Reset your password',
@@ -1089,7 +1089,7 @@ function sendPasswordResetEmail(email, role, token) {
  */
 function sendWelcomeEmail(account) {
   try {
-    var link = studentBaseUrl().replace(/\/+$/, '') + '/app.html?reset=' + encodeURIComponent(createResetToken(account, WELCOME_TTL_MS));
+    var link = studentBaseUrl().replace(/\/+$/, '') + '/app?reset=' + encodeURIComponent(createResetToken(account, WELCOME_TTL_MS));
     var name = escapeHtmlServer(account.student_name);
     var teacher = escapeHtmlServer(teacherContact().name || 'Your teacher');
     return sendNotificationEmail(
@@ -1295,7 +1295,7 @@ function notifyTeacherTestSubmitted(studentName) {
     ns.teacherEmail,
     'FluentPath: ' + studentName + ' submitted placement test',
     '<p><strong>' + studentName + '</strong> has submitted their placement test and is awaiting grading.</p>' +
-    '<p><a href="' + teacherBaseUrl() + '/teacher.html">Open Dashboard</a></p>'
+    '<p><a href="' + teacherBaseUrl() + '/">Open Dashboard</a></p>'
   );
 }
 
@@ -1307,7 +1307,7 @@ function notifyTeacherLessonSubmitted(studentName, dayNumber) {
     ns.teacherEmail,
     'FluentPath: ' + studentName + ' completed Day ' + dayNumber,
     '<p><strong>' + studentName + '</strong> has completed Day ' + dayNumber + ' and is ready for grading.</p>' +
-    '<p><a href="' + teacherBaseUrl() + '/teacher.html">Open Dashboard</a></p>'
+    '<p><a href="' + teacherBaseUrl() + '/">Open Dashboard</a></p>'
   );
 }
 
@@ -1329,7 +1329,7 @@ function notifyTeacherCallRequest(studentName, page, dayNumber) {
       '<li>Page: ' + pageLabel + '</li>' +
       '<li>Requested at: ' + ts + '</li>' +
     '</ul>' +
-    '<p><a href="' + teacherBaseUrl() + '/src/examiner-panel.html?student=' +
+    '<p><a href="' + teacherBaseUrl() + '/src/examiner-panel?student=' +
       encodeURIComponent(studentName) + '">Open ' + studentName + '\'s dashboard</a></p>'
   );
 }
@@ -2266,7 +2266,7 @@ function handleRequestFocus(studentName, topicsParam, noteParam) {
       '<p><strong>' + escapeHtmlServer(studentName) + '</strong> would like to practise:</p><ul>' +
       ids.map(function(id) { return '<li>' + escapeHtmlServer(FOCUS_TOPICS[id]) + '</li>'; }).join('') + '</ul>' +
       (note ? '<p>Note: ' + escapeHtmlServer(note) + '</p>' : '') +
-      '<p><a href="' + teacherBaseUrl() + '/src/examiner-panel.html?student=' + encodeURIComponent(studentName) + '&panel=difficulty">Review the request</a></p>');
+      '<p><a href="' + teacherBaseUrl() + '/src/examiner-panel?student=' + encodeURIComponent(studentName) + '&panel=difficulty">Review the request</a></p>');
   }
   return { result: 'success', status: 'pending' };
 }
@@ -4184,8 +4184,8 @@ var POST_HANDLERS = {
       // (handlePaidReturn) lives in hub.js and only runs on app.html, so a
       // student who just paid saw the brochure again with no confirmation and
       // no unlock. Point both URLs at the app.
-      'success_url': base + '/app.html?paid=1',
-      'cancel_url': base + '/app.html?paid=0'
+      'success_url': base + '/app?paid=1',
+      'cancel_url': base + '/app?paid=0'
     };
     var resp = UrlFetchApp.fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'post',

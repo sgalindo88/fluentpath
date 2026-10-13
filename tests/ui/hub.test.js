@@ -178,7 +178,7 @@ describe('hub states', () => {
     expect(await page.getAttribute('#route-test', 'aria-current')).toBe('step');
     expect(await page.getAttribute('#route-level', 'class')).toContain('is-upcoming');
     const cta = page.locator('#ctaSection a.fp-btn--primary');
-    expect(await cta.getAttribute('href')).toContain('student-initial-test.html');
+    expect(await cta.getAttribute('href')).toBe('src/student-initial-test');
     expect(await cta.textContent()).toContain('Hacer la prueba de nivel');
     expect(await page.textContent('#dashSubtitle')).toContain('Empecemos con tu prueba de nivel.');
     expect(errors).toEqual([]);

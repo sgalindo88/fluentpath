@@ -265,6 +265,8 @@ CI (`.github/workflows/ci.yml`) runs lint, format check, unit tests and the brow
 3. Merge fast-forward only and push **student `master`** and **teacher `main`** (GitHub Pages; allow about 10 minutes for caches, then hard refresh).
 4. Add a CHANGELOG entry for the release.
 
+**URLs have no `.html`:** link to `/app`, `/src/student-course`, `/src/student-initial-test` (and the teacher site's `/src/examiner-panel`). GitHub Pages serves both forms, so old links keep working, and `FP.tidyUrl` tidies the address bar of an old one. A test (`tests/clean-urls.test.js`) fails if code writes a `.html` link to one of our own pages.
+
 The project's review, plan and history live in a tracker kept outside the repos (`src-files/docs/review-2026-10.md`).
 
 ---
