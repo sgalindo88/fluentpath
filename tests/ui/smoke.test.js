@@ -143,7 +143,7 @@ describe('shared UI (toast, banner, save overlay) built from component classes',
   it('the offline banner shows with a Retry action and clears on removeBanner', async () => {
     const { page, ctx } = await open({ handlers }, '/app.html');
     await page.evaluate(() => showOfflineBanner());
-    expect(await page.textContent('#fp-offline-banner')).toMatch(/Offline/);
+    expect(await page.textContent('#fp-offline-banner')).toMatch(/offline/i);
     expect(await page.locator('#fp-offline-banner button', { hasText: 'Retry' }).count()).toBe(1);
     await page.evaluate(() => hideOfflineBanner());
     expect(await page.locator('#fp-offline-banner').count()).toBe(0);

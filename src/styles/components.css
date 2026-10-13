@@ -96,6 +96,31 @@
 
 @media (max-width: 599px) { .fp-btn--primary { min-height: 48px; } }
 
+/* Text button: quiet action (log out, links that act). Same 44px target, no fill. */
+.fp-btn--text { background: transparent; color: var(--fp-navy-900); padding: 8px var(--space-3); font-weight: var(--font-weight-semibold); }
+@media (hover: hover) { .fp-btn--text:hover:not(:disabled) { background: var(--fp-ice-100); } }
+.fp-btn--text:active:not(:disabled) { background: var(--fp-ice-100); transform: scale(0.98); }
+
+/* ── Bilingual text (English first, Spanish beneath, both always visible) ──
+   Build with FP.ui.bi(en, es) or write the same markup by hand. Spanish wraps, never truncates. */
+.fp-bi__es { display: block; font-size: 0.86em; font-weight: var(--font-weight-regular); color: var(--text-muted); line-height: 1.4; margin-top: 2px; }
+.fp-btn .fp-bi__es, .surface-dark .fp-bi__es { color: inherit; opacity: 0.85; }
+.fp-btn .fp-bi { text-align: center; }
+
+/* ── Page header (§4: 64px tablet/desktop, 56px mobile) ─────── */
+.fp-header {
+  position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4); min-height: var(--header-height-mobile);
+  padding: env(safe-area-inset-top) max(var(--space-4), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
+  background: rgba(247, 245, 240, 0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+@media (min-width: 600px) { .fp-header { min-height: var(--header-height-desktop); padding-left: max(var(--space-6), env(safe-area-inset-left)); padding-right: max(var(--space-6), env(safe-area-inset-right)); } }
+.fp-logo { display: block; height: 28px; width: auto; }
+.fp-logo--stacked { height: 104px; margin: 0 auto; }
+.fp-header .fp-btn { min-height: 44px; }
+.fp-header .fp-bi { text-align: right; }
+
 /* ── Form fields (§6.3) ─────────────────────────────────────── */
 .fp-field { display: flex; flex-direction: column; gap: var(--space-1); }
 .fp-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
@@ -271,13 +296,15 @@
 }
 .fp-banner--below-header { position: fixed; left: 0; right: 0; z-index: 198; top: var(--header-height-mobile); border-radius: 0; }
 
-/* Floating "request a video call" button */
+/* Floating "request a video call" control: wrapper holds the button (and Refresh while pending) */
 .fp-fab {
-  position: fixed; z-index: 199; right: max(var(--space-6), env(safe-area-inset-right));
-  bottom: max(var(--space-6), env(safe-area-inset-bottom)); box-shadow: var(--elevation-2);
+  position: fixed; z-index: 199; right: max(var(--space-4), env(safe-area-inset-right));
+  bottom: max(var(--space-4), env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2);
+  max-width: calc(100vw - var(--space-8));
 }
-.fp-fab.is-pending { opacity: 0.85; }
-.fp-fab__refresh { font-size: var(--font-size-xs); text-decoration: underline; opacity: 0.8; cursor: pointer; }
+.fp-fab .fp-btn { box-shadow: var(--elevation-2); }
+.fp-fab .fp-bi { text-align: left; }
+.fp-fab.is-pending #fp-call-btn { opacity: 0.9; cursor: default; }
 
 /* Development banner (only on non-production hosts) */
 .fp-dev-banner {
@@ -311,6 +338,12 @@
   .fp-scrim.has-sheet { align-items: flex-end; padding: 0; }
   .fp-scrim.has-sheet .fp-modal { max-width: none; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: max(var(--space-6), env(safe-area-inset-bottom)); }
 }
+/* Forms inside a modal: left-aligned fields, stacked actions */
+.fp-reset__view { display: flex; flex-direction: column; gap: var(--space-4); text-align: left; }
+.fp-reset__view .fp-modal__title { margin: 0; padding-right: var(--space-8); }
+.fp-reset__sub { color: var(--text-muted); font-size: var(--font-size-sm); }
+.fp-modal .fp-field-error, .fp-modal .fp-banner { text-align: left; }
+.fp-modal .fp-btn--text { align-self: center; }
 /* "Please wait" overlay used while a save is in flight. */
 .fp-wait { max-width: 360px; }
 .fp-wait .fp-spinner { width: 36px; height: 36px; border-width: 3px; color: var(--fp-navy-900); margin-bottom: var(--space-4); }

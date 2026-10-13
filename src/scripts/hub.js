@@ -14,6 +14,21 @@ let studentName = '';
 let progress = null; // fetched or built from localStorage
 let settings = { allow_skip_test: false, allow_retake_test: false }; // teacher preferences from Google Sheets
 
+/* Bilingual text: English with Spanish beneath (see ui.js). Both args are plain text. */
+const bi = FP.ui.bi;
+const spanishDate = FP.ui.dateEs;
+
+/** Known server messages, shown in both languages. Unknown ones are shown as sent. */
+const SERVER_MESSAGES = {
+  'Invalid email or password': ['Wrong email or password.', 'Correo o contraseña incorrectos.'],
+  'Too many attempts. Please try again later.': ['Too many attempts. Please try again later.', 'Demasiados intentos. Inténtalo más tarde.'],
+};
+function serverMessage(msg, fallbackEn, fallbackEs) {
+  var known = SERVER_MESSAGES[msg];
+  if (known) return bi(known[0], known[1]);
+  return msg ? FP.ui.esc(msg) + '<span class="fp-bi__es" lang="es">' + FP.ui.esc(fallbackEs) + '</span>' : bi(fallbackEn, fallbackEs);
+}
+
 /* ─────────────────────────────────────────────────────────────
    Screen Navigation
    ───────────────────────────────────────────────────────────── */
@@ -26,11 +41,17 @@ function showScreen(id) {
 /* ─────────────────────────────────────────────────────────────
    Login — email + password → server-issued session
    ───────────────────────────────────────────────────────────── */
-function loginError(msg) {
+/** `html` is already escaped (build it with bi()). Empty clears the message. */
+function loginError(html) {
   var el = document.getElementById('loginError');
   if (!el) return;
-  if (msg) { el.textContent = msg; el.style.display = 'block'; }
-  else { el.textContent = ''; el.style.display = 'none'; }
+  if (html) {
+    el.innerHTML = FP.icon('warning', { size: 'sm' }) + '<span>' + html + '</span>';
+    el.style.display = 'flex';
+  } else {
+    el.innerHTML = '';
+    el.style.display = 'none';
+  }
 }
 
 function storeSession(res) {
@@ -47,22 +68,22 @@ async function enterHub() {
   var email = (document.getElementById('loginEmail').value || '').trim();
   var password = document.getElementById('loginPassword').value || '';
   loginError('');
-  if (!email || !password) { loginError('Please enter your email and password.'); return; }
+  if (!email || !password) { loginError(bi('Please enter your email and password.', 'Escribe tu correo y tu contraseña.')); return; }
 
   // Hashing takes a few seconds server-side — disable the button + show progress
   // so it's clear something is happening and the form can't be submitted twice.
-  if (btn) { btn.disabled = true; btn.textContent = 'Logging in…'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = bi('Logging in…', 'Iniciando sesión…'); }
   showScreen('screen-loading');
 
-  function failBack(msg) {
+  function failBack(html) {
     showScreen('screen-welcome');
-    loginError(msg);
-    if (btn) { btn.disabled = false; btn.textContent = 'Log In'; }
+    loginError(html);
+    if (btn) { btn.disabled = false; btn.innerHTML = bi('Log In', 'Iniciar sesión'); }
   }
 
   try {
     var res = await FP.api.postRead(WEBHOOK_URL + '?action=login', { email: email, password: password });
-    if (!res || !res.ok) { failBack((res && res.error) || 'Login failed. Please try again.'); return; }
+    if (!res || !res.ok) { failBack(serverMessage(res && res.error, 'Login failed. Please try again.', 'No pudimos iniciar tu sesión. Inténtalo de nuevo.')); return; }
     if (res.role && res.role !== 'student') {
       // A teacher account belongs on the teacher site — send them there.
       location.href = FP.TEACHER_URL;
@@ -73,7 +94,7 @@ async function enterHub() {
     localStorage.setItem('fp_student_name', studentName); // other pages still read this key
     fetchProgress(studentName); // uses the SERVER-returned name, never the typed one (button stays disabled — we navigate to the dashboard)
   } catch (e) {
-    failBack('Could not reach the server. Please try again.');
+    failBack(bi('Could not reach the server. Please try again.', 'No pudimos conectarnos con el servidor. Inténtalo de nuevo.'));
   }
 }
 
@@ -105,9 +126,12 @@ async function startCheckout() {
   try {
     var res = await FP.api.postRead(WEBHOOK_URL + '?action=create_checkout', {});
     if (res && res.url) { location.href = res.url; return; }
-    throw new Error((res && res.error) || 'Could not start checkout.');
+    throw new Error((res && res.error) || '');
   } catch (e) {
-    if (err) { err.textContent = e.message || 'Payment could not be started.'; err.style.display = 'block'; }
+    if (err) {
+      err.innerHTML = FP.icon('warning', { size: 'sm' }) + '<span>' + bi('Payment could not be started. Please try again.', 'No pudimos iniciar el pago. Inténtalo de nuevo.') + '</span>';
+      err.style.display = 'flex';
+    }
   }
 }
 
@@ -213,6 +237,63 @@ function buildDefaultProgress() {
 /* ─────────────────────────────────────────────────────────────
    Render Dashboard
    ───────────────────────────────────────────────────────────── */
+/** Map a stored lesson rating (old rows hold emoji, new ones a word) to a face icon + label. */
+function confidenceFace(v) {
+  var t = String(v || '');
+  var table = [
+    [/😕|hard/i,         'sentiment_frustrated',     'Hard',  'Difícil'],
+    [/😐|\bok\b/i,        'sentiment_neutral',        'OK',    'Normal'],
+    [/🙂|good/i,         'sentiment_satisfied',      'Good',  'Bien'],
+    [/😄|😀|great/i,     'sentiment_very_satisfied', 'Great', 'Genial'],
+  ];
+  for (var k = 0; k < table.length; k++) {
+    if (table[k][0].test(t)) return FP.icon(table[k][1], { label: table[k][2] + ' / ' + table[k][3] });
+  }
+  return '';
+}
+
+/** Set one waypoint on the route: state is 'completed' | 'current' | 'upcoming'. */
+function setRouteStep(id, state, metaText) {
+  var li = document.getElementById(id);
+  var node = li.querySelector('.fp-waypoint');
+  li.classList.remove('is-completed', 'is-current', 'is-upcoming');
+  li.classList.add('is-' + state);
+  node.className = 'fp-waypoint' + (state === 'upcoming' ? '' : ' is-' + state);
+  node.innerHTML = state === 'completed' ? FP.icon('check', { fill: true }) : '';
+  if (state === 'current') li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+  document.getElementById(id + '-meta').textContent = metaText || '';
+  var old = li.querySelector('.fp-sr-only');
+  if (old) old.remove();
+  var words = { completed: ['Completed', 'Completado'], current: ['Current step', 'Paso actual'], upcoming: ['Coming up', 'Próximo'] }[state];
+  li.insertAdjacentHTML('beforeend', '<span class="fp-sr-only">' + words[0] + '. <span lang="es">' + words[1] + '.</span></span>');
+}
+
+function badge(variant, iconName, en, es) {
+  return '<span class="fp-badge fp-badge--' + variant + '">' + FP.icon(iconName, { size: 'sm' }) + FP.ui.esc(en) + ' · ' + FP.ui.esc(es) + '</span>';
+}
+
+function toggleLessonHistory(btn) {
+  var list = document.getElementById('lesson-history-all');
+  var open = btn.getAttribute('aria-expanded') === 'true';
+  list.classList.toggle('fp-hidden', open);
+  btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  var n = btn.getAttribute('data-total');
+  btn.innerHTML = open ? bi('View all ' + n + ' lessons', 'Ver las ' + n + ' lecciones') : bi('Show less', 'Ver menos');
+}
+
+function lessonRowHtml(lesson) {
+  var minutes = parseInt(lesson.time_spent, 10);
+  var timeStr = (!isNaN(minutes) && !String(lesson.time_spent).includes(':')) ? minutes + ' min' : '';
+  var dateStr = formatLessonDate(lesson.date);
+  var face = confidenceFace(lesson.confidence);
+  var day = escHtml(String(lesson.day));
+  return '<li class="hub-lesson">' +
+    '<span><strong>Day ' + day + ' · Día ' + day + '</strong>' +
+    (lesson.topic ? ' <span class="hub-lesson__topic">· ' + escHtml(lesson.topic) + '</span>' : '') + '</span>' +
+    '<span class="hub-lesson__meta">' + (timeStr ? '<span>' + timeStr + '</span>' : '') + face +
+    (dateStr ? '<span>' + escHtml(dateStr) + '</span>' : '') + '</span></li>';
+}
+
 function renderDashboard() {
   const d = progress;
 
@@ -226,171 +307,131 @@ function renderDashboard() {
   const courseStarted = courseDays > 0;
   const courseComplete = courseDays >= COURSE_DAYS;
   const courseNum = parseInt(d.course_id || '1', 10);
-  const courseLabel = courseNum > 1 ? 'Course ' + courseNum + ' — ' : '';
+  const nextDay = Math.min(courseDays + 1, COURSE_DAYS);
 
   // Subtitle
-  const subtitle = document.getElementById('dashSubtitle');
-  if (!testDone)          subtitle.textContent = 'Let\'s begin with your placement test.';
-  else if (!hasLevel)     subtitle.textContent = 'Your test is being reviewed by your teacher.';
-  else if (!courseStarted) subtitle.textContent = 'You\'re ready to start your course!';
-  else if (courseComplete) subtitle.textContent = 'Congratulations — you\'ve completed the course!';
-  else                     subtitle.textContent = 'Day ' + courseDays + ' of ' + COURSE_DAYS + ' completed. Keep going!';
+  var sub;
+  if (!testDone)           sub = bi("Let's begin with your placement test.", 'Empecemos con tu prueba de nivel.');
+  else if (!hasLevel)      sub = bi('Your test is being reviewed by your teacher.', 'Tu profesor está revisando tu prueba.');
+  else if (!courseStarted) sub = bi("You're ready to start your course!", '¡Todo está listo para empezar tu curso!');
+  else if (courseComplete) sub = bi("Congratulations, you've completed the course!", '¡Felicitaciones! Completaste el curso.');
+  else                     sub = bi('Day ' + courseDays + ' of ' + COURSE_DAYS + ' completed. Keep going!', 'Completaste ' + courseDays + ' de ' + COURSE_DAYS + ' días. ¡Sigue así!');
+  document.getElementById('dashSubtitle').innerHTML = sub;
 
-  // ── Milestone 1: Placement Test ──
-  const msTest = document.getElementById('ms-test');
+  // ── The route ──
+  setRouteStep('route-test', testDone ? 'completed' : 'current', testDone && d.total_score ? d.total_score + ' / ' + TOTAL_MARKS : '');
+  setRouteStep('route-level', hasLevel ? 'completed' : (testDone ? 'current' : 'upcoming'), hasLevel ? d.cefr_level : '');
+  setRouteStep('route-course', courseComplete ? 'completed' : (hasLevel ? 'current' : 'upcoming'),
+    courseStarted ? courseDays + ' / ' + COURSE_DAYS : '');
+
+  // ── Placement test card ──
   const msTestDesc = document.getElementById('ms-test-desc');
   const msTestCard = document.getElementById('ms-test-card');
-
   if (testDone) {
-    msTest.classList.add('done');
-    msTest.classList.remove('active');
-    msTestDesc.textContent = 'Test completed' + (d.test_date ? ' on ' + formatDate(d.test_date) : '') + '.';
+    msTestDesc.innerHTML = bi('Test completed' + (d.test_date ? ' on ' + formatDate(d.test_date) : '') + '.',
+      'Prueba completada' + (d.test_date ? ' el ' + spanishDate(d.test_date) : '') + '.');
     msTestCard.style.display = 'block';
-    msTestCard.innerHTML = '<span class="badge badge-done">Completed</span>';
-    if (d.total_score) {
-      msTestCard.innerHTML += ' <span style="margin-left:8px;font-size:14px;color:var(--muted);">' + d.total_score + ' / ' + TOTAL_MARKS + '</span>';
-    }
+    var testHtml = '<div class="hub-result">' + badge('success', 'check_small', 'Completed', 'Completada');
+    if (d.total_score) testHtml += '<span class="hub-score">' + escHtml(String(d.total_score)) + ' / ' + TOTAL_MARKS + '</span>';
+    testHtml += '</div>';
     if (settings.allow_retake_test) {
-      msTestCard.innerHTML += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--rule);">' +
-        '<a href="src/student-initial-test.html" style="font-size:13px;color:var(--rust);text-decoration:none;">↩ Re-take Placement Test</a>' +
-        '<span style="font-size:11px;color:var(--muted);margin-left:8px;">(approved by your teacher)</span></div>';
+      testHtml += '<p class="hub-retake"><a href="src/student-initial-test.html">Re-take the placement test · Repetir la prueba de nivel</a>' +
+        ' <span class="hub-sub">' + bi('(approved by your teacher)', '(aprobado por tu profesor)') + '</span></p>';
     }
+    msTestCard.innerHTML = testHtml;
   } else {
-    msTest.classList.add('active');
-    msTestDesc.textContent = 'Take the English proficiency test so your teacher can find the right level for you.';
+    msTestDesc.innerHTML = bi('Take the English proficiency test so your teacher can find the right level for you.',
+      'Haz la prueba de inglés para que tu profesor encuentre el nivel adecuado para ti.');
+    msTestCard.style.display = 'none';
   }
 
-  // ── Milestone 2: Level Assignment ──
-  const msLevel = document.getElementById('ms-level');
+  // ── Level card ──
   const msLevelDesc = document.getElementById('ms-level-desc');
   const msLevelCard = document.getElementById('ms-level-card');
-
   if (hasLevel) {
-    msLevel.classList.add('done');
-    msLevel.classList.remove('active');
-    const info = LEVEL_INFO[d.cefr_level] || { name: d.cefr_level, theme: '', colour: 'var(--ink)' };
-    msLevelDesc.textContent = 'Your teacher has placed you at level ' + d.cefr_level + '.';
+    const info = LEVEL_INFO[d.cefr_level] || { name: d.cefr_level, theme: '', name_es: d.cefr_level, theme_es: '' };
+    msLevelDesc.innerHTML = bi('Your teacher has placed you at level ' + d.cefr_level + '.', 'Tu profesor te asignó el nivel ' + d.cefr_level + '.');
     msLevelCard.style.display = 'block';
     msLevelCard.innerHTML =
-      '<span class="badge badge-level">' + d.cefr_level + '</span> ' +
-      '<span style="font-size:15px;font-weight:600;margin-left:6px;">' + escHtml(info.name) + '</span>' +
-      '<br><span style="font-size:13px;color:var(--muted);font-style:italic;">' + escHtml(info.theme) + '</span>';
+      '<div class="hub-level"><span class="hub-level__code">' + escHtml(d.cefr_level) + '</span>' +
+      '<div><div class="hub-level__name">' + escHtml(info.name) + ' · ' + escHtml(info.name_es || info.name) + '</div>' +
+      '<div class="hub-level__theme">' + escHtml(info.theme) + (info.theme_es ? ' · ' + escHtml(info.theme_es) : '') + '</div></div></div>';
   } else if (testDone) {
-    msLevel.classList.add('active');
-    msLevelDesc.textContent = 'Your teacher is reviewing your test. You will see your level here once it is ready.';
+    msLevelDesc.innerHTML = bi('Your teacher is reviewing your test. You will see your level here once it is ready.',
+      'Tu profesor está revisando tu prueba. Verás tu nivel aquí cuando esté listo.');
     msLevelCard.style.display = 'block';
-    msLevelCard.innerHTML = '<span class="badge badge-pending">Awaiting review</span>';
+    msLevelCard.innerHTML = badge('warning', 'hourglass_top', 'Awaiting review', 'En revisión');
   } else {
-    msLevelDesc.textContent = 'After your teacher reviews the test, you will be assigned a level.';
+    msLevelDesc.innerHTML = bi('After your teacher reviews the test, you will be assigned a level.',
+      'Cuando tu profesor revise la prueba, recibirás tu nivel.');
+    msLevelCard.style.display = 'none';
   }
 
-  // ── Milestone 3: Course ──
-  const msCourse = document.getElementById('ms-course');
+  // ── Course card ──
   const msCourseDesc = document.getElementById('ms-course-desc');
   const msCourseCard = document.getElementById('ms-course-card');
-
-  if (courseComplete) {
-    msCourse.classList.add('done');
-    msCourse.classList.remove('active');
-    msCourseDesc.textContent = courseLabel + 'You completed all ' + COURSE_DAYS + ' lessons. Well done!';
+  const courseEn = courseNum > 1 ? 'Course ' + courseNum + ': ' : '';
+  const courseEs = courseNum > 1 ? 'Curso ' + courseNum + ': ' : '';
+  if (courseStarted) {
+    const pct = Math.round((Math.min(courseDays, COURSE_DAYS) / COURSE_DAYS) * 100);
+    msCourseDesc.innerHTML = courseComplete
+      ? bi(courseEn + 'You completed all ' + COURSE_DAYS + ' lessons. Well done!', courseEs + 'Completaste las ' + COURSE_DAYS + ' lecciones. ¡Muy bien!')
+      : bi(courseEn + 'You have completed ' + courseDays + ' of ' + COURSE_DAYS + ' lessons. Next up: Day ' + nextDay + '.',
+           courseEs + 'Completaste ' + courseDays + ' de ' + COURSE_DAYS + ' lecciones. Sigue el día ' + nextDay + '.');
     msCourseCard.style.display = 'block';
-    msCourseCard.innerHTML =
-      '<span class="badge badge-done">Complete</span>' +
-      '<div class="progress-track" style="margin-top:12px;"><div class="progress-fill" style="width:100%;"></div></div>' +
-      '<div class="progress-text">' + COURSE_DAYS + ' / ' + COURSE_DAYS + ' lessons</div>';
-  } else if (courseStarted) {
-    msCourse.classList.add('active');
-    const pct = Math.round((courseDays / COURSE_DAYS) * 100);
-    const nextDay = courseDays + 1;
-    msCourseDesc.textContent = courseLabel + 'You have completed ' + courseDays + ' of ' + COURSE_DAYS + ' lessons. Next up: Day ' + nextDay + '.';
-    msCourseCard.style.display = 'block';
-
-    // Build lesson history sorted by day number
     var historyHtml = '';
     if (d.lessons && d.lessons.length > 0) {
-      var lessons = d.lessons.slice().sort(function(a, b) {
-        return parseInt(a.day || 0) - parseInt(b.day || 0);
-      });
+      var lessons = d.lessons.slice().sort(function(a, b) { return parseInt(a.day || 0) - parseInt(b.day || 0); });
       var total = lessons.length;
       var MAX_VISIBLE = 5;
-
-      function lessonRowHtml(lesson) {
-        var timeStr = formatTimeSpent(lesson.time_spent);
-        var dateStr = formatLessonDate(lesson.date);
-        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--cream);border-radius:4px;font-size:13px;">' +
-          '<div><strong>Day ' + escHtml(String(lesson.day)) + '</strong>' +
-          (lesson.topic ? ' <span style="color:var(--muted);">· ' + escHtml(lesson.topic) + '</span>' : '') + '</div>' +
-          '<div style="display:flex;gap:12px;align-items:center;">' +
-          (timeStr ? '<span style="font-size:11px;color:var(--muted);">' + timeStr + '</span>' : '') +
-          (lesson.confidence ? '<span style="font-size:11px;">' + escHtml(lesson.confidence) + '</span>' : '') +
-          (dateStr ? '<span style="font-size:11px;color:var(--muted);">' + escHtml(dateStr) + '</span>' : '') +
-          '</div></div>';
-      }
-
-      historyHtml = '<div style="margin-top:16px;border-top:1px solid var(--rule);padding-top:12px;">' +
-        '<div style="font-size:9px;letter-spacing:0.25em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px;">Completed Lessons</div>' +
-        '<div style="display:flex;flex-direction:column;gap:6px;">';
-
-      // Show first N lessons (Day 1, 2, 3…), hide the rest
-      var visible = total <= MAX_VISIBLE ? lessons : lessons.slice(0, MAX_VISIBLE);
-      visible.forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
-
-      // Hidden overflow with toggle
+      historyHtml = '<div class="hub-lessons"><h3 class="hub-lessons__title">Completed lessons · Lecciones completadas</h3><ul>' +
+        lessons.slice(0, MAX_VISIBLE).map(lessonRowHtml).join('') + '</ul>';
       if (total > MAX_VISIBLE) {
-        historyHtml += '</div>' +
-          '<div id="lesson-history-all" style="display:none;flex-direction:column;gap:6px;margin-top:6px;">';
-        lessons.slice(MAX_VISIBLE).forEach(function(lesson) { historyHtml += lessonRowHtml(lesson); });
-        historyHtml += '</div>' +
-          '<a href="#" id="lesson-history-toggle" onclick="' +
-            "var el=document.getElementById('lesson-history-all');var lnk=document.getElementById('lesson-history-toggle');" +
-            "if(el.style.display==='none'){el.style.display='flex';lnk.textContent='Show less';}else{el.style.display='none';lnk.textContent='View all " + total + " lessons';}" +
-            "return false;" +
-          '" style="display:block;text-align:center;margin-top:10px;font-size:13px;color:var(--rust);text-decoration:none;font-style:italic;">View all ' + total + ' lessons</a>';
-      } else {
-        historyHtml += '</div>';
+        historyHtml += '<ul id="lesson-history-all" class="fp-hidden hub-more">' + lessons.slice(MAX_VISIBLE).map(lessonRowHtml).join('') + '</ul>' +
+          '<button type="button" class="fp-btn fp-btn--text hub-more" aria-expanded="false" aria-controls="lesson-history-all" data-total="' + total + '" onclick="toggleLessonHistory(this)">' +
+          bi('View all ' + total + ' lessons', 'Ver las ' + total + ' lecciones') + '</button>';
       }
       historyHtml += '</div>';
     }
-
     msCourseCard.innerHTML =
-      '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%;"></div></div>' +
-      '<div class="progress-text">' + courseDays + ' / ' + COURSE_DAYS + ' lessons completed</div>' +
+      '<div class="hub-progress"><div class="hub-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="' + COURSE_DAYS + '" aria-valuenow="' + Math.min(courseDays, COURSE_DAYS) + '">' +
+      '<div class="hub-progress__fill" style="width:' + pct + '%;"></div></div>' +
+      '<div class="hub-progress__text">' + bi(courseDays + ' / ' + COURSE_DAYS + ' lessons completed', courseDays + ' / ' + COURSE_DAYS + ' lecciones completadas') + '</div></div>' +
       historyHtml;
   } else if (hasLevel) {
-    msCourse.classList.add('active');
-    msCourseDesc.textContent = 'Your course is ready to begin — ' + COURSE_DAYS + ' daily lessons tailored to your level.';
+    msCourseDesc.innerHTML = bi('Your course is ready to begin: ' + COURSE_DAYS + ' daily lessons tailored to your level.',
+      'Tu curso está listo para empezar: ' + COURSE_DAYS + ' lecciones diarias para tu nivel.');
+    msCourseCard.style.display = 'none';
   } else {
-    msCourseDesc.textContent = 'A ' + COURSE_DAYS + '-day personalised course with daily lessons tailored to your level.';
+    msCourseDesc.innerHTML = bi('A ' + COURSE_DAYS + '-day personalised course with daily lessons tailored to your level.',
+      'Un curso personalizado de ' + COURSE_DAYS + ' días con lecciones diarias para tu nivel.');
+    msCourseCard.style.display = 'none';
   }
 
-  // ── CTA Section ──
+  // ── Next step ──
   const cta = document.getElementById('ctaSection');
-
+  const arrow = FP.icon('arrow_right_alt');
   if (!testDone) {
     var skipHtml = '';
     if (settings.allow_skip_test) {
-      skipHtml =
-        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--rule);">' +
-        '<p style="font-size:13px;color:var(--muted);margin-bottom:10px;">Your teacher has allowed you to start the course without the placement test.</p>' +
-        '<button class="btn-cta secondary" onclick="goToCourse()">Skip to Course</button>' +
-        '</div>';
+      skipHtml = '<div class="hub-next__extra"><p>' +
+        bi('Your teacher has allowed you to start the course without the placement test.', 'Tu profesor te permite empezar el curso sin la prueba de nivel.') +
+        '</p><button type="button" class="fp-btn fp-btn--secondary" onclick="goToCourse()">' + bi('Skip to course', 'Ir al curso') + '</button></div>';
     }
     cta.innerHTML =
-      '<p>Your first step is the placement test. It takes about 40 minutes.</p>' +
-      '<a class="btn-cta" href="src/student-initial-test.html">Take the Placement Test</a>' +
-      skipHtml;
+      '<p class="hub-next__text">' + bi('Your first step is the placement test. It takes about 40 minutes.', 'Tu primer paso es la prueba de nivel. Dura unos 40 minutos.') + '</p>' +
+      '<div class="hub-next__actions"><a class="fp-btn fp-btn--primary" href="src/student-initial-test.html">' + bi('Take the placement test', 'Hacer la prueba de nivel') + arrow + '</a></div>' + skipHtml;
   } else if (!hasLevel) {
     cta.innerHTML =
-      '<p>Your teacher will review your test soon. Check back later.</p>' +
-      '<button class="btn-cta secondary" onclick="refreshProgress()">Refresh</button>';
+      '<p class="hub-next__text">' + bi('Your teacher will review your test soon. Check back later.', 'Tu profesor revisará tu prueba pronto. Vuelve más tarde.') + '</p>' +
+      '<div class="hub-next__actions"><button type="button" class="fp-btn fp-btn--secondary" onclick="refreshProgress()">' + bi('Refresh', 'Actualizar') + '</button></div>';
   } else if (courseComplete) {
     cta.innerHTML =
-      '<p>You have completed the FluentPath course. Talk to your teacher about next steps.</p>';
+      '<p class="hub-next__text">' + bi('You have completed the FluentPath course. Talk to your teacher about next steps.', 'Completaste el curso de FluentPath. Habla con tu profesor sobre los próximos pasos.') + '</p>';
   } else {
-    const nextDay = courseDays + 1;
     cta.innerHTML =
-      '<p>Ready for Day ' + nextDay + '? Your teacher will be with you on the video call.</p>' +
-      '<button class="btn-cta" onclick="goToCourse()">Start Day ' + nextDay + ' Lesson</button>';
+      '<p class="hub-next__text">' + bi('Ready for Day ' + nextDay + '? Your teacher will be with you on the video call.', '¿Todo listo para el día ' + nextDay + '? Tu profesor estará contigo en la videollamada.') + '</p>' +
+      '<div class="hub-next__actions"><button type="button" class="fp-btn fp-btn--primary" onclick="goToCourse()">' + bi('Start Day ' + nextDay + ' lesson', 'Empezar la lección del día ' + nextDay) + arrow + '</button></div>';
   }
 
   renderAchievements(d);
@@ -437,12 +478,12 @@ function logout() {
    ───────────────────────────────────────────────────────────── */
 
 var ACHIEVEMENTS = [
-  { id: 'first_steps',     icon: '🎯', name: 'First Steps',      test: function(d) { return d.test_completed; } },
-  { id: 'level_up',        icon: '📊', name: 'Level Up',         test: function(d) { return !!d.cefr_level; } },
-  { id: 'day_one',         icon: '📝', name: 'Day One',          test: function(d) { return daysCompleted(d) >= 1; } },
-  { id: 'five_streak',     icon: '🔥', name: '5-Day Streak',     test: function(d) { return daysCompleted(d) >= 5; } },
-  { id: 'halfway',         icon: '⭐', name: 'Halfway There',    test: function(d) { return daysCompleted(d) >= Math.floor(COURSE_DAYS / 2); } },
-  { id: 'graduate',        icon: '🎓', name: 'Graduate',         test: function(d) { return daysCompleted(d) >= COURSE_DAYS; } },
+  { id: 'first_steps', icon: 'target',                name: 'First Steps',   name_es: 'Primeros pasos',    test: function(d) { return d.test_completed; } },
+  { id: 'level_up',    icon: 'bar_chart',             name: 'Level Placed',  name_es: 'Nivel asignado',    test: function(d) { return !!d.cefr_level; } },
+  { id: 'day_one',     icon: 'description',           name: 'Day One',       name_es: 'Primer día',        test: function(d) { return daysCompleted(d) >= 1; } },
+  { id: 'five_streak', icon: 'local_fire_department', name: '5 Days Done',   name_es: '5 días completados', test: function(d) { return daysCompleted(d) >= 5; } },
+  { id: 'halfway',     icon: 'star',                  name: 'Halfway There', name_es: 'A mitad de camino', test: function(d) { return daysCompleted(d) >= Math.floor(COURSE_DAYS / 2); } },
+  { id: 'graduate',    icon: 'school',                name: 'Course Complete', name_es: 'Curso completo',  test: function(d) { return daysCompleted(d) >= COURSE_DAYS; } },
 ];
 
 /** Previously earned achievement IDs (stored in localStorage to detect new ones). */
@@ -459,16 +500,19 @@ function renderAchievements(d) {
   var badges = ACHIEVEMENTS.map(function(a) {
     var isEarned = a.test(d);
     if (isEarned) earned.push(a.id);
-    return '<div class="achieve-badge ' + (isEarned ? 'earned' : 'unearned') + '">' +
-      '<div class="achieve-icon">' + a.icon + '</div>' +
-      '<div class="achieve-label">' + escHtml(a.name) + '</div>' +
-      '</div>';
+    return '<li class="achieve-badge ' + (isEarned ? 'earned' : 'unearned') + '">' +
+      FP.icon(a.icon, { fill: isEarned }) +
+      '<span>' + escHtml(a.name) + '<span class="fp-bi__es" lang="es">' + escHtml(a.name_es) + '</span></span>' +
+      (isEarned
+        ? '<span class="fp-sr-only">Earned. <span lang="es">Logrado.</span></span>'
+        : '<span class="achieve-state">Locked · Bloqueado</span>') +
+      '</li>';
   }).join('');
 
   section.style.display = 'block';
   section.innerHTML =
-    '<div class="achieve-section-title">ACHIEVEMENTS</div>' +
-    '<div class="achieve-grid">' + badges + '</div>';
+    '<h2 class="achieve-title">Achievements · Logros</h2>' +
+    '<ul class="achieve-grid">' + badges + '</ul>';
 
   // Show toast for newly unlocked achievements
   var newlyEarned = earned.filter(function(id) { return previousAchievements.indexOf(id) < 0; });
@@ -485,10 +529,10 @@ function renderAchievements(d) {
 }
 
 function showAchievementToast(achievement) {
-  // Icon is still the emoji here; the icon pass (Phase C) swaps it for FP.icon.
   FP.ui.toast(
-    '<strong>' + achievement.icon + '</strong> Achievement unlocked: <em>' + escHtml(achievement.name) + '</em>',
-    { variant: 'success', html: true, iconHtml: '' });
+    'Achievement unlocked: <strong>' + escHtml(achievement.name) + '</strong>' +
+    '<span class="fp-bi__es" lang="es">Logro desbloqueado: ' + escHtml(achievement.name_es) + '</span>',
+    { variant: 'success', html: true, iconHtml: FP.icon(achievement.icon, { className: 'fp-banner__icon' }) });
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -497,8 +541,8 @@ function showAchievementToast(achievement) {
 function showOfflineBanner() {
   FP.ui.banner({
     id: 'fp-offline-banner', variant: 'offline', position: 'bottom',
-    html: 'Offline — showing cached data',
-    actions: [{ label: 'Retry', onclick: function () { refreshProgress(); } }],
+    html: bi('You are offline. Showing saved data.', 'Sin conexión. Mostrando datos guardados.'),
+    actions: [{ label: 'Retry · Reintentar', onclick: function () { refreshProgress(); } }],
   });
 }
 

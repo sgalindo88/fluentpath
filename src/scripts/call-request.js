@@ -19,6 +19,7 @@ var CallRequest = (function () {
     dayNumber: '',
     currentRequest: null, // { id, status, call_link, ... }
     btnEl: null,
+    wrapEl: null,
   };
 
   function getStudentName() {
@@ -39,38 +40,61 @@ var CallRequest = (function () {
 
   // ── UI ─────────────────────────────────────────────────
 
+  var bi = FP.ui.bi;
+
+  /** The floating control: a wrapper (fixed bottom-right) holding the main button and, while
+   *  a request is pending, a separate Refresh button (never a button nested in a button). */
   function ensureButton() {
     if (state.btnEl) return state.btnEl;
+    var wrap = document.createElement('div');
+    wrap.id = 'fp-call-wrap';
+    wrap.className = 'fp-fab';
     var btn = document.createElement('button');
     btn.id = 'fp-call-btn';
     btn.type = 'button';
-    btn.className = 'fp-btn fp-btn--secondary fp-fab';
+    btn.className = 'fp-btn fp-btn--secondary';
     btn.onclick = onButtonClick;
-    document.body.appendChild(btn);
+    wrap.appendChild(btn);
+    document.body.appendChild(wrap);
     state.btnEl = btn;
+    state.wrapEl = wrap;
     return btn;
   }
 
   function renderButton() {
     var btn = ensureButton();
+    var wrap = state.wrapEl;
+    var oldRefresh = document.getElementById('fp-call-refresh');
+    if (oldRefresh) oldRefresh.remove();
     btn.disabled = false;
-    btn.classList.remove('is-pending', 'fp-btn--primary');
+    btn.onclick = onButtonClick;
+    btn.classList.remove('fp-btn--primary');
     btn.classList.add('fp-btn--secondary');
+    wrap.classList.remove('is-pending');
     if (!state.currentRequest) {
-      btn.innerHTML = '📹 <span>Request a Video Call</span>';
+      btn.innerHTML = FP.icon('videocam') + bi('Request a video call', 'Pedir una videollamada');
       return;
     }
     if (state.currentRequest.status === 'pending') {
-      btn.classList.add('is-pending');
-      btn.innerHTML = '⏳ <span>Request pending…</span> <span class="fp-fab__refresh" onclick="event.stopPropagation();CallRequest.refresh()">Refresh</span>';
+      wrap.classList.add('is-pending');
+      btn.setAttribute('aria-disabled', 'true');
+      btn.onclick = null;
+      btn.innerHTML = FP.icon('hourglass_top') + bi('Request pending…', 'Solicitud pendiente…');
+      var r = document.createElement('button');
+      r.id = 'fp-call-refresh';
+      r.type = 'button';
+      r.className = 'fp-btn fp-btn--secondary';
+      r.innerHTML = bi('Refresh', 'Actualizar');
+      r.onclick = refresh;
+      wrap.appendChild(r);
       return;
     }
+    btn.removeAttribute('aria-disabled');
     if (state.currentRequest.status === 'sent' && state.currentRequest.call_link) {
       btn.classList.remove('fp-btn--secondary');
       btn.classList.add('fp-btn--primary');
-      btn.innerHTML = '📹 <span>Join Teacher\'s Call</span>';
+      btn.innerHTML = FP.icon('videocam') + bi("Join teacher's call", 'Unirme a la llamada del profesor');
       btn.onclick = function () { window.open(state.currentRequest.call_link, '_blank'); };
-      return;
     }
   }
 
@@ -81,10 +105,10 @@ var CallRequest = (function () {
     }
     FP.ui.banner({
       id: 'fp-call-banner', variant: 'success', position: 'top',
-      html: '📹 Your teacher sent a call link.',
+      html: bi('Your teacher sent a call link.', 'Tu profesor te envió un enlace para la llamada.'),
       actions: [
-        { label: 'Join Call', href: state.currentRequest.call_link },
-        { label: 'Dismiss', onclick: function () { CallRequest.dismiss(); } },
+        { label: 'Join call · Unirme', href: state.currentRequest.call_link },
+        { label: 'Dismiss · Descartar', onclick: function () { CallRequest.dismiss(); } },
       ],
     });
   }
@@ -94,7 +118,7 @@ var CallRequest = (function () {
   async function onButtonClick() {
     if (state.currentRequest) return; // already have a request
     var name = getStudentName();
-    if (!name) { alert('Please enter your name first.'); return; }
+    if (!name) { showToast(bi('Please log in first.', 'Inicia sesión primero.'), true, true); return; }
     try {
       await apiPost('request_video_call', {
         student_name: name,
@@ -104,11 +128,11 @@ var CallRequest = (function () {
       // Optimistic update — we don't get the id back from no-cors POST
       state.currentRequest = { status: 'pending', call_link: '' };
       renderButton();
-      showToast('Request sent — your teacher will send you a call link soon.');
+      showToast(bi('Request sent. Your teacher will send you a call link soon.', 'Solicitud enviada. Tu profesor te enviará un enlace pronto.'), false, true);
       // Poll after 3s to pick up the real id
       setTimeout(refresh, 3000);
     } catch (e) {
-      showToast('Could not send request. Please try again.', true);
+      showToast(bi('Could not send the request. Please try again.', 'No pudimos enviar la solicitud. Inténtalo de nuevo.'), true, true);
     }
   }
 
@@ -142,8 +166,8 @@ var CallRequest = (function () {
     renderBanner();
   }
 
-  function showToast(msg, isError) {
-    FP.ui.toast(msg, { variant: isError ? 'error' : 'info' });
+  function showToast(msg, isError, isHtml) {
+    FP.ui.toast(msg, { variant: isError ? 'error' : 'success', html: !!isHtml });
   }
 
   // ── INIT ───────────────────────────────────────────────

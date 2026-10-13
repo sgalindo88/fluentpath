@@ -1,133 +1,119 @@
-/* ── Reset ─────────────────────────────────────── */
-*{margin:0;padding:0;box-sizing:border-box;}
-html{background:var(--paper);color:var(--ink);}
-body{font-family:var(--font-family-primary);font-weight:400;line-height:1.7;min-height:100vh;}
+/* ═══════════════════════════════════════════════════════════════
+   FluentPath — Hub (app.html): log in, paywall, loading, route, next step
+   Built from tokens.css + components.css. Single column; hub max-width 960,
+   content max-width 720 for reading. Spanish is 20-30% longer: everything wraps.
+   ═══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; line-height: 1.6; min-height: 100vh; min-height: 100dvh; }
+h1, h2, h3 { margin: 0; font-weight: var(--font-weight-bold); line-height: 1.25; }
+p { margin: 0; }
+a { color: var(--fp-navy-900); }
 
-/* ── Shared Typography ─────────────────────────────────────── */
-h1,h2,h3{font-family:var(--font-family-primary);font-weight:700;line-height:1.2;}
-.label{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;font-weight:600;color:var(--muted);}
+/* ── Screens ───────────────────────────────────────────────── */
+.screen { display: none; min-height: 100vh; min-height: 100dvh; }
+.screen.active { display: block; animation: fadeIn 0.3s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .screen.active { animation: none; } }
 
-/* ── Layout ────────────────────────────────────────────────── */
-.screen{display:none;min-height:100vh;padding:40px 24px 80px;}
-.screen.active{display:block;animation:fadeIn 0.35s ease both;}
-.container{max-width:600px;margin:0 auto;}
-
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
-
-/* ── Welcome Screen ────────────────────────────────────────── */
-.welcome-header{text-align:center;margin-bottom:48px;padding-top:60px;}
-.welcome-header h1{font-size:clamp(36px,7vw,56px);margin-bottom:8px;}
-.welcome-header h1 .accent{color:var(--rust);font-style:italic;}
-.welcome-header p{color:var(--muted);font-size:16px;font-style:italic;max-width:380px;margin:0 auto;}
-.welcome-divider{width:60px;height:2px;background:var(--gold);margin:20px auto 0;}
-
-.login-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:36px 32px;margin-bottom:24px;}
-.login-card label{display:block;font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:6px;}
-.login-card input{width:100%;border:none;border-bottom:2px solid var(--rule);background:transparent;font-family:var(--font-family-primary);font-size:18px;padding:8px 0;color:var(--ink);outline:none;transition:border-color 0.2s;}
-.login-card input:focus{border-bottom-color:var(--rust);}
-.login-hint{font-size:13px;color:var(--muted);margin-top:12px;font-style:italic;}
-
-.btn-enter{display:block;width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:var(--font-family-primary);font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;}
-.btn-enter:hover{background:var(--rust);}
-.btn-enter:disabled{opacity:0.35;cursor:not-allowed;}
-
-.welcome-footer{text-align:center;margin-top:40px;font-size:12px;color:var(--muted);}
-.welcome-footer a{color:var(--rust);text-decoration:none;}
-
-/* ── Loading Screen ────────────────────────────────────────── */
-.loading-center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;}
-.spinner{width:36px;height:36px;border:3px solid var(--rule);border-top-color:var(--rust);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:20px;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-/* ── Dashboard Screen ──────────────────────────────────────── */
-.dash-header{padding-top:40px;margin-bottom:36px;}
-.dash-greeting{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:4px;}
-.dash-name{font-size:clamp(28px,5vw,40px);margin-bottom:4px;}
-.dash-subtitle{font-size:14px;color:var(--muted);}
-
-/* ── Journey Timeline ──────────────────────────────────────── */
-.journey{position:relative;padding-left:40px;margin-bottom:40px;}
-.journey::before{content:'';position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--rule);}
-
-.milestone{position:relative;margin-bottom:32px;}
-.milestone:last-child{margin-bottom:0;}
-
-.milestone-dot{position:absolute;left:-40px;top:4px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-family-primary);font-size:14px;font-weight:700;border:2px solid var(--rule);background:var(--paper);color:var(--muted);transition:all 0.3s;}
-.milestone.active .milestone-dot{border-color:var(--rust);background:var(--rust);color:white;}
-.milestone.done .milestone-dot{border-color:var(--green);background:var(--green);color:white;}
-
-.milestone-label{font-size:10px;letter-spacing:0.25em;text-transform:uppercase;font-weight:600;color:var(--muted);margin-bottom:2px;}
-.milestone-title{font-family:var(--font-family-primary);font-size:20px;font-weight:700;margin-bottom:4px;}
-.milestone-desc{font-size:14px;color:var(--muted);line-height:1.5;}
-
-.milestone-card{background:var(--cream);border:1px solid var(--rule);border-radius:6px;padding:20px;margin-top:12px;}
-
-/* ── Status Badges ─────────────────────────────────────────── */
-.badge{display:inline-block;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;font-weight:600;padding:4px 10px;border-radius:3px;vertical-align:middle;}
-.badge-pending{background:#fdf4e7;color:var(--gold);border:1px solid #e8d5a8;}
-.badge-done{background:var(--green-bg);color:var(--green);border:1px solid #c0dcc8;}
-.badge-not-started{background:var(--cream);color:var(--muted);border:1px solid var(--rule);}
-.badge-level{background:var(--blue-bg);color:var(--blue);border:1px solid #b8cce8;font-size:13px;font-weight:700;padding:5px 14px;font-family:var(--font-family-primary);letter-spacing:0.05em;}
-
-/* ── Progress Bar ──────────────────────────────────────────── */
-.progress-track{width:100%;height:8px;background:var(--rule);border-radius:4px;overflow:hidden;margin-top:10px;}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:4px;transition:width 0.6s ease;}
-.progress-text{font-size:12px;color:var(--muted);margin-top:4px;}
-
-/* ── CTA Section ───────────────────────────────────────────── */
-.cta-section{text-align:center;margin-top:40px;padding-top:32px;border-top:1px solid var(--rule);}
-.cta-section p{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:16px;}
-.btn-cta{display:inline-block;padding:16px 40px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:var(--font-family-primary);font-size:17px;font-style:italic;cursor:pointer;transition:background 0.2s;text-decoration:none;}
-.btn-cta:hover{background:var(--rust);}
-.btn-cta.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
-.btn-cta.secondary:hover{border-color:var(--rust);color:var(--rust);}
-
-/* ── Logout link ───────────────────────────────────────────── */
-.dash-logout{font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px;transition:color 0.2s;}
-.dash-logout:hover{color:var(--rust);}
-
-/* ── Info Card ─────────────────────────────────────────────── */
-.info-card{background:var(--blue-bg);border:1px solid #b8cce8;border-radius:6px;padding:16px 20px;margin-top:24px;font-size:13px;color:var(--blue);line-height:1.6;}
-
-/* ── Responsive ────────────────────────────────────────────── */
-@media(max-width:600px){
-  .screen{padding:24px 16px 60px;}
-  .welcome-header{padding-top:32px;margin-bottom:32px;}
-  .login-card{padding:24px 20px;}
-  .dash-header{padding-top:24px;}
-  .milestone-card{padding:16px;}
-  .achieve-grid{gap:10px;}
-  .achieve-badge{min-width:70px;padding:10px 8px;}
-  .achieve-icon{font-size:20px;}
-  .achieve-label{font-size:9px;}
+/* ── Log in, paywall, loading ──────────────────────────────── */
+.auth {
+  max-width: 440px; margin: 0 auto; padding: var(--space-12) var(--space-4) var(--space-8);
+  padding-left: max(var(--space-4), env(safe-area-inset-left)); padding-right: max(var(--space-4), env(safe-area-inset-right));
 }
+.auth--center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; gap: var(--space-4); }
+.auth__brand { text-align: center; margin-bottom: var(--space-8); }
+.auth__tagline { margin-top: var(--space-3); color: var(--text-primary); }
+.auth__card { display: flex; flex-direction: column; gap: var(--space-4); }
+.auth__title { font-size: var(--font-size-h2); font-weight: var(--font-weight-medium); }
+.auth__hint { font-size: var(--font-size-sm); color: var(--text-muted); }
+.auth__links { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin-top: var(--space-6); text-align: center; font-size: var(--font-size-sm); }
+.auth__links a { display: inline-flex; flex-direction: column; align-items: center; min-height: 44px; justify-content: center; padding: 0 var(--space-3); color: var(--fp-navy-900); font-weight: var(--font-weight-semibold); text-underline-offset: 3px; }
+.auth__links .fp-icon { vertical-align: -0.2em; }
+.auth__footer { text-align: center; margin-top: var(--space-8); font-size: var(--font-size-sm); color: var(--text-muted); }
+.hub-spinner { width: 36px; height: 36px; border-width: 3px; color: var(--fp-navy-900); }
 
-/* ── Achievements ── */
-.achieve-section-title {
-  font-size:9px; letter-spacing:0.25em; text-transform:uppercase;
-  color:var(--muted); font-weight:600; margin-bottom:12px;
+/* ── Hub shell ─────────────────────────────────────────────── */
+.hub {
+  max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-12);
+  padding-left: max(var(--space-4), env(safe-area-inset-left)); padding-right: max(var(--space-4), env(safe-area-inset-right));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom)); /* room for the floating call button */
 }
-.achieve-grid {
-  display:flex; gap:12px; flex-wrap:wrap;
-}
-.achieve-badge {
-  display:flex; flex-direction:column; align-items:center;
-  min-width:80px; padding:12px 10px; border-radius:8px;
-  border:1.5px solid var(--rule); background:var(--cream);
-  text-align:center; transition:all 0.3s;
-}
-.achieve-badge.earned {
-  border-color:var(--gold); background:white;
-}
-.achieve-badge.unearned {
-  opacity:0.35; filter:grayscale(1);
-}
-.achieve-icon { font-size:24px; margin-bottom:4px; }
-.achieve-label { font-size:10px; font-weight:600; color:var(--ink); line-height:1.3; }
+@media (min-width: 600px) { .hub { padding: var(--space-8) var(--space-6) var(--space-12); gap: var(--space-6); } }
+.hub-home { display: inline-flex; align-items: center; min-height: 44px; }
+.hub-hero { padding: var(--space-2) 0; }
+.hub-eyebrow { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.hub-eyebrow .fp-bi__es { text-transform: none; letter-spacing: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-regular); }
+.hub-name { font-size: var(--font-size-h1); margin: var(--space-1) 0; overflow-wrap: anywhere; }
+.hub-sub { color: var(--text-muted); font-size: var(--font-size-body); }
+.hub-card-title { font-size: var(--font-size-h3); margin-top: var(--space-1); }
+.hub-card-title .fp-bi__es { font-weight: var(--font-weight-regular); }
+.hub-desc { margin-top: var(--space-2); color: var(--text-muted); font-size: var(--font-size-sm); }
+.hub-desc .fp-bi__es { font-size: 1em; }
 
+/* ── The route (three waypoints, §6.7) ─────────────────────── */
+.route { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; align-items: flex-start; }
+.route__step { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: 0 var(--space-1); min-width: 0; }
+/* connector to the next waypoint: solid navy once completed, dashed ahead */
+.route__step:not(:last-child)::after {
+  content: ''; position: absolute; top: 9px; left: calc(50% + 14px); right: calc(-50% + 14px); height: 0;
+  border-top: 2px dashed var(--fp-slate-600);
+}
+.route__step.is-completed:not(:last-child)::after { border-top: 2px solid var(--fp-navy-900); }
+.route__step .fp-waypoint { position: relative; z-index: 1; margin-top: 0; }
+.route__step:not(.is-current):not(.is-completed) .fp-waypoint { margin-top: 3px; margin-bottom: 3px; }
+.route__label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: 1.3; }
+.route__label .fp-bi__es { font-weight: var(--font-weight-regular); }
+.route__meta { font-size: var(--font-size-xs); color: var(--text-muted); font-weight: var(--font-weight-semibold); min-height: 1em; }
+.route__step.is-current .route__label { color: var(--fp-navy-900); }
+.route__step.is-upcoming .route__label { color: var(--text-muted); }
 
-/* Phase B: classes that replace inline style="" in app.html */
-.login-label-spaced { display: block; margin-top: 14px; }
-.login-hint.is-error { color: var(--text-error); }
-.loading-note { color: var(--muted); font-style: italic; }
+/* ── Next step (the one thing to do now) ───────────────────── */
+.hub-next { border-left: 4px solid var(--fp-coral-500); display: flex; flex-direction: column; gap: var(--space-4); }
+.hub-next__text { font-size: var(--font-size-body-lg); font-weight: var(--font-weight-medium); line-height: 1.5; }
+.hub-next__text .fp-bi__es { font-size: var(--font-size-body); font-weight: var(--font-weight-regular); }
+.hub-next__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: stretch; }
+.hub-next__actions .fp-btn { flex: 1 1 220px; }
+.hub-next__extra { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); font-size: var(--font-size-sm); color: var(--text-muted); display: flex; flex-direction: column; gap: var(--space-3); align-items: flex-start; }
+
+/* ── Detail cards ──────────────────────────────────────────── */
+.hub-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-4); }
+@media (min-width: 768px) { .hub-grid { grid-template-columns: 1fr 1fr; gap: var(--space-6); } }
+.hub-detail { display: flex; flex-direction: column; }
+#ms-test-card, #ms-level-card, #ms-course-card { margin-top: var(--space-4); }
+.hub-result { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.hub-score { font-weight: var(--font-weight-bold); }
+.hub-level { display: flex; align-items: center; gap: var(--space-3); }
+.hub-level__code { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; height: 52px; border-radius: var(--radius-md); background: var(--fp-navy-900); color: var(--fp-cream-50); font-size: var(--font-size-h3); font-weight: var(--font-weight-bold); }
+.hub-level__name { font-weight: var(--font-weight-bold); }
+.hub-level__theme { font-size: var(--font-size-sm); color: var(--text-muted); }
+.hub-retake { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); font-size: var(--font-size-sm); }
+.hub-retake a { font-weight: var(--font-weight-semibold); }
+
+/* course progress */
+.hub-progress { display: flex; flex-direction: column; gap: var(--space-2); }
+.hub-progress__track { height: 8px; border-radius: var(--radius-full); background: var(--fp-grey-300); overflow: hidden; }
+.hub-progress__fill { height: 100%; border-radius: var(--radius-full); background: var(--fp-green-500); transition: width 0.6s ease; }
+@media (prefers-reduced-motion: reduce) { .hub-progress__fill { transition: none; } }
+.hub-progress__text { font-size: var(--font-size-sm); color: var(--text-muted); }
+.hub-lessons { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
+.hub-lessons__title { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-2); }
+.hub-lessons ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.hub-lesson { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-2) var(--space-3); background: var(--surface-primary); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
+.hub-lesson__topic { color: var(--text-muted); }
+.hub-lesson__meta { display: flex; align-items: center; gap: var(--space-3); color: var(--text-muted); font-size: var(--font-size-xs); }
+.hub-lesson__meta .fp-icon { width: 1.25rem; height: 1.25rem; color: var(--fp-navy-900); }
+.hub-more { margin-top: var(--space-2); }
+
+/* ── Achievements ──────────────────────────────────────────── */
+.achieve-title { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-3); }
+.achieve-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--space-3); list-style: none; margin: 0; padding: 0; }
+.achieve-badge { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-3) var(--space-2); text-align: center; border-radius: var(--radius-md); border: 1.5px solid var(--border-accessible); background: var(--fp-white); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); line-height: 1.3; }
+.achieve-badge .fp-icon { width: 2rem; height: 2rem; }
+.achieve-badge.earned { border-color: var(--fp-navy-900); }
+.achieve-badge.earned .fp-icon { color: var(--fp-navy-900); }
+/* Not yet earned: dashed border, muted, and the word "Locked", so it never relies on colour or opacity alone */
+.achieve-badge.unearned { border: 1px dashed var(--border-subtle); background: var(--surface-primary); color: var(--text-muted); }
+.achieve-badge.unearned .fp-icon { color: var(--fp-grey-300); }
+.achieve-state { display: block; font-weight: var(--font-weight-regular); color: var(--text-muted); }
+.achieve-badge .fp-bi__es { font-weight: var(--font-weight-regular); }

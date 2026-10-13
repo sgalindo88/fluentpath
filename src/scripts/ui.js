@@ -109,5 +109,23 @@ FP.ui = (function () {
     if (el) el.remove();
   }
 
-  return { toast: toast, banner: banner, removeBanner: removeBanner };
+  /** English with its Spanish line underneath. Both arguments are plain text (escaped here). */
+  function bi(en, es) {
+    return '<span class="fp-bi">' + esc(en) + '<span class="fp-bi__es" lang="es">' + esc(es) + '</span></span>';
+  }
+
+  /** "1 de octubre de 2026" / short "1 oct" for a YYYY-MM-DD or ISO string. */
+  function dateEs(dateStr, style) {
+    if (!dateStr) return '';
+    try {
+      var str = String(dateStr);
+      var d = new Date(str.length > 10 ? str : str + 'T00:00:00');
+      if (isNaN(d.getTime())) return str;
+      return style === 'short'
+        ? d.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+        : d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (e) { return String(dateStr); }
+  }
+
+  return { toast: toast, banner: banner, removeBanner: removeBanner, bi: bi, dateEs: dateEs, esc: esc };
 })();

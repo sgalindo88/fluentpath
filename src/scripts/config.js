@@ -49,12 +49,12 @@ FP.APP_TOKEN = '04eaecb3a0ccb2dc91c6b0da61a8d875';
 
 // ── CEFR Levels ──────────────────────────────────────────────
 FP.LEVELS = {
-  A1: { name: 'Beginner',            theme: 'Everyday Survival',    colour: '#b8471e' },
-  A2: { name: 'Elementary',           theme: 'Community & Life',     colour: '#c9933a' },
-  B1: { name: 'Intermediate',         theme: 'The Workplace',        colour: '#2e6e45' },
-  B2: { name: 'Upper-Intermediate',   theme: 'Career & Society',     colour: '#1e4d8c' },
-  C1: { name: 'Advanced',             theme: 'Professional Mastery', colour: '#5b3e8a' },
-  C2: { name: 'Proficiency',          theme: 'Full Fluency',         colour: '#1a1208' },
+  A1: { name: 'Beginner',            theme: 'Everyday Survival',    name_es: 'Principiante',        theme_es: 'Supervivencia diaria' },
+  A2: { name: 'Elementary',          theme: 'Community & Life',     name_es: 'Elemental',           theme_es: 'Comunidad y vida' },
+  B1: { name: 'Intermediate',        theme: 'The Workplace',        name_es: 'Intermedio',          theme_es: 'El trabajo' },
+  B2: { name: 'Upper-Intermediate',  theme: 'Career & Society',     name_es: 'Intermedio alto',     theme_es: 'Carrera y sociedad' },
+  C1: { name: 'Advanced',            theme: 'Professional Mastery', name_es: 'Avanzado',            theme_es: 'Dominio profesional' },
+  C2: { name: 'Proficiency',         theme: 'Full Fluency',         name_es: 'Dominio',             theme_es: 'Fluidez total' },
 };
 
 // ── Course Constants ─────────────────────────────────────────
